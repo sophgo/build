@@ -1,0 +1,16 @@
+This tool use to build pld load entry.
+
+in host compile env
+1. put the pld_tool same dir with rom, fsbl, u-boot-2021.10, ramdisk, etc.
+2. after build bl1, bl2, bl31, u-boot.bin, Image and boot.cpio.gz.img,
+    run:
+        pushd pld_tool
+        ./compile.sh
+    then cp pld_backdoor_realddr.tgz to pld server.
+
+in pld server
+1. in pld server work dir, run tar -zxvf pld_backdoor_realddr.tgz.
+2. cp script/*.tcl your_workdir/script/
+3. cp c_build/*.h your_ workdir/c_build
+if want to update bl1.bin.text, should cp bl1.bin.text to c_build dir in pld server.
+

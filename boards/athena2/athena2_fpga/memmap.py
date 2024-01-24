@@ -1,0 +1,1 @@
+../../default/memmap/athena2/memmap_ddr_4g.py

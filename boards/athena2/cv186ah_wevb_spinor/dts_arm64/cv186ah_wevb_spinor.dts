@@ -1,0 +1,63 @@
+/dts-v1/;
+#include "soph_base_arm64.dtsi"
+#include "soph_asic_spinor.dtsi"
+#include "soph_default_memmap.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0"; // "serial0:115200n8", no arguments means no re-initialization
+	};
+
+	cpus {
+		#size-cells = <0x0>;
+		#address-cells = <0x1>;
+
+		/delete-node/ cpu-map;
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+			};
+		};
+		/delete-node/ cpu@102;
+		/delete-node/ cpu@103;
+	};
+
+};
+
+&uart0 {
+	clock-frequency = <200000000>;
+	current-speed = <115200>;
+};
+
+
+&usbdrd3_0 {
+	vbus-gpio = <&porte 1 GPIO_ACTIVE_HIGH>;
+};
+
+&usbdrd3_1 {
+	vbus-gpio = <&porte 2 GPIO_ACTIVE_HIGH>;
+};

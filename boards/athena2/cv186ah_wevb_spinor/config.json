@@ -1,0 +1,17 @@
+{
+    "ddr_cfg_list": [
+        "",
+        "ddr_auto",
+        "lp4_4266_x16_1r_2s",
+        "lp4_4266_x16_2r_2s",
+		"lp4_4266_x16_1r_1s",
+        "lp4_4266_x16_2r_1s",
+        "lp4_3733_x16_1r_2s",
+        "lp4_3733_x16_2r_2s",
+        "lp4x_4266_x16_1r_2s",
+        "lp4x_4266_x16_2r_2s",
+        "ddr4_3200_x16_1s",
+        "ddr4_3200_x16_2s"
+    ],
+    "board_information": "CA53 + SPINOR 16MB + BGA SIP 128MB"
+}
