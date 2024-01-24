@@ -1,0 +1,6 @@
+{
+    "ddr_cfg_list": [
+        "lp4_x16_4ch_pld"
+    ],
+    "board_information": "FPGA"
+}
