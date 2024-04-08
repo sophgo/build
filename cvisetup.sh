@@ -364,7 +364,7 @@ function build_update()
   fi
   echo packing update image...
 
-  ./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
+    ./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
   popd
 
   pushd $OUTPUT_DIR/package_edge/$1
@@ -478,8 +478,8 @@ function cvi_setup_env()
   if [[ "$CHIP_ARCH" == "CV180X" ]];then
   export  CVIARCH="CV180X"
   fi
-  if [[ "$CHIP_ARCH" == "ATHENA2" ]];then
-  export  CVIARCH="ATHENA2"
+  if [[ "$CHIP_ARCH" == "SOPHON" ]];then
+  export  CVIARCH="SOPHON"
   fi
 
   export BRAND BUILD_VERBOSE DEBUG PROJECT_FULLNAME
@@ -641,7 +641,7 @@ function print_usage()
   printf "        ex: $ menuconfig\n\n"
   printf "    (2)\33[96m defconfig \$CHIP_ARCH \33[0m- List EVB boards(\$BOARD) by CHIP_ARCH.\n"
   "${BUILD_PATH}/scripts/boards_scan.py" --list-chip-arch
-  printf "        ex: $ defconfig athena2\n\n"
+  printf "        ex: $ defconfig sophon\n\n"
   printf "    (3)\33[92m defconfig \$BOARD\33[0m - Choose EVB board settings.\n"
   printf "        ex: $ defconfig cv186ah_wevb_emmc\n"
   printf "  -------------------------------------------------------------------------------------------------------\n"
