@@ -242,14 +242,23 @@ define copy_ko_action
 	${Q}find ${1} -name '*.ko' -exec cp -f {} ${SYSTEM_OUT_DIR}/ko/ \;
 endef
 
-ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),CV181X CV180X ATHENA2))
+ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),CV181X CV180X SOPHON))
 define copy_header_action
+	# TODO change "soph" to "$(shell echo $(CHIP_ARCH) | tr A-Z a-z)"
+	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
+	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
+	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/common/uapi/linux/* ${1}/linux/
+	${Q}cp ${OSDRV_PATH}/interdrv/${MW_VER}/usb/gadget/function/f_cvg.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/include/uapi/linux/dma-buf.h ${1}/linux/
 endef
 else
 define copy_header_action
+	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/vip/chip/$(shell echo $(CHIP_ARCH) | tr A-Z a-z)/uapi/* ${1}/linux/
+	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/base/uapi/* ${1}/linux/
+	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/uapi/* ${1}/linux/
+	${Q}cp ${OSDRV_PATH}/interdrv/${MW_VER}/usb/gadget/function/f_cvg.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/include/uapi/linux/dma-buf.h ${1}/linux/
@@ -451,7 +460,9 @@ else
 endif
 endif
 ifneq ($(wildcard ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/multi.its), )
+ifneq ($(CONFIG_BOOT_IMAGE_SINGLE_DTB), y)
 	${Q}cp -r ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/multi.its ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
+endif
 endif
 	$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -k $(RAMDISK_PATH)/keys -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
 

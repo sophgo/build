@@ -1,0 +1,88 @@
+/dts-v1/;
+#include "soph_base_riscv.dtsi"
+/* #include "soph_default_memmap.dtsi" */
+#include "cvi_board_memmap.h"
+/ {
+	memory@CVIMMAP_KERNEL_MEMORY_ADDR_64 {
+		device_type = "memory";
+		reg = <CVIMMAP_KERNEL_MEMORY_ADDR_H CVIMMAP_KERNEL_MEMORY_ADDR_L 0 CVIMMAP_KERNEL_MEMORY_SIZE>;
+	};
+#if 0
+	reserved-memory {
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		ranges;
+
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x200000>; // 2MB
+			alignment = <0x0 0x2000>; // 8KB
+			linux,cma-default;
+		};
+
+		fw_log_reserved: fw_log_mem {
+			reg = <CVIMMAP_FW_LOG_MEMORY_ADDR_H CVIMMAP_FW_LOG_MEMORY_ADDR_L 0x0 CVIMMAP_FW_LOG_MEMORY_SIZE>;
+		};
+	};
+#endif
+
+#if (HART_ID == 2)
+	chosen {
+		bootargs = "console=ttyS2,115200n8 debug loglevel=8, earlycon=sbi initcall_debug=8 root=/dev/ram0 rw rdinit=/init";
+		stdout-path = "serial2";
+	};
+#else
+	chosen {
+		bootargs = "console=ttyS1,115200n8 debug loglevel=8, earlycon=sbi initcall_debug=8 root=/dev/ram0 rw rdinit=/init";
+		stdout-path = "serial1";
+	};
+#endif
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart4;
+		serial2 = &rtc_uart;
+	};
+};
+#if 0
+&c906_cpus {
+	timebase-frequency = <1000000000>;
+
+	cpu@0 {
+		clock-frequency = <850000000>;
+	};
+};
+#endif
+
+&rtc_uart {
+	compatible = "snps,dw-apb-uart";
+	reg = <0x0 0x05022000 0x0 0x1000>;
+	reg-shift = <2>;
+	reg-io-width = <4>;
+	status = "okay";
+
+	clock-frequency = <25000000>;
+	current-speed = <115200>;
+};
+
+&uart0 {
+	compatible = "snps,dw-apb-uart";
+	reg = <0x0 0x29180000 0x0 0x1000>;
+	reg-shift = <2>;
+	reg-io-width = <4>;
+	status = "okay";
+
+	clock-frequency = <200000000>;
+	current-speed = <115200>;
+};
+
+&uart4 {
+	compatible = "snps,dw-apb-uart";
+	reg = <0x0 0x291c0000 0x0 0x1000>;
+	reg-shift = <2>;
+	reg-io-width = <4>;
+	status = "okay";
+
+	clock-frequency = <200000000>;
+	current-speed = <115200>;
+};

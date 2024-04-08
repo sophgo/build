@@ -1,0 +1,82 @@
+/dts-v1/;
+#include "soph_base_arm64.dtsi"
+//#include "soph_asic_bga.dtsi"
+#include "soph_asic_spinand.dtsi"
+#include "soph_default_memmap.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0"; // "serial0:115200n8", no arguments means no re-initialization
+	};
+
+	reserved-memory {
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		ranges;
+
+		//0x2_0000_0000 - 0x2_C000_0000 for VPP (owner: kenneth.liu@sophgo.com)
+		ion_for_vpp: ion_vpp_mem {
+			compatible = "vpp-region";
+			reg = <0x2 0x00000000 0x0 0xC0000000>; // 3G, for VPP
+		};
+	};
+
+	cpus {
+		#size-cells = <0x0>;
+		#address-cells = <0x1>;
+
+		/delete-node/ cpu-map;
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+			};
+		};
+		/delete-node/ cpu@102;
+		/delete-node/ cpu@103;
+	};
+
+};
+
+&uart0 {
+	clock-frequency = <200000000>;
+	current-speed = <115200>;
+};
+
+&i2c2 {
+	rtc@68 {
+		compatible = "dallas,ds1307";
+		reg = <0x68>;
+	};
+};
+
+&usbdrd3_0 {
+	vbus-gpio = <&porte 1 GPIO_ACTIVE_HIGH>;
+};
+
+&usbdrd3_1 {
+	vbus-gpio = <&porte 2 GPIO_ACTIVE_HIGH>;
+};

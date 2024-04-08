@@ -138,6 +138,8 @@ function parseargs()
 		LOAD_COMMAND="load \${devtype} \${devnum}:\${distro_bootpart}"
 	elif [ "${UPTYPE}" = tftp ]; then
 		LOAD_COMMAND=tftp
+	elif [ "${UPTYPE}" = usb ]; then
+		LOAD_COMMAND=cvi_utask
 	else
 		usage "no valid update type specified"
 	fi
@@ -294,9 +296,12 @@ function create_top_script()
 	script_update ""
 	script_update "echo update fip flash"
 	script_update "${LOAD_COMMAND} ${SCRIPT_ADDR} ${OTA_PATH}$(basename ${FIPCMD_SCRIPT} .cmd).scr"
-	script_update "if test \$? -ne 0; then"
-	script_update "echo sd not found partition, set distro bootpart null"
-	script_update "setenv distro_bootpart  ; ${LOAD_COMMAND} ${SCRIPT_ADDR} ${OTA_PATH}$(basename ${FIPCMD_SCRIPT} .cmd).scr; fi"
+	if [ "${UPTYPE}" != usb ]; then
+		script_update "if test \$? -ne 0; then"
+		script_update "echo sd not found partition, set distro bootpart null"
+		script_update "setenv distro_bootpart  ; ${LOAD_COMMAND} ${SCRIPT_ADDR} \
+			${OTA_PATH}$(basename ${FIPCMD_SCRIPT} .cmd).scr; fi"
+	fi
 	script_update "source ${SCRIPT_ADDR}"
 	script_update ""
 	script_update "echo update eMMC"
@@ -311,9 +316,12 @@ function create_top_script()
 	script_update ""
 	script_update "if test \"\$reset_after\" = \"1\"; then reset; fi;"
 	script_update ""
-	script_update "while true; do"
-	script_update "if test \$light = \"0\"; then led status off; setenv light 1; else led status on; setenv light 0; fi;"
-	script_update "echo \"Please remove the installation medium, then reboot\"; sleep 0.5; done;"
+	if [ "${UPTYPE}" != usb ]; then
+		script_update "while true; do"
+		script_update "if test \$light = \"0\"; then led status off; setenv light 1; \
+			else led status on; setenv light 0; fi;"
+		script_update "echo \"Please remove the installation medium, then reboot\"; sleep 0.5; done;"
+	fi
 
 	compile_script $(basename ${CURRENT_SCRIPT} .cmd)
 }
@@ -364,7 +372,7 @@ function create_fip_script()
 	else
 		cp ${SOURCE_FILES_PATH}/fip.bin ${RECOVERY_DIR}
 		touch ${RECOVERY_DIR}/BOOT
-	
+
 		script_update "# fip flash image"
 		script_update ""
 		script_update "${LOAD_COMMAND} ${IN_ADDR} ${OTA_PATH}fip.bin"

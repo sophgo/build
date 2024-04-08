@@ -193,8 +193,7 @@ config CROSS_COMPILE_SDK
 
 config MW_VER
 	string
-	default "v1" if CHIP_ARCH_cv183x || CHIP_ARCH_cv182x
-	default "v2" if CHIP_ARCH_cv181x || CHIP_ARCH_cv180x || CHIP_ARCH_athena2
+	default "v2" if CHIP_ARCH_sophon
 	help
 	  Set middleware version.
 
@@ -323,13 +322,9 @@ config MULTI_FIP
 	help
 	  "y" Enable multi FIP binary support
 
-config FIP_V1
-    def_bool y
-    depends on CHIP_ARCH_cv183x || CHIP_ARCH_cv182x
-
 config FIP_V2
     def_bool y
-    depends on CHIP_ARCH_cv181x || CHIP_ARCH_cv180x || CHIP_ARCH_athena2 || CHIP_ARCH_bm1688 || CHIP_ARCH_cv186ah
+    depends on CHIP_ARCH_sophon
 
 config OD_CLK_SEL
 	bool "Select to build fip.bin with OD(overdrive) clock setting"

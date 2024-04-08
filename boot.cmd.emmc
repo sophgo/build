@@ -1,0 +1,12 @@
+echo Athena2 boot script
+
+# check misc partition for OTA
+mmcbcbx boot-recovery mmc 0 recovery is_recovery
+mmcbcbx ota mmc 0 load_partition ota_path
+if test $is_recovery = boot-recovery; then setenv devnum 0; load ${devtype} ${devnum}:${load_partition} ${scriptaddr} /${ota_path}/boot.scr; source ${scriptaddr};fi
+
+# set kernel cmdline
+setenv bootargs ${root} console=$consoledev,$baudrate $othbootargs
+
+fatload mmc 0:1 ${uImage_addr} boot.itb
+bootm ${uImage_addr}#${DTS_TYPE}
