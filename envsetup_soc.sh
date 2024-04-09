@@ -540,9 +540,7 @@ function update_bm1688_debs(){
   BSP_DEBS1=${TOP_DIR}/ubuntu/bootloader-arm64/distro/overlay/$CVIARCH/rootfs/home/linaro/bsp-debs
   BSP_DEBS2=${TOP_DIR}/ubuntu/bootloader-arm64/distro/overlay/$CVIARCH/rootfs/home/linaro/debs
   BSP_DEBS3=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/bsp-debs
-  #SOPHLITEOS_DIR=sophliteos/release_build/latest_release
-  SOPHLITEOS_DIR=sophliteos/daily_build/gin_20240126_180755
-  SOPHLITEOS_ADDR=ftp://172.28.141.75/${SOPHLITEOS_DIR}/
+  SOPHLITEOS_DIR=${TOP_DIR}/sophliteos/release
   cd ${TOP_DIR}/ubuntu/
   if [  -e "${TOP_DIR}/ubuntu/install" ]; then
      rm -rf ${TOP_DIR}/ubuntu/install
@@ -550,9 +548,7 @@ function update_bm1688_debs(){
 
   if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_focal.tgz" ]; then
     mkdir -p ${TOP_DIR}/ubuntu/distro
-    cd ${TOP_DIR}/ubuntu/distro
-    #wget -r -nH --ftp-user=AI --ftp-password=SophgoRelease2022 ftp://172.28.141.89/distro/distro_focal.tgz
-    wget -r -nH  --ftp-user=swftp --cut-dirs=4  --ftp-password=cvitek ftp://10.80.0.5/sw_rls/third_party/distro/distro_focal.tgz
+    cat distro_focal.tar.* > distro_focal.tgz
   fi
   cd ${TOP_DIR}
 
@@ -564,15 +560,8 @@ function update_bm1688_debs(){
   cp middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${BSP_DEBS2}
   mkdir -p ${BSP_DEBS3}
   pushd ${TOP_DIR}/ubuntu/
-  if [  -e "${TOP_DIR}/ubuntu/${SOPHLITEOS_DIR}" ]; then
-      rm -rf ${TOP_DIR}/ubuntu/sophliteos
-  fi
-
-  set -x
-  wget -r -nH --ftp-user=AI --ftp-password=SophgoRelease2022 ${SOPHLITEOS_ADDR}
-  cp ${SOPHLITEOS_DIR}/liteos/sophliteos_soc_*_sdk.deb ${BSP_DEBS2}
-  cp ${SOPHLITEOS_DIR}/bmssm/bmssm_soc_*_SDK.deb       ${BSP_DEBS2}
-
+  cp ${SOPHLITEOS_DIR}/sophliteos_soc_*_sdk.deb ${BSP_DEBS2}
+  cp ${SOPHLITEOS_DIR}/bmssm_soc_*_SDK.deb       ${BSP_DEBS2}
   popd
   ln -sf ${TOP_DIR}/host-tools/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu ${TOP_DIR}/ubuntu/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
 }
