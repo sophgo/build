@@ -374,11 +374,6 @@ function build_libsophon()
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  pushd "$LIBSOPHON_PATH" || return
-    echo "running 'git submodule update --init' ..."
-    git submodule update --init
-  popd
-
   if [ ! -d "$LIBSOPHON_PATH"/build ]; then
     mkdir -p "$LIBSOPHON_PATH"/build
   fi
@@ -443,7 +438,7 @@ function build_bm1688_rootfs()
     # out-of-tree path
     DEB_INSTALL_DIR="$ROOT_OUT_DIR"/bsp-debs
     DISTRO_DIR="$ROOT_TOP_DIR"/distro
-    DISTRO_BASE_PKT="$DISTRO_DIR"/distro_${DISTRO}.tgz
+    DISTRO_BASE_PKT="$DISTRO_DIR"/distro_${DISTRO}.tar
     DISTRO_MOD_DIR="$ROOT_TOP_DIR"/bootloader-arm64/distro
     DISTRO_OVERLAY_DIR="$ROOT_TOP_DIR"/bootloader-arm64/distro/overlay
     echo cleanup previous build...
@@ -453,7 +448,7 @@ function build_bm1688_rootfs()
     mkdir "$ROOT_OUT_DIR"/rootfs
 
     echo copy distro rootfs files from ${DISTRO_BASE_PKT}...
-    zcat "$DISTRO_BASE_PKT" | sudo tar -C "$ROOT_OUT_DIR"/rootfs -x -f -
+    sudo tar -xf "$DISTRO_BASE_PKT" -C "$ROOT_OUT_DIR"/rootfs
 
     echo copy linux debs...
     sudo mkdir -p "$ROOT_OUT_DIR"/rootfs/home/linaro
@@ -546,9 +541,10 @@ function update_bm1688_debs(){
      rm -rf ${TOP_DIR}/ubuntu/install
   fi
 
-  if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_focal.tgz" ]; then
-    mkdir -p ${TOP_DIR}/ubuntu/distro
-    cat distro_focal.tar.* > distro_focal.tgz
+  if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_focal.tar" ]; then
+    pushd ${TOP_DIR}/ubuntu/distro
+    cat distro_focal.tar.* > distro_focal.tar
+	popd
   fi
   cd ${TOP_DIR}
 
