@@ -3,7 +3,7 @@
 #include <dt-bindings/reset/cv186x-resets.h>
 #include <dt-bindings/dma/cv186x-dmamap.h>
 
-/memreserve/	0x100000000 0x0000040000; // ATF (BL31 + BL32) 512KB
+/memreserve/	0x100000000 0x00000A0000; // ATF (BL31 + BL32) 512KB
 /*
 * /memreserve/	 0x1_0010_0000 0x100000; 	//FDT
 * /memreserve/	 0x1_0020_0000 0x3E00000;	//kernel text code
