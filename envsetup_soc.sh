@@ -967,8 +967,6 @@ function build_package()
     popd
 
     build_update sdcard
-    build_update tftp
-    build_update usb
 }
 
 
