@@ -330,7 +330,7 @@ function build_all()
   # build bsp
   build_uboot || return $?
   build_kernel || return $?
-build_osdrv || return $?
+  build_osdrv || return $?
   build_middleware || return $?
   pack_access_guard_turnkey_app || return $?
   pack_ipc_turnkey_app || return $?
@@ -348,7 +348,7 @@ function clean_all()
   clean_uboot
   clean_kernel
   clean_ramdisk
-clean_osdrv
+  clean_osdrv
   clean_middleware
 }
 
@@ -448,7 +448,7 @@ function cvi_setup_env()
   FREERTOS_PATH="$TOP_DIR"/freertos
   ALIOS_PATH="$TOP_DIR"/alios
   KERNEL_PATH="$TOP_DIR"/"$KERNEL_SRC"
-OSDRV_PATH="$TOP_DIR"/osdrv
+  OSDRV_PATH="$TOP_DIR"/osdrv
   RAMDISK_PATH="$TOP_DIR"/ramdisk
   BM_BLD_PATH="$TOP_DIR"/bm_bld
   TOOLCHAIN_PATH="$TOP_DIR"/host-tools

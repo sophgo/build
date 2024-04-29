@@ -197,7 +197,7 @@ function copy_tools
   if [[ "${chip_cv[*]}" =~ "$CHIP" ]] && [[ ${BOARD} != "fpga" &&  ${BOARD} != "palladium" ]]; then
     command rm -rf "$OUTPUT_DIR"/tools
     command mkdir -p "$OUTPUT_DIR"/tools/
-    command cp -rf "$TOOLS_PATH"/"${CHIP_ARCH,,}"/usb_dl/ "$OUTPUT_DIR"/tools/
+    command cp -rf "$TOOLS_PATH"/common/usb_dl/ "$OUTPUT_DIR"/tools/
     if [ "$ENABLE_BOOTLOGO" -eq 1 ];then
       python3 "$IMGTOOL_PATH"/raw2cimg.py "$BOOTLOGO_PATH" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
     fi
