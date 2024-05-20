@@ -602,8 +602,7 @@ function update_bm1688_debs(){
   BSP_DEBS2=${TOP_DIR}/ubuntu/bootloader-arm64/distro/overlay/$CVIARCH/rootfs/home/linaro/debs
   BSP_DEBS3=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/bsp-debs
   #SOPHLITEOS_DIR=sophliteos/release_build/latest_release
-  SOPHLITEOS_DIR=sophliteos/daily_build/gin_20240126_180755
-  SOPHLITEOS_ADDR=ftp://172.28.141.75/${SOPHLITEOS_DIR}/
+  SOPHLITEOS_DIR=${TOP_DIR}/sophliteos/release
   cd ${TOP_DIR}/ubuntu/
   if [  -e "${TOP_DIR}/ubuntu/install" ]; then
      rm -rf ${TOP_DIR}/ubuntu/install
@@ -638,9 +637,8 @@ function update_bm1688_debs(){
       rm -rf ${TOP_DIR}/ubuntu/sophliteos
   fi
 
-  wget -r -nH --ftp-user=AI --ftp-password=SophgoRelease2022 ${SOPHLITEOS_ADDR}
-  cp ${SOPHLITEOS_DIR}/liteos/sophliteos_soc_*_sdk.deb ${BSP_DEBS2}
-  cp ${SOPHLITEOS_DIR}/bmssm/bmssm_soc_*_SDK.deb       ${BSP_DEBS2}
+  cp ${SOPHLITEOS_DIR}/sophliteos_soc_*_sdk.deb ${BSP_DEBS2}
+  cp ${SOPHLITEOS_DIR}/bmssm_soc_*_SDK.deb       ${BSP_DEBS2}
 
   popd
   ln -sf ${TOP_DIR}/host-tools/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu ${TOP_DIR}/ubuntu/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
