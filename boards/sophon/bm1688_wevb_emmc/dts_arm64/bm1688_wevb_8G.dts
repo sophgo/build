@@ -12,6 +12,18 @@
 	chosen {
 		stdout-path = "serial0"; // "serial0:115200n8", no arguments means no re-initialization
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		wake {
+			label = "wake key";
+			gpios = <&portg 8 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			linux,input-type = <EV_KEY>;
+			wakeup-source;
+		};
+	};
 };
 
 &uart0 {

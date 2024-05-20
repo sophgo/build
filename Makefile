@@ -175,7 +175,7 @@ u-boot-dts:
 ifeq ($(UBOOT_SRC), u-boot-2021.10)
 # U-boot doesn't has arch/arm64
 ifeq ($(ARCH), arm64)
-	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L} \
+	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME} \
 		\( -path "*linux/*.dts*" -o -path "*dts_${ARCH}/*.dts*" \) \
 		-exec cp {} ${UBOOT_PATH}/arch/arm/dts/ \;
 	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec cp {} ${UBOOT_PATH}/arch/arm/dts/ \;
@@ -196,6 +196,11 @@ u-boot-build: ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER} ${UBOOT_CVIPART_DEP} ${UBOOT_
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvi_board_init.c ${UBOOT_CVI_BOARD_INIT_PATH}
 	${Q}rm -f ${UBOOT_CVITEK_PATH}
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvitek.h ${UBOOT_CVITEK_PATH}
+ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+	${Q}sed -i "s/CONFIG_ROOTFS_UBUNTU=n/CONFIG_ROOTFS_UBUNTU=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
+	${Q}sed -i "s/CONFIG_ROOTFS_DEBIAN=n/CONFIG_ROOTFS_DEBIAN=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endif
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} olddefconfig
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} all
 	${Q}cat ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin > ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot-raw.bin
@@ -306,6 +311,12 @@ kernel-setconfig: ${KERNEL_OUTPUT_CONFIG_PATH}
 kernel-build: ${KERNEL_OUTPUT_CONFIG_PATH}
 	$(call print_target)
 	${Q}echo LOCALVERSION=${LOCALVERSION}
+ifeq ($(_BUILD_OPENSBI_KERNEL_),y)
+ifneq ($(CONFIG_TPU_DEBUG_PORT),y)
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG=SERIAL_8250=n'
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG=SERIAL_EARLYCON_RISCV_SBI=n'
+endif
+endif
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} olddefconfig
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image modules
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} modules_install headers_install INSTALL_HDR_PATH=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/$(ARCH)/usr
@@ -336,6 +347,8 @@ kernel: kernel-build
 	$(call print_target)
 	${Q}echo LOCALVERSION=${LOCALVERSION}
 ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
+else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
 endif
 	$(call copy_Image_action)
@@ -384,6 +397,9 @@ endif
 ifneq ("$(wildcard $(CUST_FOLDER_PATH))", "")
 	${Q}cp -r $(CUST_FOLDER_PATH)/* $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target
 endif
+ifneq ($(CONFIG_TPU_DEBUG_PORT),y)
+	sed -i '47,49 s/^\(.*\)/#\1/' $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target/init_ramboot.sh
+endif
 
 define gen_cpio
 	cd $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER);\
@@ -413,6 +429,8 @@ boot: export KERNEL_COMPRESS=$(patsubst "%",%,$(CONFIG_KERNEL_COMPRESS))
 boot: kernel-dts
 	$(call print_target)
 ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+	$(call gen_cpio,boot_fixed_files.txt)
+else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
 	$(call gen_cpio,boot_fixed_files.txt)
 else
 ifeq ($(CONFIG_ROOTFS_OVERLAYFS),y)
@@ -444,8 +462,22 @@ else
 endif
 	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.cpio" "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/emmcboot.cpio"
 	${Q}gzip -9 -f -k ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.cpio > ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.cpio.gz
+ifneq ($(wildcard ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/multi.its), )
+ifneq ($(CONFIG_BOOT_IMAGE_SINGLE_DTB), y)
+	${Q}cp -r ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/multi.its ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
+endif
+endif
 ifeq ($(CONFIG_SKIP_RAMDISK),y)
-	${Q}sed -ie '26,38d' ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
+	${Q}awk ' \
+BEGIN { depth = 0; skip = 0; }  \
+/ramdisk-1 \{/ { skip = 1; depth = 1; next; } \
+skip {  \
+    if (/{/) depth++;\
+    if (/}/) depth--;\
+    if (depth == 0) { skip = 0; next; }\
+}\
+!skip { print }' ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its > multi.its.tmp &&  \
+	mv multi.its.tmp ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
 else
 	${Q}sed -i "s/data = \/incbin\/(\".\/rootfs.cpio.gz\");/data = \/incbin\/(\".\/boot.cpio.gz\");/g" ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
 endif
@@ -459,10 +491,9 @@ else
 	${Q}sed -i "s/entry = <0x.* 0x.*>;/entry = <$(CONFIG_KERNEL_ENTRY_HACK_ADDR_H) $(CONFIG_KERNEL_ENTRY_HACK_ADDR)>;/g" ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
 endif
 endif
-ifneq ($(wildcard ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/multi.its), )
-ifneq ($(CONFIG_BOOT_IMAGE_SINGLE_DTB), y)
-	${Q}cp -r ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/multi.its ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
-endif
+
+ifneq ($(wildcard $(RAMDISK_PATH)/keys/cfg.key),)
+	openssl genpkey -algorithm RSA -out $(RAMDISK_PATH)/keys/cfg.key
 endif
 	$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -k $(RAMDISK_PATH)/keys -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
 
@@ -501,6 +532,10 @@ kernel-clean: clean-memory-map
 	${Q}$(if $(wildcard ${SYSTEM_OUT_DIR}/ko/kernel), rm -rf ${SYSTEM_OUT_DIR}/ko/kernel,)
 	${Q}find ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ -name "*.dts*" -type l -exec rm -rf {} \;
 ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+	${Q}rm -rf ${KERNEL_PATH}/build/*.deb
+	${Q}rm -rf ${KERNEL_PATH}/build/*.buildinfo
+	${Q}rm -rf ${KERNEL_PATH}/build/*.changes
+else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
 	${Q}rm -rf ${KERNEL_PATH}/build/*.deb
 	${Q}rm -rf ${KERNEL_PATH}/build/*.buildinfo
 	${Q}rm -rf ${KERNEL_PATH}/build/*.changes
@@ -545,7 +580,6 @@ print-target-packages-include:
 	@echo $(foreach t,$(TARGET_PACKAGES),\
 		-I$(TOP_DIR)/ramdisk/rootfs/public/$(t)/include)
 
-rootfs-prepare:export CROSS_COMPILE_SDK=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_SDK))
 rootfs-prepare:$(OUTPUT_DIR)/rootfs
 	# Copy rootfs
 	${Q}cp -a --remove-destination $(RAMDISK_PATH)/rootfs/$(ROOTFS_BASE)/* $(OUTPUT_DIR)/rootfs
@@ -572,9 +606,10 @@ endif
 $(OUTPUT_DIR)/rawimages:
 	${Q}mkdir -p $@
 
-rootfs-pack:export CROSS_COMPILE_KERNEL=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
-rootfs-pack:export CROSS_COMPILE_SDK=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_SDK))
-rootfs-pack:$(OUTPUT_DIR)/rawimages
+rootfs%:$(OUTPUT_DIR)/rawimages
+rootfs%:export CROSS_COMPILE_KERNEL=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
+rootfs%:export CROSS_COMPILE_SDK=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_SDK))
+
 rootfs-pack:rootfs-prepare
 rootfs-pack:
 	$(call print_target)
@@ -602,7 +637,63 @@ define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
 
-rootfs:rootfs-pack
+ifeq ($(findstring bm1688,$(PROJECT_FULLNAME)),bm1688)
+BR2_CONFIG_NAME := soph_bm1688_defconfig 
+else
+BR2_CONFIG_NAME := soph_cv186ah_defconfig 
+endif
+
+BR2_OUTPUT_CONFIG_PATH := ${BUILDROOT_PATH}/.config
+BR2_DEFAULT_CONFIG_PATH := ${BUILD_PATH}/boards/default/buildroot/${BR2_CONFIG_NAME}
+BR2_COMMON_OVERLAY_PATH := ${BR2_OVERLAY_PATH}/common/overlay
+BR2_PROJECT_OVERLAY_PATH := ${BR2_OVERLAY_PATH}/${PROJECT_FULLNAME}/overlay
+
+${BR2_OUTPUT_CONFIG_PATH}: ${BR2_DEFAULT_CONFIG_PATH} ${BUILD_PATH}/.config
+	$(call print_target)
+	${Q}mkdir -p $(dir ${BR2_OUTPUT_CONFIG_PATH})
+	${Q}cmp -s ${BR2_DEFAULT_CONFIG_PATH} ${BR2_OUTPUT_CONFIG_PATH} || \
+		${Q}cp -vb ${BR2_DEFAULT_CONFIG_PATH} ${BR2_OUTPUT_CONFIG_PATH}
+
+menuconfig-br2: ${BR2_OUTPUT_CONFIG_PATH}
+	${Q}$(MAKE) -C ${BUILDROOT_PATH} menuconfig
+
+savedefconfig-br2: ${BR2_OUTPUT_CONFIG_PATH}
+	${Q}$(MAKE) -C ${BUILDROOT_PATH} savedefconfig
+
+$(ROOTFS_DIR)/mnt: 
+	${Q}mkdir -p $@
+
+rootfs_prepare_br2:$(ROOTFS_DIR)/mnt
+	# # Copy common files
+	${Q}cp $(RAMDISK_PATH)/rootfs/$(ROOTFS_BASE)/etc/profile ${BR2_COMMON_OVERLAY_PATH}/etc
+	${Q}cp  $(RAMDISK_PATH)/rootfs/$(ROOTFS_BASE)/sbin/fw_* ${BR2_COMMON_OVERLAY_PATH}/usr/sbin
+	${Q}cp  $(CHIP_FOLDER_PATH)/bin/* ${BR2_COMMON_OVERLAY_PATH}/usr/sbin
+	# Generate /etc/fw_env.config
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkcvipart.py $(FLASH_PARTITION_XML) $(BR2_COMMON_OVERLAY_PATH)/etc/ --fw_env
+
+	# Generate S10_automount
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/create_automount.py $(FLASH_PARTITION_XML) $(BR2_COMMON_OVERLAY_PATH)/etc/init.d/
+
+	# Copy project data
+	${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_PROJECT_OVERLAY_PATH}/mnt
+
+
+rootfs-br2-pack:rootfs_prepare_br2 ${BR2_OUTPUT_CONFIG_PATH}
+	# buildroot would do strip
+	${Q}find ${BR2_OVERLAY_PATH}/* -name "*.ko" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-unneeded {} \;
+	${Q}find ${BR2_OVERLAY_PATH}/* -name "*.so*" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} \;
+	${Q}find ${BR2_OVERLAY_PATH}/* -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
+	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} olddefconfig
+	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH}
+	${Q}cp ${BUILDROOT_PATH}/output/images/rootfs.squashfs $(OUTPUT_DIR)/rawimages/rootfs.${STORAGE_TYPE}
+
+ifneq ($(CONFIG_ROOTFS_BUILD_FROM_BR2),y)
+ROOTFS_BUILD := rootfs-pack
+else
+ROOTFS_BUILD := rootfs-br2-pack
+endif
+
+rootfs: $(ROOTFS_BUILD)
 rootfs:
 	$(call print_target)
 	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
@@ -623,6 +714,10 @@ rootfs-clean:
 	$(call print_target)
 	$(Q)rm -rf $(OUTPUT_DIR)/rootfs/
 	$(Q)rm $(OUTPUT_DIR)/rootfs.$(STORAGE_TYPE)
+ifeq ($(CONFIG_ROOTFS_BUILD_FROM_BR2),y)
+	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} clean
+	${Q}rm -rf ${BR2_PROJECT_OVERLAY_PATH}/mnt/*
+endif
 
 $(OUTPUT_DIR)/system:
 	${Q}mkdir -p $@

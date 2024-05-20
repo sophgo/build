@@ -53,8 +53,8 @@
 		compatible = "cvitek,wiegand";
 		reg-names = "wiegand";
 		reg = <0x0 0x27020000 0x0 0x1000>;
-		clocks = <&clk CV186X_CLK_WGN>, <&clk CV186X_CLK_WGN0>;
-		clock-names = "clk_wgn", "clk_wgn1";
+		clocks = <&clk CV186X_CLK_WGN0>;
+		clock-names = "clk_wgn";
 		resets = <&rst RST_WGN0>;
 		reset-names = "res_wgn";
 	};
@@ -63,8 +63,8 @@
 		compatible = "cvitek,wiegand";
 		reg-names = "wiegand";
 		reg = <0x0 0x27021000 0x0 0x1000>;
-		clocks = <&clk CV186X_CLK_WGN>, <&clk CV186X_CLK_WGN1>;
-		clock-names = "clk_wgn", "clk_wgn1";
+		clocks = <&clk CV186X_CLK_WGN1>;
+		clock-names = "clk_wgn";
 		resets = <&rst RST_WGN1>;
 		reset-names = "res_wgn";
 	};
@@ -145,7 +145,21 @@
 		compatible = "snps,dw-wdt";
 		reg = <0x0 0x27000000 0x0 0x1000>;
 		resets = <&rst RST_WDT0>;
-		clocks = <&pclk>;
+		clocks = <&clk CV186X_CLK_WDT>;
+	};
+
+	spacc: spacc {
+		compatible = "cvitek,spacc";
+	};
+
+	otp: otp@27100000 {
+		compatible = "sophon,secure-otp";
+		reg = <0x0 0x27100000 0x0 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&clk CV186X_CLK_OTP_C>, <&clk CV186X_CLK_OTP>,
+			 <&clk CV186X_CLK_APB_OTP>, <&clk CV186X_CLK_APB_OTP_C>;
+		clock-names = "otp_c", "otp", "apb_otp", "apb_otp_c";
 	};
 
 	pclk: pclk {
@@ -1187,6 +1201,8 @@
 		compatible = "sophgo,vo_hdmi";
 		reg = <0x0 0x67020000 0x0 0x20000>;
 		reg-names = "vo_hdmi";
+		ddc-i2c-scl-high-time-ns = <4500>;
+		ddc-i2c-scl-low-time-ns = <5200>;
 	};
 
 	stitch {
@@ -1749,11 +1765,27 @@
         };
 
 	drm_subsystem:drm_subsystem {
+		u-boot,dm-pre-reloc;
 		compatible = "cvitek,drm-subsystem";
 		reg = <0x0 0x67000000 0x0 0x8000>, <0x0 0x6700a000 0x0 0x3000>, <0x0 0x28102400 0x0 0x200>;
 		reg-names = "vo_sys_f", "vo_sys_b", "top_pll";
 		ports = <&disp0_out>, <&disp1_out>;
 		status = "okay";
+		route {
+				route_dsi0: route-dsi0 {
+					status = "okay";
+					logo,uboot = "soph_logo.bmp";
+					logo,mode = "center";
+					connector = <&disp0_out_mipi0>;
+				};
+
+				route_hdmi: route-hdmi {
+					status = "okay";
+					logo,uboot = "soph_logo.bmp";
+					logo,mode = "center";
+					connector = <&disp1_out_hdmi>;
+				};
+			};
 	};
 
 	disp0:disp0 {

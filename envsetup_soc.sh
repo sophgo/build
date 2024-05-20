@@ -95,6 +95,11 @@ function _build_uboot_env()
   export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
 }
 
+function _build_br2_env()
+{
+  export BUILDROOT_PATH BR2_OVERLAY_PATH
+}
+
 function build_fip_pre()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
@@ -125,6 +130,50 @@ function menuconfig_uboot()
   make u-boot-menuconfig || return "$?"
 )}
 
+function _prepare_buildroot_()
+{(
+  if [ ! -d "${BUILDROOT_PATH}" ]; then
+    echo "buildroot directory does not exist. Exit..."
+    # echo "buildroot directory does not exist. Cloning from GitHub..."
+    # git clone -b 2023.11.x --single-branch https://github.com/buildroot/buildroot.git ${BUILDROOT_PATH}
+  else
+    echo "buildroot directory already exists."
+  fi
+)}
+export -f _prepare_buildroot_
+
+function menuconfig_buildroot()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _prepare_buildroot_
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make menuconfig-br2 || return "$?"
+)}
+
+function savedefconfig_br2()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _prepare_buildroot_
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make savedefconfig-br2 || return "$?"
+)}
+
+function build_br2_package()
+{(
+  if [ -z "$1" ];then
+	echo "Usage: ${FUNCNAME[0]} package_name"
+	exit 1
+  fi
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _prepare_buildroot_
+  _build_br2_env
+  pushd "$BUILDROOT_PATH" || return
+  make $1 || return "$?"
+  popd
+)}
+
 function _link_uboot_logo()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
@@ -139,7 +188,6 @@ function build_uboot()
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_uboot_env
   _build_opensbi_env
-  _link_uboot_logo
   cd "$BUILD_PATH" || return
   make u-boot
 )}
@@ -187,7 +235,11 @@ function build_kernel()
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_kernel_env
   cd "$BUILD_PATH" || return
-  make kernel || return "$?"
+  if [ -n $_BUILD_OPENSBI_KERNEL_ ]; then
+    make kernel || return "$?"
+  else
+    make _BUILD_OPENSBI_KERNEL_=y kernel || return "$?"
+  fi
 
   # generate boot.itb image.
   if [[ ${1} != noitb ]]; then
@@ -266,7 +318,7 @@ function clean_v4l2_isp()
 
 # 设置sophon-sdk信息
 function get_bm_sdk_info {
-    bm_root_dir=ftp://172.28.141.89/sophon-sdk
+    bm_root_dir=ftp://172.28.141.89/athena2
     bm_user_name=AI
     bm_user_psword=SophgoRelease2022
     bm_date_ID=latest_release
@@ -374,6 +426,11 @@ function build_libsophon()
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
+  # pushd "$LIBSOPHON_PATH" || return
+  #   echo "running 'git submodule update --init' ..."
+  #   git submodule update --init
+  # popd
+
   if [ ! -d "$LIBSOPHON_PATH"/build ]; then
     mkdir -p "$LIBSOPHON_PATH"/build
   fi
@@ -437,8 +494,13 @@ function build_bm1688_rootfs()
     ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
     # out-of-tree path
     DEB_INSTALL_DIR="$ROOT_OUT_DIR"/bsp-debs
-    DISTRO_DIR="$ROOT_TOP_DIR"/distro
-    DISTRO_BASE_PKT="$DISTRO_DIR"/distro_${DISTRO}.tar
+    if grep -q '^CONFIG_ROOTFS_DEBIAN=y' ${TOP_DIR}/build/.config; then
+        DISTRO_DIR="$ROOT_TOP_DIR"/bookworm
+        DISTRO_BASE_PKT="$DISTRO_DIR"/bookworm.tgz
+    else
+        DISTRO_DIR="$ROOT_TOP_DIR"/distro
+        DISTRO_BASE_PKT="$DISTRO_DIR"/distro_${DISTRO}.tgz
+    fi
     DISTRO_MOD_DIR="$ROOT_TOP_DIR"/bootloader-arm64/distro
     DISTRO_OVERLAY_DIR="$ROOT_TOP_DIR"/bootloader-arm64/distro/overlay
     echo cleanup previous build...
@@ -448,7 +510,7 @@ function build_bm1688_rootfs()
     mkdir "$ROOT_OUT_DIR"/rootfs
 
     echo copy distro rootfs files from ${DISTRO_BASE_PKT}...
-    sudo tar -xf "$DISTRO_BASE_PKT" -C "$ROOT_OUT_DIR"/rootfs
+    zcat "$DISTRO_BASE_PKT" | sudo tar -C "$ROOT_OUT_DIR"/rootfs -x -f -
 
     echo copy linux debs...
     sudo mkdir -p "$ROOT_OUT_DIR"/rootfs/home/linaro
@@ -485,10 +547,12 @@ sudo chroot . /bin/bash << "EOT"
 
 if [  -d /debs ] && [ $(ls /debs/*.deb | wc -l) -gt 0 ]; then
     dpkg -i -R /debs
-    while [ $? -ne 0 ];
+    retries=0
+    while [ $? -ne 0 ] && [ $retries -lt 3 ];
     do
         sleep 1
         dpkg -i -R /debs
+        retries=$((retries+1))
     done
 fi
 for file in /debs/*
@@ -502,10 +566,12 @@ rm -rf /debs
 
 if [  -d /home/linaro/debs ] && [ $(ls /home/linaro//debs/*.deb | wc -l) -gt 0 ]; then
     dpkg -i -R /home/linaro/debs
-    while [ $? -ne 0 ];
+    retries=0
+    while [ $? -ne 0 ] && [ $retries -lt 3 ];
     do
         sleep 1
         dpkg -i -R /home/linaro/debs
+        retries=$((retries+1))
     done
 fi
 
@@ -535,17 +601,29 @@ function update_bm1688_debs(){
   BSP_DEBS1=${TOP_DIR}/ubuntu/bootloader-arm64/distro/overlay/$CVIARCH/rootfs/home/linaro/bsp-debs
   BSP_DEBS2=${TOP_DIR}/ubuntu/bootloader-arm64/distro/overlay/$CVIARCH/rootfs/home/linaro/debs
   BSP_DEBS3=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/bsp-debs
-  SOPHLITEOS_DIR=${TOP_DIR}/sophliteos/release
+  #SOPHLITEOS_DIR=sophliteos/release_build/latest_release
+  SOPHLITEOS_DIR=sophliteos/daily_build/gin_20240126_180755
+  SOPHLITEOS_ADDR=ftp://172.28.141.75/${SOPHLITEOS_DIR}/
   cd ${TOP_DIR}/ubuntu/
   if [  -e "${TOP_DIR}/ubuntu/install" ]; then
      rm -rf ${TOP_DIR}/ubuntu/install
   fi
 
-  if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_focal.tar" ]; then
-    pushd ${TOP_DIR}/ubuntu/distro
-    cat distro_focal.tar.* > distro_focal.tar
-	popd
+  pip3 install dfss --upgrade
+  if grep -q '^CONFIG_ROOTFS_DEBIAN=y' ${TOP_DIR}/build/.config; then
+      mkdir -p ${TOP_DIR}/ubuntu/bookworm
+	  cd ${TOP_DIR}/ubuntu/bookworm
+	  python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/bookworm.tgz
+  else
+	if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_focal.tgz" ]; then
+	mkdir -p ${TOP_DIR}/ubuntu/distro
+	cd ${TOP_DIR}/ubuntu/distro
+	#wget -r -nH --ftp-user=AI --ftp-password=SophgoRelease2022 ftp://172.28.141.89/distro/distro_focal.tgz
+	#wget -r -nH  --ftp-user=swftp --cut-dirs=4  --ftp-password=cvitek ftp://10.80.0.5/sw_rls/third_party/distro/distro_focal.tgz
+	python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_focal.tgz
+	fi
   fi
+
   cd ${TOP_DIR}
 
   mkdir -p ${BSP_DEBS1}
@@ -556,8 +634,14 @@ function update_bm1688_debs(){
   cp middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${BSP_DEBS2}
   mkdir -p ${BSP_DEBS3}
   pushd ${TOP_DIR}/ubuntu/
-  cp ${SOPHLITEOS_DIR}/sophliteos_soc_*_sdk.deb ${BSP_DEBS2}
-  cp ${SOPHLITEOS_DIR}/bmssm_soc_*_SDK.deb       ${BSP_DEBS2}
+  if [  -e "${TOP_DIR}/ubuntu/${SOPHLITEOS_DIR}" ]; then
+      rm -rf ${TOP_DIR}/ubuntu/sophliteos
+  fi
+
+  wget -r -nH --ftp-user=AI --ftp-password=SophgoRelease2022 ${SOPHLITEOS_ADDR}
+  cp ${SOPHLITEOS_DIR}/liteos/sophliteos_soc_*_sdk.deb ${BSP_DEBS2}
+  cp ${SOPHLITEOS_DIR}/bmssm/bmssm_soc_*_SDK.deb       ${BSP_DEBS2}
+
   popd
   ln -sf ${TOP_DIR}/host-tools/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu ${TOP_DIR}/ubuntu/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
 }
@@ -599,7 +683,7 @@ function build_bmcpu()
 
   pushd "$BMCPU_PATH"/build || return "$?"
   rm -rf "$BMCPU_PATH"/build/*
-  cmake -DCMAKE_TOOLCHAIN_FILE=$BMCPU_PATH/riscv_linux.cmake -DPLATFORM=sophon -DCORE_ID=${CORE_ID:-0} ..
+  cmake -DCMAKE_TOOLCHAIN_FILE=$BMCPU_PATH/riscv_linux.cmake -DPLATFORM=bm1688 ..
   make
   cp -f $BMCPU_PATH/build/app/bmcpu/bmcpu $RAMDISK_PATH/initramfs/glibc_riscv64/bin/bmcpu || return "$?"
   popd
@@ -938,6 +1022,7 @@ function build_package()
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/boot.itb $PACKAGE_OUTPUT_DIR/boot/
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/multi.its $PACKAGE_OUTPUT_DIR/boot/
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR//boot/
+    cp -rf $BOOTLOGO_PATH $PACKAGE_OUTPUT_DIR/boot/
 
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/
     cp -rf $OUTPUT_DIR/ramboot.itb $PACKAGE_OUTPUT_DIR/
@@ -967,6 +1052,9 @@ function build_package()
     popd
 
     build_update sdcard
+    pushd $PACKAGE_OUTPUT_DIR
+    tar -zcf sdcard.tgz sdcard
+    popd
 }
 
 
@@ -1137,13 +1225,15 @@ function cvi_setup_env()
   LIBSOPHON_PATH="$TOP_DIR"/libsophon
   BMCPU_PATH="$TOP_DIR"/bmcpu
   RAMDISK_PATH="$TOP_DIR"/ramdisk
+  BUILDROOT_PATH="$TOP_DIR"/buildroot
+  BR2_OVERLAY_PATH="$BUILDROOT_PATH"/board/sophgo/
   BM_BLD_PATH="$TOP_DIR"/bm_bld
   TOOLCHAIN_PATH="$TOP_DIR"/host-tools
   OSS_PATH="$TOP_DIR"/oss
   OPENCV_PATH="$TOP_DIR"/opencv
   APPS_PATH="$TOP_DIR"/apps
   MW_PATH="$TOP_DIR"/middleware/"$MW_VER"
-  PQTOOL_SERVER_PATH="$MW_PATH"/modules/isp/cv186x/isp-tool-daemon/isp_daemon_tool #TODO change "sophon" to "${CHIP_ARCH,,}" 
+  PQTOOL_SERVER_PATH="$MW_PATH"/modules/isp/cv186x/isp-tool-daemon/isp_daemon_tool #TODO change "sophon" to "${CHIP_ARCH,,}"
   ISP_TUNING_PATH="$TOP_DIR"/isp_tuning
   TPU_SDK_PATH="$TOP_DIR"/tpu-kernel
   CNV_SDK_PATH="$TOP_DIR"/cnv
@@ -1161,7 +1251,7 @@ function cvi_setup_env()
   SCRIPTTOOL_PATH="$COMMON_TOOLS_PATH"/scripts
   ROOTFSTOOL_PATH="$COMMON_TOOLS_PATH"/rootfs_tool
   SPINANDTOOL_PATH="$COMMON_TOOLS_PATH"/spinand_tool
-  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo/logo.jpg
+  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo/soph_logo.bmp
 
   # subfolder path for buidling, chosen accroding to .gitignore rules
   UBOOT_OUTPUT_FOLDER=build/"$PROJECT_FULLNAME"
