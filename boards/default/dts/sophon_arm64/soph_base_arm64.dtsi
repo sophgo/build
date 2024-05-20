@@ -3,7 +3,7 @@
 #include <dt-bindings/reset/cv186x-resets.h>
 #include <dt-bindings/dma/cv186x-dmamap.h>
 
-/memreserve/	0x100000000 0x00000A0000; // ATF (BL31 + BL32) 512KB
+/memreserve/	0x100000000 0x00000A0000; // ATF (BL31 + BL32) 640KB
 /*
 * /memreserve/	 0x1_0010_0000 0x100000; 	//FDT
 * /memreserve/	 0x1_0020_0000 0x3E00000;	//kernel text code
@@ -277,6 +277,7 @@
 	gpio0: gpio@27010000 {
 		porta: gpio-controller@0 {
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
@@ -284,6 +285,7 @@
 	gpio1: gpio@27011000 {
 		portb: gpio-controller@1 {
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
@@ -291,6 +293,7 @@
 	gpio2: gpio@27012000 {
 		portc: gpio-controller@2 {
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
@@ -298,6 +301,7 @@
 	gpio3: gpio@27013000 {
 		portd: gpio-controller@3 {
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
@@ -305,6 +309,7 @@
 	gpio4: gpio@27014000 {
 		porte: gpio-controller@4 {
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
@@ -312,6 +317,7 @@
 	gpio5: gpio@27015000 {
 		portf: gpio-controller@5 {
 			interrupt-controller;
+			#interrupt-cells = <3>;
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
@@ -319,6 +325,7 @@
 	gpio6: gpio@5021000 {
 		portg: gpio-controller@6 {
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};

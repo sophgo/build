@@ -95,6 +95,11 @@ function _build_uboot_env()
   export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
 }
 
+function _build_br2_env()
+{
+  export BUILDROOT_PATH BR2_OVERLAY_PATH
+}
+
 function build_fip_pre()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
@@ -123,6 +128,45 @@ function menuconfig_uboot()
   _build_uboot_env
   cd "$BUILD_PATH" || return
   make u-boot-menuconfig || return "$?"
+)}
+
+function _prepare_buildroot_()
+{(
+  if [ ! -d "${BUILDROOT_PATH}" ]; then
+    echo "buildroot directory does not exist. Exit..."
+    # echo "buildroot directory does not exist. Cloning from GitHub..."
+    # git clone -b 2023.11.x --single-branch https://github.com/buildroot/buildroot.git ${BUILDROOT_PATH}
+  else
+    echo "buildroot directory already exists."
+  fi
+)}
+export -f _prepare_buildroot_
+
+function menuconfig_buildroot()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _prepare_buildroot_
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make menuconfig-br2 || return "$?"
+)}
+
+function savedefconfig_br2()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _prepare_buildroot_
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make savedefconfig-br2 || return "$?"
+)}
+
+function build_br2_package()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _prepare_buildroot_
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make build_package-br2 || return "$?"
 )}
 
 function _link_uboot_logo()
@@ -502,6 +546,8 @@ function cvi_setup_env()
   ALIOS_PATH="$TOP_DIR"/alios
   KERNEL_PATH="$TOP_DIR"/"$KERNEL_SRC"
   RAMDISK_PATH="$TOP_DIR"/ramdisk
+  BUILDROOT_PATH="$TOP_DIR"/buildroot
+  BR2_OVERLAY_PATH="$BUILDROOT_PATH"/board/sophgo
   BM_BLD_PATH="$TOP_DIR"/bm_bld
   TOOLCHAIN_PATH="$TOP_DIR"/host-tools
   OSS_PATH="$TOP_DIR"/oss

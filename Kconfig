@@ -60,30 +60,6 @@ config CC_OPTIMIZE_FOR_SIZE
 	  If unsure, say N.
 endchoice
 
-config KERNEL_ENTRY_HACK
-	bool "Set kernel entry in boot image"
-	default n
-	help
-	  Set kernel entry in boot image.
-	  Don't select this if you don't know what you are doning.
-
-config KERNEL_ENTRY_HACK_ADDR
-	string "Set kernel entry in boot image"
-	depends on KERNEL_ENTRY_HACK
-	default "0x04200000" if C906_HART1
-	default "0x14200000" if C906_HART2
-	help
-	  Set kernel entry in boot image.
-	  Don't select this if you don't know what you are doning.
-
-config KERNEL_ENTRY_HACK_ADDR_H
-	string "Set kernel entry in boot image"
-	depends on KERNEL_ENTRY_HACK
-	default "0x1"
-	help
-	  Set kernel entry in boot image.
-	  Don't select this if you don't know what you are doning.
-
 config DEBUG_INFO
 	bool "Compile the application with debug info"
 	help
@@ -499,6 +475,20 @@ config ROOTFS_UBUNTU
 	help
 	  Enable ubuntu file system.
 
+config ROOTFS_DEBIAN
+	bool "Enable debian file system"
+	default n
+	help
+	  Enable debian file system.
+
+config ROOTFS_BUILD_FROM_BR2
+	bool "Enable rootfs build from buildroot"
+	default n
+	depends on !(ROOTFS_DEBIAN || ROOTFS_UBUNTU)
+	select SKIP_RAMDISK
+	help
+	  Enable rootfs build from buildroot.
+
 config USE_4K_ERASE_SIZE_FOR_JFFS2
 	bool "Use 4K erase size for jffs2 filesystem"
 	default n
@@ -576,6 +566,8 @@ menu "Rootfs packages"
 osource "../ramdisk/rootfs/public/Kconfig"
 endmenu
 
+menu "TPU config"
+
 choice
 	prompt "Which c906 to choose"
 	default C906_HART0
@@ -595,3 +587,33 @@ config C906_HART2
 	help
 	  Choose TPU scalar1
 endchoice
+
+config KERNEL_ENTRY_HACK
+	bool "Set kernel entry in boot image"
+	default n
+	help
+	  Set kernel entry in boot image.
+	  Don't select this if you don't know what you are doning.
+
+config KERNEL_ENTRY_HACK_ADDR
+	string "Set kernel entry in boot image"
+	depends on KERNEL_ENTRY_HACK
+	default "0x04200000" if C906_HART1
+	default "0x14200000" if C906_HART2
+	help
+	  Set kernel entry in boot image.
+	  Don't select this if you don't know what you are doning.
+
+config KERNEL_ENTRY_HACK_ADDR_H
+	string "Set kernel entry in boot image"
+	depends on KERNEL_ENTRY_HACK
+	default "0x1"
+	help
+	  Set kernel entry in boot image.
+	  Don't select this if you don't know what you are doning.
+
+config TPU_DEBUG_PORT
+	bool "Open TPU DEBUG UART Port"
+	help 
+	  Open/Close TPU DEBUG UART Port
+endmenu

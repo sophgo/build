@@ -16,12 +16,18 @@
 			no-map;
 		};
 
-		//0x1_4000_0000 - 0x1_4800_0000 for HDMI (owner: yu.yang@sophgo.com)
+		//0x1_4000_0000 - 0x1_4040_0000 for vo logo (owner: yu.yang@sophgo.com)
+		vo_logo: vo_logo {
+			alloc-ranges = <0x1 0x40000000 0 0x400000>; // 4M, for vo logo
+			size = <0x0 0x400000>;
+		};
+
+		//0x1_4040_0000 - 0x1_4800_0000 for HDMI (owner: yu.yang@sophgo.com)
 		cma_reserved: linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x8000000>; // 128m for drm
-			alloc-ranges = <0x1 0x40000000 0x0 0x8000000>;   // to fix hdmi audio bug
+			size = <0x0 0x7C00000>; // 124m for drm
+			alloc-ranges = <0x1 0x40400000 0x0 0x7C00000>;   // to fix hdmi audio bug
 			alignment = <0x0 0x100000>; // 1MB
 			linux,cma-default;
 		};

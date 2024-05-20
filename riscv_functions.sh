@@ -20,12 +20,14 @@ function clean_opensbi()
 
 function build_opensbi_kernel()
 {(
+  export _BUILD_OPENSBI_KERNEL_=y
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_kernel_env
   _build_opensbi_env
 
   cd "$BUILD_PATH" || return "$?"
   # make riscv-cpio || return "$?"
+  make clean-memory-map || return "$?"
   build_bmcpu || return "$?"
   build_kernel || return "$?"
   build_ramboot || return "$?"

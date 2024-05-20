@@ -77,7 +77,12 @@ function build_ramboot
   create_ramdisk_folder || return "$?"
   _build_kernel_env
   cd "$BUILD_PATH" || return
-  make ramboot
+
+  if [ -n $_BUILD_OPENSBI_KERNEL_ ]; then
+    make _BUILD_OPENSBI_KERNEL_=y ramboot || return "$?"
+  else
+    make ramboot || return "$?"
+  fi
 )}
 
 function pack_boot
@@ -121,6 +126,7 @@ function pack_rootfs
 
   export ROOTFS_DIR COMMON_TOOLS_PATH FLASH_PARTITION_XML STORAGE_TYPE
   export CHIP_FOLDER_PATH SDK_VER_FOLDER_PATH CUST_FOLDER_PATH
+  export TOOLCHAIN_PATH BR2_OVERLAY_PATH BUILDROOT_PATH
 
   cd "$BUILD_PATH" || return
   make rootfs
@@ -140,7 +146,7 @@ function pack_data
 
 function clean_rootfs
 {(
-  export ROOTFS_DIR STORAGE_TYPE
+  export ROOTFS_DIR STORAGE_TYPE BUILDROOT_PATH BR2_OVERLAY_PATH
 
   cd "$BUILD_PATH" || return
   make rootfs-clean
