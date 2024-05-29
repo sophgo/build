@@ -1050,6 +1050,8 @@ function build_package()
     popd
 
     build_update sdcard
+    build_update usb
+    build_update tftp
     pushd $PACKAGE_OUTPUT_DIR
     tar -zcf sdcard.tgz sdcard
     popd
