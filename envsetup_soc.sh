@@ -1066,14 +1066,9 @@ function build_all()
   build_middleware || return $?
   build_ramboot || return $?
   if [[ "$BOARD" != "fpga" ]] && [[ "$BOARD" != "palladium" ]]; then
-    build_cvi_rtsp || return $?
     if [ "$TPU_REL" = 1 ]; then
       build_bm1686_sdk || return $?
-      build_ai_sdk || return $?
     fi
-    build_pqtool_server || return $?
-    build_access_guard_turnkey_app || return $?
-    build_ipc_app || return $?
   fi
   pack_cfg || return $?
   pack_rootfs || return $?
