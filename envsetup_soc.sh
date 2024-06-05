@@ -617,8 +617,6 @@ function update_bm1688_debs(){
 	if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_focal.tgz" ]; then
 	mkdir -p ${TOP_DIR}/ubuntu/distro
 	cd ${TOP_DIR}/ubuntu/distro
-	#wget -r -nH --ftp-user=AI --ftp-password=SophgoRelease2022 ftp://172.28.141.89/distro/distro_focal.tgz
-	#wget -r -nH  --ftp-user=swftp --cut-dirs=4  --ftp-password=cvitek ftp://10.80.0.5/sw_rls/third_party/distro/distro_focal.tgz
 	python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_focal.tgz
 	fi
   fi
@@ -777,7 +775,12 @@ function clean_pqtool_server()
 function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
-
+  pushd "$OSS_TARBALL_PATH"
+  pip3 install dfss --upgrade
+  python -m dfss --url=open@sophgo.com:/gemini-sdk/oss/latest/${SDK_VER}.tar.gz
+  tar -zxf ${SDK_VER}.tar.gz
+  rm -rf ${SDK_VER}.tar.gz
+  popd
   local oss_list=(
     "zlib"
     "glog"
@@ -799,20 +802,13 @@ function build_3rd_party()
 
   for name in "${oss_list[@]}"
   do
-    if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
-      echo "$name found"
-    else
-      echo "Try to download $name tarball ..."
-      wget ftp://swftp:cvitek@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/${name}.tar.gz \
-          -T 3 -t 3 -q -P ${OSS_TARBALL_PATH}
-      if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
-        "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
-        echo "$name successfully downloaded and untared."
-      else
-        echo "No prebuilt tarball, build oss $name"
-        "$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
-      fi
-    fi
+	  if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
+		"$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+		echo "$name successfully downloaded and untared."
+	  else
+		echo "No prebuilt tarball, build oss $name"
+		"$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
+	  fi
   done
 }
 
@@ -1392,7 +1388,6 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
-export FTP_SERVER_IP=${FTP_SERVER_IP:-10.80.0.5}
 
 # import common functions
 # shellcheck source=./common_functions.sh
