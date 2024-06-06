@@ -493,7 +493,8 @@ function build_bm1688_rootfs()
     DISTRO=${DISTRO:-focal}
     ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
     # out-of-tree path
-    DEB_INSTALL_DIR="$ROOT_OUT_DIR"/bsp-debs
+    DEB_INSTALL_DIR="$ROOT_OUT_DIR"/debs
+    BSP_DEB_DIR="$ROOT_OUT_DIR"/bsp-debs
     if grep -q '^CONFIG_ROOTFS_DEBIAN=y' ${TOP_DIR}/build/.config; then
         DISTRO_DIR="$ROOT_TOP_DIR"/bookworm
         DISTRO_BASE_PKT="$DISTRO_DIR"/bookworm.tgz
@@ -514,13 +515,13 @@ function build_bm1688_rootfs()
 
     echo copy linux debs...
     sudo mkdir -p "$ROOT_OUT_DIR"/rootfs/home/linaro
-    sudo cp -r "$DEB_INSTALL_DIR" "$ROOT_OUT_DIR"/rootfs/home/linaro/
+    sudo cp -r "$BSP_DEB_DIR" "$ROOT_OUT_DIR"/rootfs/home/linaro/
 
     local version=$(echo $(cat /$DISTRO_OVERLAY_DIR/$CVIARCH/sophgo-fs/DEBIAN/control | grep Version) | cut -d ' ' -f 2)
     echo "$DISTRO_OVERLAY_DIR/$CVIARCH/rootfs/home/linaro/debs/"
-    rm -rf ${DISTRO_OVERLAY_DIR}/${CVIARCH}/rootfs/home/linaro/debs/sophgo-bsp-rootfs*.arm64.deb
+    mkdir -p "$ROOT_OUT_DIR"/rootfs/home/linaro/debs
     dpkg-deb -b "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/sophgo-fs \
-        "$DISTRO_OVERLAY_DIR/$CVIARCH"/rootfs/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb
+        "$ROOT_OUT_DIR"/rootfs/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb
 
     echo copy overlay file to rootfs...
     if [ -d "$DISTRO_OVERLAY_DIR"/common/rootfs ]; then
@@ -532,7 +533,8 @@ function build_bm1688_rootfs()
         sudo cp -rf "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/rootfs/* "$ROOT_OUT_DIR"/rootfs
     fi
     # debs will be installed later after chroot and then deleted
-    sudo cp -rf "$DISTRO_MOD_DIR"/debs "$ROOT_OUT_DIR"/rootfs
+    sudo cp -r "$DISTRO_MOD_DIR"/debs "$ROOT_OUT_DIR"/rootfs
+    sudo cp -r "$DEB_INSTALL_DIR"/* "$ROOT_OUT_DIR"/rootfs/home/linaro/debs/
 
     if [ "$PRODUCT" != "" ] && [ -d "$DISTRO_OVERLAY_DIR"/"$PRODUCT"/debs ]; then
         echo copy product "$PRODUCT" debs overlay files...
@@ -598,9 +600,8 @@ function build_sophon_media(){
 
 function update_bm1688_debs(){
   cd ${TOP_DIR}
-  BSP_DEBS1=${TOP_DIR}/ubuntu/bootloader-arm64/distro/overlay/$CVIARCH/rootfs/home/linaro/bsp-debs
-  BSP_DEBS2=${TOP_DIR}/ubuntu/bootloader-arm64/distro/overlay/$CVIARCH/rootfs/home/linaro/debs
-  BSP_DEBS3=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/bsp-debs
+  BSP_DEBS=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/bsp-debs
+  SDK_DEBS=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/debs
   #SOPHLITEOS_DIR=sophliteos/release_build/latest_release
   SOPHLITEOS_DIR=${TOP_DIR}/sophliteos/release
   cd ${TOP_DIR}/ubuntu/
@@ -623,20 +624,21 @@ function update_bm1688_debs(){
 
   cd ${TOP_DIR}
 
-  mkdir -p ${BSP_DEBS1}
-  cp linux_5.10/build/*.deb ${BSP_DEBS1}
-  mkdir -p ${BSP_DEBS2}
-  cp libsophon/build/sophon-soc-libsophon*.deb ${BSP_DEBS2}
-  cp sophon_media/buildit/sophon[_-]media-soc-sophon-{ffmpeg_,opencv_,sample}*_arm64.deb ${BSP_DEBS2}
-  cp middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${BSP_DEBS2}
-  mkdir -p ${BSP_DEBS3}
+  mkdir -p ${BSP_DEBS}
+  mkdir -p ${SDK_DEBS}
+  rm -rf ${BSP_DEBS}/*
+  rm -rf ${SDK_DEBS}/*
+  cp linux_5.10/build/*.deb ${BSP_DEBS}
+  cp libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
+  cp sophon_media/buildit/sophon[_-]media-soc-sophon-{ffmpeg_,opencv_,sample}*_arm64.deb ${SDK_DEBS}
+  cp middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
   pushd ${TOP_DIR}/ubuntu/
   if [  -e "${TOP_DIR}/ubuntu/${SOPHLITEOS_DIR}" ]; then
       rm -rf ${TOP_DIR}/ubuntu/sophliteos
   fi
 
-  cp ${SOPHLITEOS_DIR}/sophliteos_soc_*_sdk.deb ${BSP_DEBS2}
-  cp ${SOPHLITEOS_DIR}/bmssm_soc_*_SDK.deb       ${BSP_DEBS2}
+  cp ${SOPHLITEOS_DIR}/sophliteos_soc_*_sdk.deb ${SDK_DEBS}
+  cp ${SOPHLITEOS_DIR}/bmssm_soc_*_SDK.deb       ${SDK_DEBS}
 
   popd
   ln -sf ${TOP_DIR}/host-tools/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu ${TOP_DIR}/ubuntu/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
@@ -1051,6 +1053,7 @@ function build_package()
     pushd $PACKAGE_OUTPUT_DIR
     tar -zcf sdcard.tgz sdcard
     tar -zcf usb.tgz usb
+    tar -zcf tftp.tgz tftp
     popd
 }
 
