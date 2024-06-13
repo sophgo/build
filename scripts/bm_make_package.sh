@@ -212,6 +212,12 @@ function compress_and_update_partition_script()
 
 	gzip ${filename}
 
+	if [[ $filename == *"usb"* ]]; then
+		echo "raw to cimg: $filename"
+		python raw2cimg_edge.py $filename.gz
+		mv $filename.gz.head $filename.gz
+	fi
+
 	script_update "${LOAD_COMMAND} ${IN_ADDR} ${OTA_PATH}$(basename ${filename}.gz)"
 	script_update "if test \$? -ne 0; then"
 	script_update "led status off"
