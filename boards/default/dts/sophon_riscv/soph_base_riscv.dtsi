@@ -220,6 +220,11 @@
 		interrupts = <145 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
 	};
+
+	uart4: serial@291c0000 {
+		interrupts = <148 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
+	};
 #if 0
 	uart2: serial@04160000 {
 		interrupts = <46 IRQ_TYPE_LEVEL_HIGH>;

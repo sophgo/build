@@ -230,6 +230,10 @@ config NO_FB
 	depends on FLASH_SIZE_SHRINK
 	default n
 
+config FB_USB_TO_HDMI
+	bool "compile frame buffer drivers for usb to hdmi bridge ic ms9132"
+	default n
+
 config NO_TP
 	bool "Select CONFIG_NO_TP to build osdrv without Touchscreen driver(extdrv/tp)"
 	depends on FLASH_SIZE_SHRINK

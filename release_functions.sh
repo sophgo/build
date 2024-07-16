@@ -403,6 +403,7 @@ function add_source_to_sdk_package()
       fi
     done
     cp -f "$MW_PATH"/modules/sys/include/devmem.h include/
+    cp -f "$MW_PATH"/modules/vi/include/* include/
     cp -a "$MW_PATH"/sample .
     rm -rf sample/tpu
     rm -rf sample/multivenc

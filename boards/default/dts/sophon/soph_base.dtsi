@@ -152,6 +152,10 @@
 		compatible = "cvitek,spacc";
 	};
 
+	trng: dw-trng {
+		compatible = "snps,dw-trng";
+	};
+
 	otp: otp@27100000 {
 		compatible = "sophon,secure-otp";
 		reg = <0x0 0x27100000 0x0 0x4000>;
@@ -1114,6 +1118,26 @@
 		clock-names = "tpu", "top_fab0", "tc906b", "timer", "gdma";
 	};
 
+	dwa {
+		compatible = "cvitek,dwa";
+		reg = <0x0 0x680b4000 0x0 0x2000>, <0x0 0x680b6000 0x0 0x2000>;
+		reg-names = "dwa0", "dwa1";
+		clocks = <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
+			 <&clk CV186X_CLK_DWA0_VI>,
+			 <&clk CV186X_CLK_DWA1_VI>;
+		clock-names = "clk_sys_3", "clk_dwa0", "clk_dwa1";
+	};
+
+	ldc {
+		compatible = "cvitek,ldc";
+		reg = <0x0 0x680b0000 0x0 0x2000>, <0x0 0x680b2000 0x0 0x2000>;
+		reg-names = "ldc0", "ldc1";
+		clocks = <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
+			 <&clk CV186X_CLK_LDC0_VI>,
+			 <&clk CV186X_CLK_LDC1_VI>;
+		clock-names = "clk_sys_3", "clk_ldc0", "clk_ldc1";
+	};
+
 	vi {
 		compatible = "cvitek,vi";
 		reg = <0x0 0x68000000 0x0 0x80000>;
@@ -1214,25 +1238,6 @@
 		clock-names = "clk_sys_3", "clk_stitch";
 	};
 
-	dwa {
-		compatible = "cvitek,dwa";
-		reg = <0x0 0x680b4000 0x0 0x2000>, <0x0 0x680b6000 0x0 0x2000>;
-		reg-names = "dwa0", "dwa1";
-		clocks = <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
-			 <&clk CV186X_CLK_DWA0_VI>,
-			 <&clk CV186X_CLK_DWA1_VI>;
-		clock-names = "clk_sys_3", "clk_dwa0", "clk_dwa1";
-	};
-
-	ldc {
-		compatible = "cvitek,ldc";
-		reg = <0x0 0x680b0000 0x0 0x2000>, <0x0 0x680b2000 0x0 0x2000>;
-		reg-names = "ldc0", "ldc1";
-		clocks = <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
-			 <&clk CV186X_CLK_LDC0_VI>,
-			 <&clk CV186X_CLK_LDC1_VI>;
-		clock-names = "clk_sys_3", "clk_ldc0", "clk_ldc1";
-	};
 
 	dpu {
 		compatible = "cvitek,dpu";
@@ -1266,6 +1271,24 @@
 				<GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>, //vpu
 				<GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk CV186X_CLK_VESYS_JPEG_0>, <&clk CV186X_CLK_VESYS_JPEG_1>,
+				<&clk CV186X_CLK_VESYS_JPEG_2>, <&clk CV186X_CLK_VESYS_JPEG_3>,
+				<&clk CV186X_CLK_APB_VESYS_JPEG_0>, <&clk CV186X_CLK_APB_VESYS_JPEG_1>,
+				<&clk CV186X_CLK_APB_VESYS_JPEG_2>, <&clk CV186X_CLK_APB_VESYS_JPEG_3>,
+				<&clk CV186X_VE_CLK_SRC2_VESYS>, // jpeg
+				<&clk CV186X_VE_CLK_SRC0_VESYS>, <&clk CV186X_VE_CLK_SRC1_VESYS>,
+				<&clk CV186X_CLK_APB_VESYS_VE>, <&clk CV186X_CLK_VESYS_VE>,  // ve
+				<&clk CV186X_VD0_CLK_SRC0_VDSYS>, <&clk CV186X_VD0_CLK_SRC1_VDSYS>,
+				<&clk CV186X_VD1_CLK_SRC0_VDSYS>, <&clk CV186X_VD1_CLK_SRC1_VDSYS>,
+				<&clk CV186X_VD0_CLK_APB_VDSYS_VD>, <&clk CV186X_VD0_CLK_VDSYS_VD>,
+				<&clk CV186X_VD1_CLK_APB_VDSYS_VD>, <&clk CV186X_VD1_CLK_VDSYS_VD>;  // vd
+		clock-names = "jpeg_vesys0", "jpeg_vesys1", "jpeg_vesys2", "jpeg_vesys3",
+					"jpeg_apb0", "jpeg_apb1", "jpeg_apb2", "jpeg_apb3",
+					"jpeg_src",  // jpeg
+					"ve_src0", "ve_src1", "apb_vesys_ve", "clk_vesys_ve", // ve
+					"vd0_src0", "vd0_src1", "vd1_src0", "vd1_src1",
+					"vd0_apb_vd", "vd0_vdsys_vd",
+					"vd1_apb_vd", "vd1_vdsys_vd"; //vd
 	};
 #endif
 	rtos_cmdqu {
@@ -1286,7 +1309,11 @@
 		usbdrd_dwc3_0: usb@39010000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x39010000 0x0 0x10000>;
+#ifdef __UBOOT__
+			dr_mode = "host";
+#else
 			dr_mode = "otg";
+#endif
 			role-switch-default-mode = "device";
 			maximum-speed="super-speed";
 			usb-role-switch;
@@ -1312,7 +1339,11 @@
 		usbdrd_dwc3_1: usb@39110000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x39110000 0x0 0x10000>;
+#ifdef __UBOOT__
+			dr_mode = "host";
+#else
 			dr_mode = "otg";
+#endif
 			role-switch-default-mode = "host";
 			maximum-speed="super-speed";
 			usb-role-switch;
@@ -1927,6 +1958,7 @@
 		interrupt-names = "dw_hdmi";
 		interrupt-parent = <&gic>;
 		status = "okay";
+		hpd_polarity = "normal"; // normal: high active; inversed: low active
 
 		ports {
 			#address-cells = <1>;

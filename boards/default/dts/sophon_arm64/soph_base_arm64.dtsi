@@ -317,7 +317,7 @@
 	gpio5: gpio@27015000 {
 		portf: gpio-controller@5 {
 			interrupt-controller;
-			#interrupt-cells = <3>;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};

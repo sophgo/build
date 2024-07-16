@@ -230,7 +230,7 @@ else
 KERNEL_CONFIG_NAME := ${PROJECT_FULLNAME}_rls_defconfig
 endif
 
-KERNEL_VERSION ?= -tag-$(shell git -C ${KERNEL_PATH} describe --exact-match HEAD 2>/dev/null)
+# KERNEL_VERSION ?= -tag-$(shell git -C ${KERNEL_PATH} describe --exact-match HEAD 2>/dev/null)
 
 ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}:
 	${Q}mkdir -p $@
@@ -250,9 +250,8 @@ endef
 ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),CV181X CV180X SOPHON))
 define copy_header_action
 	# TODO change "soph" to "$(shell echo $(CHIP_ARCH) | tr A-Z a-z)"
-	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
-	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
-	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/common/uapi/linux/* ${1}/linux/
+	#${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
+	#${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/common/uapi/linux/* ${1}/linux/
 	${Q}cp ${OSDRV_PATH}/interdrv/${MW_VER}/usb/gadget/function/f_cvg.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/
@@ -291,7 +290,9 @@ ifeq ($(STORAGE_TYPE), spinor)
 	$(call kernel_erasesize_set)
 endif
 
-kerne%: export LOCALVERSION=${KERNEL_VERSION}
+kerne%: export LOCALVERSION=-sophon-custom
+kerne%: export KERNELRELEASE=5.10.4
+# kerne%: export KDEB_PKGVERSION=${KERNELRELEASE}${LOCALVERSION}
 kerne%: export CVIBOARD=${BOARD}
 kerne%: export CROSS_COMPILE=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
 kerne%: export INSTALL_MOD_PATH=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/modules
@@ -310,7 +311,6 @@ kernel-setconfig: ${KERNEL_OUTPUT_CONFIG_PATH}
 
 kernel-build: ${KERNEL_OUTPUT_CONFIG_PATH}
 	$(call print_target)
-	${Q}echo LOCALVERSION=${LOCALVERSION}
 ifeq ($(_BUILD_OPENSBI_KERNEL_),y)
 ifneq ($(CONFIG_TPU_DEBUG_PORT),y)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG=SERIAL_8250=n'
@@ -337,7 +337,7 @@ kernel-dts: ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
 	${Q}ln -snrf ${CVI_BOARD_MEMMAP_H_PATH} ${KERNEL_PATH}/scripts/dtc/include-prefixes/
 	${Q}find ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ -type l -delete
 	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
-	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/ \
+	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/ \
 		\( -path "*linux/*.dts*" -o -path "*dts_${ARCH}/*.dts*" \) \
 		-exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} dtbs
@@ -345,7 +345,6 @@ kernel-dts: ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
 kernel: $(OUTPUT_DIR)/rootfs
 kernel: kernel-build
 	$(call print_target)
-	${Q}echo LOCALVERSION=${LOCALVERSION}
 ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
 else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
@@ -422,7 +421,7 @@ BOOT_IMAGE_ARG += --gen_single_board_its --chip_name "${CHIP}" --board_name "${B
 RAMBOOT_IMAGE_ARG = --gen_single_board_its --chip_name "${CHIP}" --board_name "${BOARD}"
 else
 BOOT_IMAGE_ARG += --gen-board-its ${CHIP_ARCH}
-RAMBOOT_IMAGE_ARG = --gen-board-its ${CHIP_ARCH}
+RAMBOOT_IMAGE_ARG = --gen_single_board_its --chip_name "${CHIP}" --board_name "${BOARD}"
 endif
 
 boot: export KERNEL_COMPRESS=$(patsubst "%",%,$(CONFIG_KERNEL_COMPRESS))

@@ -42,7 +42,7 @@
 		reset-gpio = <&porte 1 GPIO_ACTIVE_HIGH>; //gpio 129
 	};
 
-	/delete-node/ cv-sd1;
+	/delete-node/ cv-sd1@29320000;
 	sd:cv-sd@29310000 {
 		 pwr-gpios = <&porte 6 GPIO_ACTIVE_HIGH>;
 	};
