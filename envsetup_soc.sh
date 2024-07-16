@@ -316,30 +316,17 @@ function clean_v4l2_isp()
 	export V4L2_ISP_ENABLE=0
 }
 
-# 设置sophon-sdk信息
-function get_bm_sdk_info {
-    bm_root_dir=ftp://172.28.141.89/athena2
-    bm_user_name=AI
-    bm_user_psword=SophgoRelease2022
-    bm_date_ID=latest_release
-    bm_sdk_name=tpu_kernel
-    bm_chip_name=$1
-    bm_build_type=$2
-}
-
 # 拉取解压sophon-sdk
 function build_bm1686_sdk {
-    # bm1686 tpu_kernel
-    get_bm_sdk_info 1686 daily_build
-    tpu_kernel_file_name=tpu-kernel-tpul_v6_v*.tar.gz
-    tpu_kernel_full_path=$bm_root_dir/tpu-kernel/$bm_build_type/$bm_date_ID/$tpu_kernel_file_name
-
+    tpu_kernel_file_name=tpu-kernel-tpulv6_v3.1.7-4710cd52-240715.tar.gz
     echo "Try to download ${tpu_kernel_file_name} ..."
-    wget -P ${TPU_SDK_PATH} ${tpu_kernel_full_path} --ftp-user $bm_user_name --ftp-password $bm_user_psword -q
     mkdir -p ${TPU_SDK_PATH}/
+    pushd ${TPU_SDK_PATH}/
+    pip3 install dfss --upgrade
+    python -m dfss --url=open@sophgo.com:/gemini-sdk/bm1688_open/${tpu_kernel_file_name}
     tar -xzf ${TPU_SDK_PATH}/$tpu_kernel_file_name -C ${TPU_SDK_PATH}/ --strip-components 1
     echo "Extract"
-
+    popd
     rm -rf ${TPU_SDK_PATH}/${tpu_kernel_file_name}
 }
 function clean_bm1686_sdk {
@@ -392,7 +379,7 @@ function build_ai_sdk()
   SYSTEM_OUT_DIR="$SYSTEM_OUT_DIR" \
   KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
       scripts/sdk_release.sh
-  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd return 1
+  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
   popd
 }
 
@@ -422,8 +409,22 @@ function clean_osdrv()
   popd
 }
 
+
+function clean_libsophon()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf ${TPU_SDK_INSTALL_PATH}
+  rm -rf "$LIBSOPHON_PATH"/build/*
+  rm -rf "$LIBSOPHON_PATH"/install/*
+  rm -rf "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.4
+  rm -rf "$SYSTEM_OUT_DIR"/ko/bmtpu.ko
+}
+
+
 function build_libsophon()
 {
+  clean_libsophon
   print_notice "Run ${FUNCNAME[0]}() function"
 
   # pushd "$LIBSOPHON_PATH" || return
@@ -473,17 +474,6 @@ function build_libsophon()
   cp -f "$LIBSOPHON_PATH"/build/driver/sg_aarch64_soc_device/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
 
   popd
-}
-
-function clean_libsophon()
-{
-  print_notice "Run ${FUNCNAME[0]}() function"
-
-  rm -rf ${TPU_SDK_INSTALL_PATH}
-  rm -rf "$LIBSOPHON_PATH"/build/*
-  rm -rf "$LIBSOPHON_PATH"/install/*
-  rm -rf "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.4
-  rm -rf "$SYSTEM_OUT_DIR"/ko/bmtpu.ko
 }
 
 
@@ -650,9 +640,14 @@ function pack_bm1688_rootfs(){
   cd ${TOP_DIR}
   cp ${TOP_DIR}/ubuntu/install/soc_$CVIARCH/rootfs.tgz  ${TOP_DIR}/install/soc_bm1688_wevb_emmc/
   cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/local_update.sh ${TOP_DIR}/build/scripts
-  #source build/envsetup_soc.sh
-  #defconfig bm1688_wevb_emmc
   build_package
+  if [ -d "$OUTPUT_DIR"/package_edge ]; then
+    echo copy sdk files...
+    #mkdir -p "$OUTPUT_DIR"/package_edge/sdk_release
+    sudo cp -f "$LIBSOPHON_PATH"/build/libsophon_soc_0.4.9_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
+    sudo cp -f ${TOP_DIR}/sophon_media/buildit/sophon-media-soc_1.7.0_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
+  fi
+
 }
 
 function build_bm1688_edge()
@@ -986,16 +981,6 @@ function build_edge_pack()
     build_osdrv || return $?
     build_ramboot || return $?
     build_v4l2_isp || return $?
-    #rename deb
-    pushd ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
-    export LOCALVERSION=-tag-
-    KERNELRELEASE=`make kernelrelease`
-    pushd ${KERNEL_PATH}/build
-    mv linux-headers-${KERNELRELEASE}_*.deb linux-headers-${KERNELRELEASE}.deb
-    mv linux-image-${KERNELRELEASE}-dbg_*.deb linux-image-${KERNELRELEASE}-dbg.deb
-    mv linux-image-${KERNELRELEASE}_*.deb linux-image-${KERNELRELEASE}.deb
-    popd
-    popd
 }
 
 function clean_edge_pack()
@@ -1014,6 +999,7 @@ function build_package()
     sudo rm -rf $PACKAGE_OUTPUT_DIR
     mkdir $PACKAGE_OUTPUT_DIR
     mkdir $PACKAGE_OUTPUT_DIR/boot
+    mkdir $PACKAGE_OUTPUT_DIR/rootfs_rw
 
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/boot.itb $PACKAGE_OUTPUT_DIR/boot/
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/multi.its $PACKAGE_OUTPUT_DIR/boot/
@@ -1042,8 +1028,14 @@ function build_package()
     sudo tar -zxf ../rootfs.tgz -C ./rootfs
     sudo cp -rf  $OUTPUT_DIR/rootfs/mnt/system rootfs/mnt/
     cd rootfs
+    echo "stty cols 160" >> $PACKAGE_OUTPUT_DIR/rootfs/home/linaro/.bashrc
+    echo "stty cols 160" >> $PACKAGE_OUTPUT_DIR/rootfs/root/.bashrc
+    mv home/linaro/* ../rootfs_rw
+
     sudo tar -zcf rootfs.tgz *
     mv rootfs.tgz ../
+    cd ../rootfs_rw
+    sudo tar -zcf ../rootfs_rw.tgz *
     cd ..
     popd
 
@@ -1069,9 +1061,12 @@ function build_all()
   build_middleware || return $?
   build_ramboot || return $?
   if [[ "$BOARD" != "fpga" ]] && [[ "$BOARD" != "palladium" ]]; then
+    build_cvi_rtsp || return $?
     if [ "$TPU_REL" = 1 ]; then
-      build_bm1686_sdk || return $?
+       build_bm1686_sdk || return $?
+       build_ai_sdk || return $?
     fi
+    build_pqtool_server || return $?
   fi
   pack_cfg || return $?
   pack_rootfs || return $?

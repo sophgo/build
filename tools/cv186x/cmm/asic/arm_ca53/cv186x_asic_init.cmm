@@ -11,10 +11,10 @@ system.config apbaccessport 0
 system.config axiaccessport 1
 system.config memoryaccessport 1
 ; set corenumber first
-sys.config corenumber 1
+sys.config corenumber 8
 ; then set corebase and ctibase
-sys.config corebase 0x81010000
-sys.config ctibase  0x81020000
+sys.config corebase 0x82210000 0x82310000 0x81010000 0x81110000 0x81210000 0x81310000 0x82010000 0x82110000
+sys.config ctibase  0x82220000 0x82320000 0x81020000 0x81120000 0x81220000 0x81320000 0x82020000 0x82120000
 sys.jc 10mhz
 
 Wait 10.ms

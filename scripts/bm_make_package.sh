@@ -516,6 +516,7 @@ function do_gen_partition_subimg()
 					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} -C $RECOVERY_DIR/$MOUNT_DIR-$2
 				fi
 				sync
+				sleep 1 # wait for sync
 				sudo umount $RECOVERY_DIR/$MOUNT_DIR-$2
 			else
 				echo $1 may be an empty parition.
