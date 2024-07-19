@@ -620,7 +620,7 @@ function update_bm1688_debs(){
   rm -rf ${SDK_DEBS}/*
   cp linux_5.10/build/*.deb ${BSP_DEBS}
   cp libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
-  cp sophon_media/buildit/sophon[_-]media-soc-sophon-{ffmpeg_,opencv_,sample}*_arm64.deb ${SDK_DEBS}
+  cp sophon_media/buildit/sophon[_-]media-soc-sophon-{ffmpeg_,opencv_,gstreamer_,sample}*_arm64.deb ${SDK_DEBS}
   cp middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
   pushd ${TOP_DIR}/ubuntu/
   if [  -e "${TOP_DIR}/ubuntu/${SOPHLITEOS_DIR}" ]; then
