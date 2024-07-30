@@ -355,7 +355,7 @@ function clean_sdk()
     rm -rf "$AI_SDK_PATH"/tmp/_deps
   fi
 
-  rm -f "$SYSTEM_OUT_DIR"/lib/libcviai.so*
+  # rm -f "$SYSTEM_OUT_DIR"/lib/libcviai.so*
   rm -f "$SYSTEM_OUT_DIR"/lib/libcvi_"$1"_tpu.so*
   rm -rf "${SYSTEM_OUT_DIR:?}"/usr/bin/"$1"
 }
@@ -591,6 +591,9 @@ function build_all()
   build_middleware || return $?
   if [ "$TPU_REL" = 1 ]; then
     build_tpu_sdk || return $?
+    build_ive_sdk || return $?
+    build_ivs_sdk || return $?
+    build_ai_sdk || return $?
   fi
   pack_cfg || return $?
   pack_rootfs || return $?
@@ -740,7 +743,7 @@ function cvi_setup_env()
   IVE_SDK_PATH="$TOP_DIR"/ive
   IVS_SDK_PATH="$TOP_DIR"/ivs
   CNV_SDK_PATH="$TOP_DIR"/cnv
-  AI_SDK_PATH="$TOP_DIR"/cviai
+  AI_SDK_PATH="$TOP_DIR"/tdl_sdk
   CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
   CVI_RTSP_PATH="$TOP_DIR"/cvi_rtsp
   OPENSBI_PATH="$TOP_DIR"/opensbi
