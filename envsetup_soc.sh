@@ -645,7 +645,7 @@ function pack_bm1688_rootfs(){
     echo copy sdk files...
     #mkdir -p "$OUTPUT_DIR"/package_edge/sdk_release
     sudo cp -f "$LIBSOPHON_PATH"/build/libsophon_soc_0.4.9_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
-    sudo cp -f ${TOP_DIR}/sophon_media/buildit/sophon-media-soc_1.7.0_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
+    #sudo cp -f ${TOP_DIR}/sophon_media/buildit/sophon-media-soc_1.7.0_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
   fi
 
 }
