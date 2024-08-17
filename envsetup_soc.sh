@@ -657,7 +657,7 @@ function build_bm1688_edge()
 }
 
 function build_bm1688_all(){
-     build_sophon_media || $? return
+     #build_sophon_media || $? return
      build_bm1688_edge || $? return
      build_libsophon || $? return
      update_bm1688_debs || $? return
