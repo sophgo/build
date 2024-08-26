@@ -1741,7 +1741,7 @@
                 interrupt-names = "msi";
                 bus-range = <0x0 0xff>;
                 num-lanes = <2>;
-                num-viewport = <1>;
+                num-viewport = <4>;
                 #address-cells = <3>;
                 #size-cells = <2>;
                 device_type = "pci";
@@ -1774,7 +1774,7 @@
                 interrupt-names = "msi";
                 bus-range = <0x0 0xff>;
                 num-lanes = <2>;
-                num-viewport = <1>;
+                num-viewport = <4>;
                 #address-cells = <3>;
                 #size-cells = <2>;
                 device_type = "pci";
@@ -2055,12 +2055,12 @@
 	};
 
 	veth:veth {
-		status = "disabled";
+		status = "okay";
 		compatible = "sophgon, veth";
 		reg = <0x00000000 0x05026F00 0x00000000 0x00000100>,
 			<0x00000000 0x28100000 0x00000000 0x00000100>,
 			<0x00000000 0x27110000 0x00000000 0x00004000>,
-			<0x00000000 0x20be8000 0x00000000 0x00001000>;
+			<0x00000000 0x20be9000 0x00000000 0x00001000>;
 		reg-names = "shm_reg", "top_misc", "intc_cfg", "cdma_cfg";
 		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;  //gp31[2]
 		interrupt-names = "rx";
