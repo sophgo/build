@@ -406,17 +406,12 @@
 		interrupt-parent = <&plic0>;
 	};
 
-	dwa {
-		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>,
-			     <32 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "dwa0", "dwa1";
-		interrupt-parent = <&plic0>;
-	};
-
-	ldc {
+	gdc {
 		interrupts = <36 IRQ_TYPE_LEVEL_HIGH>,
-			     <37 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "ldc0", "ldc1";
+			     <37 IRQ_TYPE_LEVEL_HIGH>,
+			     <31 IRQ_TYPE_LEVEL_HIGH>,
+			     <32 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ldc0", "ldc1", "dwa0", "dwa1";
 		interrupt-parent = <&plic0>;
 	};
 

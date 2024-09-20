@@ -345,11 +345,18 @@ kernel-dts: ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
 kernel: $(OUTPUT_DIR)/rootfs
 kernel: kernel-build
 	$(call print_target)
-ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+ifneq ($(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)),)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
-else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
-	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
+
+	# Add postinst for linux-headers
+	${Q}dpkg-deb -x ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../linux-headers*.deb ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+	${Q}cp -r ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/debian/linux-headers/DEBIAN ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+	${Q}printf "make -C /usr/src/linux-headers-\$$(uname -r) olddefconfig prepare0" > ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
+	${Q}chmod +x ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
+	${Q}find ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../ -name 'linux-headers*.deb' -exec dpkg -b ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/ {} \;
+	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/
 endif
+
 	$(call copy_Image_action)
 	$(call copy_ko_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/modules)
 	$(call copy_header_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/$(ARCH)/usr/include)
@@ -360,6 +367,8 @@ endif
 	${Q}ln -sf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}  ${KERNEL_PATH}/build/kernel_output
 
 ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64),y)
+INITRAMFS_BASE := glibc_arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
 INITRAMFS_BASE := glibc_arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 INITRAMFS_BASE := glibc_arm
@@ -494,7 +503,8 @@ endif
 ifneq ($(wildcard $(RAMDISK_PATH)/keys/cfg.key),)
 	openssl genpkey -algorithm RSA -out $(RAMDISK_PATH)/keys/cfg.key
 endif
-	$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -k $(RAMDISK_PATH)/keys -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
+	#$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -k $(RAMDISK_PATH)/keys -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
+	$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
 
 ramboot: kernel-dts
 	$(call print_target)
@@ -542,6 +552,8 @@ endif
 
 ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64),y)
 packages_arch := arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
+packages_arch := arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 packages_arch := arm
 else ifeq ($(CONFIG_TOOLCHAIN_UCLIBC_ARM),y)
@@ -551,7 +563,12 @@ packages_arch := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)
 packages_arch := musl_riscv64
 endif
+
+ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
+ROOTFS_BASE := common_$(packages_arch)_v930
+else
 ROOTFS_BASE := common_$(packages_arch)
+endif
 
 $(OUTPUT_DIR)/rootfs:
 	${Q}mkdir -p $@

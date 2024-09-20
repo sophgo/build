@@ -13,6 +13,12 @@
 		stdout-path = "serial2"; // "serial0:115200n8", no arguments means no re-initialization
 	};
 
+	memory@100000000 {
+		device_type = "memory";
+		reg = <0x1 0x00000000 0x3 0x00000000>;	//12G
+	};
+
+
 	reserved-memory {
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
@@ -25,16 +31,14 @@
 			no-map;
 		};
 
-		//0x1_7A00_0000 - 0x1_DA00_0000 for TPU (owner: zhuolin.li@sophgo.com)
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
-			reg = <0x1 0x7A000000 0x0 0x60000000>; // 1.5G, for TPU
+			reg = <0x2 0x00000000 0x0 0xC0000000>; // 3G, for npu
 		};
 
-		//0x2_0000_0000 - 0x3_0000_0000 for VPP (owner: kenneth.liu@sophgo.com)
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
-			reg = <0x2 0x00000000 0x1 0x00000000>; // 4G, for VPP
+			reg = <0x3 0x00000000 0x1 0x00000000>; // 4G, for TPU
 		};
 #endif
 	};

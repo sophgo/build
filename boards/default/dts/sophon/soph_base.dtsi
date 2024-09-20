@@ -1074,6 +1074,7 @@
 			<&clk CV186X_VI_CLK_SRC_VI_SYS_2>, <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
 			<&clk CV186X_VI_CLK_SRC_VI_SYS_4>, <&clk CV186X_VI_CLK_SRC_VI_SYS_5>, <&clk CV186X_CLK_CSI_BE_VI>,
 			<&clk CV186X_CLK_RAW_VI>, <&clk CV186X_CLK_ISP_TOP_VI>,
+			<&clk CV186X_CLK_AXI_VI>,
 			<&clk CV186X_CLK_CSI_MAC0_VI>, <&clk CV186X_CLK_CSI_MAC1_VI>,
 			<&clk CV186X_CLK_CSI_MAC2_VI>, <&clk CV186X_CLK_CSI_MAC3_VI>,
 			<&clk CV186X_CLK_CSI_MAC4_VI>, <&clk CV186X_CLK_CSI_MAC5_VI>,
@@ -1081,6 +1082,7 @@
 		clock-names = "clk_sys_0", "clk_sys_1", "clk_sys_2",
 			"clk_sys_3", "clk_sys_4", "clk_sys_5",
 			"clk_csi_be", "clk_raw", "clk_isp_top",
+			"clk_axi_vi",
 			"clk_csi_mac0", "clk_csi_mac1", "clk_csi_mac2",
 			"clk_csi_mac3", "clk_csi_mac4", "clk_csi_mac5",
 			"clk_csi_mac_vi0", "clk_csi_mac_vi1";
@@ -1118,24 +1120,16 @@
 		clock-names = "tpu", "top_fab0", "tc906b", "timer", "gdma";
 	};
 
-	dwa {
-		compatible = "cvitek,dwa";
-		reg = <0x0 0x680b4000 0x0 0x2000>, <0x0 0x680b6000 0x0 0x2000>;
-		reg-names = "dwa0", "dwa1";
-		clocks = <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
-			 <&clk CV186X_CLK_DWA0_VI>,
-			 <&clk CV186X_CLK_DWA1_VI>;
-		clock-names = "clk_sys_3", "clk_dwa0", "clk_dwa1";
-	};
-
-	ldc {
-		compatible = "cvitek,ldc";
-		reg = <0x0 0x680b0000 0x0 0x2000>, <0x0 0x680b2000 0x0 0x2000>;
-		reg-names = "ldc0", "ldc1";
+	gdc {
+		compatible = "cvitek,gdc";
+		reg = <0x0 0x680b0000 0x0 0x2000>, <0x0 0x680b2000 0x0 0x2000>, <0x0 0x680b4000 0x0 0x2000>, <0x0 0x680b6000 0x0 0x2000>;
+		reg-names = "ldc0", "ldc1", "dwa0", "dwa1";
 		clocks = <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
 			 <&clk CV186X_CLK_LDC0_VI>,
-			 <&clk CV186X_CLK_LDC1_VI>;
-		clock-names = "clk_sys_3", "clk_ldc0", "clk_ldc1";
+			 <&clk CV186X_CLK_LDC1_VI>,
+			 <&clk CV186X_CLK_DWA0_VI>,
+			 <&clk CV186X_CLK_DWA1_VI>;
+		clock-names = "clk_sys_3", "clk_ldc0", "clk_ldc1", "clk_dwa0", "clk_dwa1";
 	};
 
 	vi {
@@ -1145,6 +1139,7 @@
 			<&clk CV186X_VI_CLK_SRC_VI_SYS_2>, <&clk CV186X_VI_CLK_SRC_VI_SYS_3>,
 			<&clk CV186X_VI_CLK_SRC_VI_SYS_4>, <&clk CV186X_VI_CLK_SRC_VI_SYS_5>,
 			<&clk CV186X_CLK_CSI_BE_VI>, <&clk CV186X_CLK_RAW_VI>, <&clk CV186X_CLK_ISP_TOP_VI>,
+			<&clk CV186X_CLK_AXI_VI>,
 			<&clk CV186X_CLK_CSI_MAC0_VI>, <&clk CV186X_CLK_CSI_MAC1_VI>,
 			<&clk CV186X_CLK_CSI_MAC2_VI>, <&clk CV186X_CLK_CSI_MAC3_VI>,
 			<&clk CV186X_CLK_CSI_MAC4_VI>, <&clk CV186X_CLK_CSI_MAC5_VI>,
@@ -1152,6 +1147,7 @@
 		clock-names = "clk_sys_0", "clk_sys_1", "clk_sys_2",
 			"clk_sys_3", "clk_sys_4", "clk_sys_5",
 			"clk_csi_be", "clk_raw", "clk_isp_top",
+			"clk_axi_vi",
 			"clk_csi_mac0", "clk_csi_mac1", "clk_csi_mac2",
 			"clk_csi_mac3", "clk_csi_mac4", "clk_csi_mac5",
 			"clk_csi_mac_vi0", "clk_csi_mac_vi1";
@@ -1203,20 +1199,18 @@
 				<0x0 0x67007000 0x0 0x1000>;
 		reg-names = "vo_mac0", "disp0", "dsi_mac0", "dsi_phy0", "oenc0",
 			"vo_mac1", "disp1", "dsi_mac1", "dsi_phy1", "oenc1";
-		clocks = <&clk CV186X_VO_CLK_MIPIMPLL0>, <&clk CV186X_VO_CLK_MIPIMPLL1>,
-			<&clk CV186X_VO_CLK_DISP0>, <&clk CV186X_VO_CLK_VO_MAC0>, <&clk CV186X_VO_CLK_DSI_MAC0>,
+		clocks = <&clk CV186X_VO_CLK_DISP0>, <&clk CV186X_VO_CLK_VO_MAC0>, <&clk CV186X_VO_CLK_DSI_MAC0>,
 			<&clk CV186X_VO_CLK_DISP1>, <&clk CV186X_VO_CLK_VO_MAC1>, <&clk CV186X_VO_CLK_DSI_MAC1>;
-		clock-names = "clk_vo_mipimpll0", "clk_vo_mipimpll1",
-			"clk_vo_disp0", "clk_vo_mac0", "clk_vo_dsi_mac0",
+		clock-names = "clk_vo_disp0", "clk_vo_mac0", "clk_vo_dsi_mac0",
 			"clk_vo_disp1", "clk_vo_mac1", "clk_vo_dsi_mac1";
 	};
 
 	mipi_tx {
 		compatible = "cvitek,mipi_tx";
-		clocks = <&clk CV186X_VO_CLK_SRC_VO_SYS_1>, <&clk CV186X_CLK_FPLL>,
+		clocks = <&clk CV186X_VO_CLK_MIPIMPLL0>, <&clk CV186X_VO_CLK_MIPIMPLL1>,
 			<&clk CV186X_VO_CLK_DSI_MAC0>, <&clk CV186X_VO_CLK_RAW_DSI_TX_ESC0>,
 			<&clk CV186X_VO_CLK_DSI_MAC1>, <&clk CV186X_VO_CLK_RAW_DSI_TX_ESC1>;
-		clock-names = "clk_vo_sys1", "clk_fpll",
+		clock-names = "clk_vo_mipimpll0", "clk_vo_mipimpll1",
 			"clk_vo_dsi_mac0", "clk_vo_dsi_tx_esc0",
 			"clk_vo_dsi_mac1", "clk_vo_dsi_tx_esc1";
 	};
@@ -1745,7 +1739,7 @@
                 #address-cells = <3>;
                 #size-cells = <2>;
                 device_type = "pci";
-                pipe-mode = <0x0>; //b'00 x2&&x2; b'10 sata&&x2
+                pipe-mode = <0x2>; //b'00 x2&&x2; b'10 sata&&x2
                 ctrl-index = <0x0>;
                 remote-upper = <0x0c 0x80000000>;
                 remote-lower = <0x10 0xbfffffff>;
@@ -2004,7 +1998,6 @@
 	panel:lvds-panel {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0>;
 		status = "disable";
 		port {
 			lvds0_in_panel0: endpoint {
@@ -2045,7 +2038,6 @@
 	panel1:lvds-panel1 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0>;
 		status = "disable";
 		port {
 			lvds1_in_panel1: endpoint {

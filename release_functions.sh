@@ -131,8 +131,13 @@ function build_sdk_ver()
 function build_all_sdk_ver()
 {
   if [[ "$CHIP_ARCH" == SOPHON ]]; then
-    setconfig TOOLCHAIN_GLIBC_ARM64=y
-    build_sdk_ver "$@"
+	  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' "$BUILD_PATH"/.config; then
+		  setconfig TOOLCHAIN_GLIBC_ARM64_V930=y
+		  build_sdk_ver "$@"
+	  else
+		  setconfig TOOLCHAIN_GLIBC_ARM64=y
+		  build_sdk_ver "$@"
+	  fi
   fi
   #if [[ "$CHIP_ARCH" == CV183X ]]; then
   #  setconfig TOOLCHAIN_GLIBC_ARM64=y

@@ -22,7 +22,12 @@ menu "Compile-time checks and compiler options"
 
 config CROSS_COMPILE
 	string "Cross-compiler tool prefix for fip/uboot"
-	default "aarch64-linux-gnu-"
+	default "aarch64-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
+	default "aarch64-linux-" if TOOLCHAIN_GLIBC_ARM64_V930
+	default "arm-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
+	default "arm-cvitek-linux-uclibcgnueabihf-" if TOOLCHAIN_UCLIBC_ARM
+	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
+	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
 	help
 	  Same as running 'make CROSS_COMPILE=prefix-' but stored for
 	  default make runs in this application build directory.  You don't
@@ -32,6 +37,7 @@ config CROSS_COMPILE
 config CROSS_COMPILE_KERNEL
 	string "Cross-compiler tool prefix for kernel"
 	default "aarch64-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
+	default "aarch64-linux-" if TOOLCHAIN_GLIBC_ARM64_V930
 	default "arm-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
 	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
@@ -132,6 +138,11 @@ config TOOLCHAIN_GLIBC_ARM64
 	help
 	  glibc library for arm64(AARCH64).
 
+config TOOLCHAIN_GLIBC_ARM64_V930
+	bool "gcc 9.3.0 version glibc library for user mode application on arm64"
+	help
+	  glibc library for arm64(AARCH64).
+
 config TOOLCHAIN_GLIBC_ARM
 	bool "glibc library for user mode application on arm"
 	help
@@ -159,6 +170,7 @@ endchoice
 config CROSS_COMPILE_SDK
 	string
 	default "aarch64-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
+	default "aarch64-linux-" if TOOLCHAIN_GLIBC_ARM64_V930
 	default "arm-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
 	default "arm-cvitek-linux-uclibcgnueabihf-" if TOOLCHAIN_UCLIBC_ARM
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
@@ -175,7 +187,7 @@ config MW_VER
 
 config SDK_VER
 	string
-	default "64bit" if TOOLCHAIN_GLIBC_ARM64
+	default "64bit" if TOOLCHAIN_GLIBC_ARM64 || TOOLCHAIN_GLIBC_ARM64_V930
 	default "32bit" if TOOLCHAIN_GLIBC_ARM
 	default "uclibc" if TOOLCHAIN_UCLIBC_ARM
 	default "glibc_riscv64" if TOOLCHAIN_GLIBC_RISCV64

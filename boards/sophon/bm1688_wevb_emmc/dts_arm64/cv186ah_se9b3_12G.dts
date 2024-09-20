@@ -2,7 +2,7 @@
 #include "soph_base_arm64.dtsi"
 //#include "soph_asic_bga.dtsi"
 #include "soph_asic_emmc.dtsi"
-#include "soph_default_memmap.dtsi"
+#include "soph_default_memmap_4G.dtsi"
 
 / {
 	aliases {
@@ -11,6 +11,11 @@
 
 	chosen {
 		stdout-path = "serial2"; // "serial0:115200n8", no arguments means no re-initialization
+	};
+
+	memory@100000000 {
+		device_type = "memory";
+		reg = <0x1 0x00000000 0x3 0x00000000>;	//12G
 	};
 
 	reserved-memory {
@@ -25,16 +30,14 @@
 			no-map;
 		};
 
-		//0x1_7A00_0000 - 0x1_DA00_0000 for TPU (owner: zhuolin.li@sophgo.com)
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
-			reg = <0x1 0x7A000000 0x0 0x60000000>; // 1.5G, for TPU
+			reg = <0x2 0x00000000 0x0 0xC0000000>; // 3G, for npu
 		};
 
-		//0x2_0000_0000 - 0x3_0000_0000 for VPP (owner: kenneth.liu@sophgo.com)
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
-			reg = <0x2 0x00000000 0x1 0x00000000>; // 4G, for VPP
+			reg = <0x3 0x00000000 0x1 0x00000000>; // 4G, for TPU
 		};
 #endif
 	};
@@ -73,11 +76,45 @@
 		};
 	};
 
+	cpus {
+		#size-cells = <0x0>;
+		#address-cells = <0x1>;
+
+		/delete-node/ cpu-map;
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+			};
+		};
+		/delete-node/ cpu@102;
+		/delete-node/ cpu@103;
+	};
+
 	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
 			label = "disk-blue";
-			gpios = <&portf 23 GPIO_ACTIVE_HIGH>;
+			gpios = <&porta 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
@@ -102,8 +139,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		enable-active-high;
-		gpios = <&portg 11 GPIO_ACTIVE_HIGH>;
 	};
 
 	vcc5v0_sys: vcc5v0-sys {
@@ -113,9 +148,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		//gpios = <&portd 21 GPIO_ACTIVE_HIGH>;
-		gpios = <&portd 16 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dc>;
 	};
 
@@ -126,8 +158,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpios = <&portd 3 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dc>;
 	};
 
@@ -139,7 +169,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpios = <&portc 15 GPIO_ACTIVE_HIGH>;
+		gpios = <&portb 19 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -151,7 +181,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpios = <&portg 5 GPIO_ACTIVE_HIGH>;
+		gpios = <&porta 5 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -163,7 +193,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpios = <&portb 18 GPIO_ACTIVE_HIGH>;
+		gpios = <&portf 21 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -175,7 +205,7 @@
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
 		enable-active-high;
-		gpios = <&portg 4 GPIO_ACTIVE_HIGH>;
+		gpios = <&portf 23 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -188,6 +218,18 @@
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpios = <&porta 1 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc3v3_gps: vcc3v3-gps {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_gps";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&portg 5 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 

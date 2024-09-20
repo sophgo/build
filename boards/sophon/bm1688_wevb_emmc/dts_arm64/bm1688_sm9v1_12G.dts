@@ -10,14 +10,13 @@
 	};
 
 	chosen {
-		stdout-path = "serial0"; // "serial0:115200n8", no arguments means no re-initialization
+		stdout-path = "serial2"; // "serial0:115200n8", no arguments means no re-initialization
 	};
 
 	memory@100000000 {
 		device_type = "memory";
 		reg = <0x1 0x00000000 0x3 0x00000000>;	//12G
 	};
-
 
 	reserved-memory {
 		#address-cells = <0x2>;
@@ -43,90 +42,184 @@
 #endif
 	};
 
-	pcie@20400000 {
-		reset-gpio = <&porte 1 GPIO_ACTIVE_HIGH>; //gpio 129
+	pcie1:pcie@20400000 {
+		pipe-mode = <0x2>; //b'00 x2&&x2; b'10 sata&&x2
+		reset-gpio = <&porte 2 GPIO_ACTIVE_HIGH>; //gpio 130
 	};
 
-	/delete-node/ cv-sd1@29320000;
+	/delete-node/ cv-sd1;
 	sd:cv-sd@29310000 {
-		pwr-gpios = <&porte 6 GPIO_ACTIVE_HIGH>;
+		pwr-gpios = <&portg 6 GPIO_ACTIVE_HIGH>;
 	};
 
 	thermal-zones {
 		soc_thermal_0 {
 			trips {
 				soc_thermal_trip_0 {
-					temperature = <85000>; /* millicelsius */
+					temperature = <90000>; /* millicelsius 85->110000 */
 					hysteresis = <10000>; /* millicelsius */
 					type = "passive";
 				};
 
 				soc_thermal_trip_1 {
-					temperature = <95000>; /* millicelsius */
+					temperature = <100000>; /* millicelsius 95->120 */
 					hysteresis = <20000>; /* millicelsius */
 					type = "passive";
 				};
 
 				soc_thermal_crtical_0 {
-					temperature = <105000>; /* millicelsius */
+					temperature = <115000>; /* millicelsius 105->125 */
 					hysteresis = <0>; /* millicelsius */
 					type = "critical";
 				};
 			};
 		};
 	};
-};
 
+	bsl_leds: bsl_leds {
+		compatible = "gpio-leds";
+		disk-led {
+			label = "disk-blue";
+			gpios = <&portf 23 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		wan-led {
+			label = "wan-yellow";
+			gpios = <&portc 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		sys_led {
+			gpios = <&portg 1 GPIO_ACTIVE_HIGH>;
+			label = "system-green";
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+	};
+
+	vcc12v_dc: vcc12v-dc {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc12v_dc";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpios = <&portg 11 GPIO_ACTIVE_HIGH>;
+	};
+
+	vcc5v0_sys: vcc5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		//gpios = <&portd 21 GPIO_ACTIVE_HIGH>;
+		gpios = <&portd 16 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dc>;
+	};
+
+	vcc3v3_sys: vcc3v3-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&portd 3 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dc>;
+	};
+
+	vcc5v0_hub: vcc5v0-hub {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_hub";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpios = <&portc 15 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc5v0_host: vcc5v0-host {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpios = <&portg 5 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc3v3_mvme: vcc3v3-nvme {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_mvme";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&portb 18 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc3v8_4g: vcc3v8-4g {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v8_4g";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3800000>;
+		regulator-max-microvolt = <3800000>;
+		enable-active-high;
+		gpios = <&portg 4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc3v3_wifi: vcc3v3-wifi {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_wifi";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&porta 1 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	i2c11: i2c@11 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&porte 3 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&porte 4 GPIO_ACTIVE_HIGH>;
+		i2c-gpio,delay-us = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reset-names = "i2c11";
+		status = "okay";
+
+		pmic010: pmic010@50 {
+			compatible = "BasisLink,cs32l010";
+			shutdown-gpio = <&portg 0 GPIO_ACTIVE_HIGH>;
+			reg = <0x50>;
+		};
+	};
+};
 
 &uart0 {
 	clock-frequency = <200000000>;
 	current-speed = <115200>;
 };
 
-&mipi_dsi0 {
-	clock-lane = <2>;
-	data-lanes = <4 3 1 0>;
-	lanes-swap = <0 0 0 0 0>;
-};
-
-&mipi_panel0 {
-	compatible = "cvitek,hx8399";
-	status = "okay";
-	reset-gpio = <&portd 18 GPIO_ACTIVE_LOW>;
-	pwm-gpio = <&portg 17 GPIO_ACTIVE_HIGH>;
-	power-gpio = <&portd 15 GPIO_ACTIVE_HIGH>;
-};
-
-&mipi_dsi1 {
-	clock-lane = <2>;
-	data-lanes = <0 1 3 4>;
-	lanes-swap = <0 0 0 0 0>;
-};
-
-&mipi_panel1 {
-	compatible = "cvitek,hx8394";
-	status = "okay";
-	reset-gpio = <&portg 16 GPIO_ACTIVE_LOW>;
-	pwm-gpio = <&portd 16 GPIO_ACTIVE_HIGH>;
-	power-gpio = <&portd 15 GPIO_ACTIVE_HIGH>;
-};
-
 &hdmi {
 	label = "SE9";
 };
-
-&panel {
-	compatible = "cvitek,lcm18x56";
-	power-gpio = <&portd 15 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
-&panel1 {
-	compatible = "cvitek,lcm18x56";
-	power-gpio = <&portd 15 GPIO_ACTIVE_HIGH>;
-	status = "disable";
-};
-
 
 &usbdrd3_0 {
 	usbdrd_dwc3_0: usb@39010000 {
@@ -134,10 +227,26 @@
 	};
 };
 
-
-&i2c2 {
-	rtc@68 {
-		compatible = "dallas,ds1307";
-		reg = <0x68>;
+&i2c6 {
+	rtc@51 {
+		compatible = "Haoyu,hym8563";
+		init_date = "2024/01/01";
+		reg = <0x51>;
 	};
+};
+
+&gpio_leds {
+	status = "disable";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&uart6 {
+	status = "okay";
 };
