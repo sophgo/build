@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import sys
+import math
 import xml.etree.ElementTree as ET
 
 FORMAT = "%(levelname)s: %(message)s"
@@ -12,6 +13,7 @@ Storage_EMMC = 0
 Storage_SPINAND = 1
 Storage_SPINOR = 2
 LBA_SIZE = 512
+MAX_LOAD_SIZE = 16 * 1024 * 1024
 
 
 class XmlParser:
@@ -53,18 +55,25 @@ class XmlParser:
                 p["part_size"] = sys.maxsize
                 # Assign 0 means biggest number
 
-            if part.attrib["file"] and install_dir is not None:
+            if part.attrib["file"] and install_dir is not None :
                 path = os.path.join(install_dir, part.attrib["file"])
                 try:
                     file_size = os.stat(path).st_size
                 except Exception:
                     file_size = 0
-                if file_size > p["part_size"]:
+                if file_size > p["part_size"] and part.attrib["label"] != "DATA" :
                     logging.error(
                         "Image: %s(%d) is larger than partition size(%d)"
                         % (part.attrib["file"], file_size, p["part_size"])
                     )
                     raise OverflowError
+                else :
+                    if file_size > (p["part_size"] + 64 * (1 + math.ceil(p["part_size"] / MAX_LOAD_SIZE))) :
+                        logging.error(
+                            "Image: %s(%d) is larger than partition size(%d)"
+                            % (part.attrib["file"], file_size, p["part_size"])
+                        )
+                        raise OverflowError
                 p["file_path"] = path
                 logging.debug("size of " + path + " : " + str(file_size))
             else:

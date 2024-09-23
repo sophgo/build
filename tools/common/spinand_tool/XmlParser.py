@@ -53,18 +53,26 @@ class XmlParser:
                 p["part_size"] = sys.maxsize
                 # Assign 0 means biggest number
 
-            if part.attrib["file"] and install_dir is not None:
+            if part.attrib["file"] and install_dir is not None and part.attrib["label"] != "fip":
                 path = os.path.join(install_dir, part.attrib["file"])
                 try:
                     file_size = os.stat(path).st_size
                 except Exception:
                     file_size = 0
-                if file_size > p["part_size"]:
+                if file_size > p["part_size"] and part.attrib["label"] != "DATA":
                     logging.error(
                         "Image: %s(%d) is larger than partition size(%d)"
                         % (part.attrib["file"], file_size, p["part_size"])
                     )
                     raise OverflowError
+                else:
+                    if file_size > (p["part_size"] + 128):
+                        logging.error(
+                            "Image: %s(%d) is larger than partition size(%d)"
+                            % (part.attrib["file"], file_size, p["part_size"])
+                        )
+                        raise OverflowError
+ 
                 p["file_path"] = path
                 logging.debug("size of " + path + " : " + str(file_size))
             else:

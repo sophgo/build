@@ -1,0 +1,12 @@
+/dts-v1/;
+#include "cv181x_base_arm.dtsi"
+#include "cv181x_asic_qfn.dtsi"
+#include "cv181x_asic_spinor.dtsi"
+#include "cv181x_default_memmap.dtsi"
+
+/ {
+	i2c2: i2c@04020000 {
+        status = "okay";
+    };
+};
+

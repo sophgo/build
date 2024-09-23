@@ -136,7 +136,6 @@ endmenu
 
 menu "SDK options"
 
-
 choice
 	prompt "C library"
 	default TOOLCHAIN_GLIBC_ARM64
@@ -181,13 +180,6 @@ config CROSS_COMPILE_SDK
 	  Cross compile toolchain prefix for middleware.
 	  This will modify by TOOLCHAN_XLIBC
 
-config MW_VER
-	string
-	default "v1" if CHIP_ARCH_cv183x || CHIP_ARCH_cv182x
-	default "v2" if CHIP_ARCH_cv181x || CHIP_ARCH_cv180x
-	help
-	  Set middleware version.
-
 config SDK_VER
 	string
 	default "64bit" if TOOLCHAIN_GLIBC_ARM64
@@ -208,6 +200,12 @@ config STATIC
 	  dynamic libraries to be present, which is important if used
 	  as a system rescue tool.
 
+config DOUBLESDK
+	bool "Build SDK with v410 sdk and v420 sdk"
+	default n
+	help
+	  select doublesdk
+
 config BUILD_FOR_DEBUG
 	bool "Build SDK with debug config"
 	default y
@@ -219,6 +217,44 @@ config BUILD_FOR_DEBUG
 	  "n":build kernel with release config(disable CONFIG_DEBUG_FS and so on)
 	      build uboot without commands.
 
+config FASTBOOT_GENERAL
+	bool "Build SDK with general fastboot options"
+	default n
+	depends on !BUILD_FOR_DEBUG
+	select FASTBOOT if FASTBOOT_GENERAL
+	select UBOOT_SPL_CUSTOM if FASTBOOT_GENERAL
+	select BOOT_TIME_OPTIMIZATION if FASTBOOT_GENERAL
+	select OSDRV_BUILD_IN if FASTBOOT_GENERAL
+	select RTOS_ANNON_MSG if FASTBOOT_GENERAL
+	help
+		This enables general features for fastboot. If you don't know how to customize 
+		your fastboot SDK, this option give you some common fastboot choices here.
+		But, if you know how to customize your fastboot configuration, please set n.
+
+config FASTBOOT
+	bool "Fast boot"
+	default n
+	depends on !BUILD_FOR_DEBUG
+	help
+		This enables fast boot features.
+		1. activate linux funtion controlled by __FASTBOOT__
+		2. store *.ko in data folder to shrink rootfs
+		3. use shrink rootfs
+		4. defer init linux components
+		5. use simplipied busybox
+
+config H264_FW
+	bool "h264 vcode firmware"
+	default y
+	help
+		If use h264 encode/decode must set it
+
+config H265_FW
+	bool "h265 vcode firmware"
+	default y
+	help
+		If use h265 encode must set it
+
 config ENABLE_SDK_ASAN
 	bool "Enable SDK sanitizer"
 	default n
@@ -227,12 +263,6 @@ config ENABLE_SDK_ASAN
 	  sdk which can help to debug.
 
 	  If unsure, say N.
-
-config DISABLE_PQBIN_JSON
-	bool "Disable PQbin json"
-	default n
-	help
-	  Make pqbin not include json param
 
 config FLASH_SIZE_SHRINK
 	bool "Do not install sample and self test application"
@@ -261,6 +291,47 @@ config NO_TP
 	  "n": build osdrv with extdrv/tp driver.
 	  "y": build osdrv without extdrv/tp driver.
 
+config BOOT_TIME_OPTIMIZATION
+    bool "Boot Time Optimization"
+	default n
+
+config ROOTFS_FORMAT_OPTIMIZATION
+	bool "Optimization of File System Compression Format"
+	depends on BOOT_TIME_OPTIMIZATION
+	default n
+	help
+		Changing the file system compression format from xz to gzip
+		Increase rootfs size
+
+config SKIP_UBOOT
+	bool "OpenSBI jump to Kernel instead of Uboot jump to Kernel"
+	depends on BOOT_TIME_OPTIMIZATION
+	default n
+	help
+		OpenSBI jump to Kernel instead of Uboot jump to Kernel
+
+config SKIP_UBOOT_DEBUG
+	bool "Open kernel log while openSBI jump to Kernel"
+	depends on SKIP_UBOOT
+	default n
+	help
+		Open kernel log while openSBI jump to Kernel
+
+config MEDIA_DRV_IN_LINUX
+    bool "Media Driver in Linux"
+    default n
+    help
+        If set to "y", some media modules will be compiled into Linux.
+        If set to "n", some media modules will not be compiled into Linux.
+
+config OSDRV_BUILD_IN
+	bool "osdrv build-in instead of modules"
+	depends on BOOT_TIME_OPTIMIZATION
+	default n
+	help
+		Increase kernel Image size
+		Reduce file system size
+
 config USB_OSDRV_CVITEK_GADGET
 	bool "Select CONFIG_USB_OSDRV_CVITEK_GADGET to build osdrv with usb gadget cvg"
 	default n
@@ -274,10 +345,26 @@ config BOOT_IMAGE_SINGLE_DTB
 	bool "Make the boot image only have one dtb"
 	default n
 
-config DDR_64MB_SIZE
-	bool "Compile 64MB DDR size project"
-	default n
+config C906L_DMA_ENABLE
+	bool "enable the C906L DMA functions"
+	default y
+	help
+	  Say "y/n" here to enable/disable C906L DMA functions
+	  of the Cvitek driver.
 
+config AUD_DRV_SEL
+	bool "enable the audio drv to alios"
+	depends on C906L_DMA_ENABLE
+	default y
+	help
+	  Say "y/n" here to enable/disable audio drv position.
+
+config AUD_3A_SEL
+	bool "enable 3a in alios"
+	depends on ENABLE_ALIOS
+	default n
+	help
+	  Say "y/n" here to enable/disable 3a in alios.
 endmenu
 
 menu "FIP setting"
@@ -341,6 +428,12 @@ config VC_CLK_OVERDRIVE
 	help
 	  "y" Select to build fip.bin with VC clock overdrived setting
 
+config IMPROVE_AXI_CLK
+	bool "Improve aix clock while load image"
+	default n
+	help
+		Improve aix clock while load image, imporve boottime
+
 endmenu
 
 menu "Storage settings"
@@ -369,17 +462,38 @@ config STORAGE_TYPE
 	default "spinor" if STORAGE_TYPE_spinor
 	default "sd" if STORAGE_TYPE_sd
 
+config IMPROVE_BL_NOR_SPEED
+	bool "imporve bootloader spi nor speed"
+	depends on STORAGE_TYPE_spinor
+	default n
+	help
+	  imporve bootloader spi nor speed by fip param
+
+config MMC_SKIP_TUNING
+	bool "Skip EMMC Tuning"
+	depends on STORAGE_TYPE_emmc
+	default n
+
 config NANDFLASH_BLOCKSIZE
 	int "Nand flash block size"
 	default 131072
+	depends on STORAGE_TYPE_spinand
 	help
 	  The block size of nand flash
 
 config NANDFLASH_PAGESIZE
 	int "Nand flash page size"
 	default 2048
+	depends on STORAGE_TYPE_spinand
 	help
 	  The page size of nand flash
+
+config SUP_LARGE_PART_SIZE
+	bool "Support large part size"
+	depends on STORAGE_TYPE_emmc
+	default n
+	help
+	  This config can make your flash part size large than 4GB
 endmenu
 
 source "output/Kconfig.sensors"
@@ -415,6 +529,7 @@ config UBOOT_SPL_CUSTOM
 	depends on UBOOT_2021_10
 	help
 	  Set fip_spl.bin contain u-boot-spl or u-boot.
+
 endmenu
 
 menu "Kernel options"
@@ -501,12 +616,6 @@ config ROOTFS_OVERLAYFS
 	help
 	  Enable rootfs with overlayfs.
 
-config BUILDROOT_FS
-	bool "Enable buildroot generate rootfs"
-	default n
-	help
-	  Enable buildroot generate rootfs.
-
 config USE_4K_ERASE_SIZE_FOR_JFFS2
 	bool "Use 4K erase size for jffs2 filesystem"
 	default n
@@ -565,48 +674,143 @@ config FAST_IMAGE_TYPE
 		E_FAST_H264 : 2
 		E_FAST_H265 : 3
 
+config ENABLE_ALIOS
+	bool "Enable ALIOS"
+	default n
+	help
+	  Enable alios.
+
+config CHIP_BIG_ARM
+	bool
+	default y if ARCH = "arm"
+    depends on ENABLE_ALIOS
+
 choice
-	prompt "Alios source selection"
-	default DISABLE_ALIOS
-	config DISABLE_ALIOS
-		bool "disable alios"
-		help
-			Disable alios update tool
-			We usually choose this configuration
-			This configuration is required to compile the boot kernel uboot
-			This configuration does not support alios upgrades
-	config ENABLE_ALIOS_UPDATE
-		bool "mars/phobos alios update"
-		help
-			Enable alios update tool
-			We don't usually choose this configuration
-			This configuration is required to compile the tools that update mars/phobos alios
-			This configuration does not support booting the kernel
-	config ENABLE_ALIOS
-		bool "mercury alios"
-		help
-			Enable mercury alios update tool
-			We don't usually choose this configuration
-			This configuration is required to compile the tools that update mercury alios
-			This configuration does not support booting the kernel
+    prompt "Solution in AliOS"
+    default NORM_SOLUTION
+    depends on ENABLE_ALIOS
+    help
+        Don't change this option, if you don't know how it work.
+        NORM_SOLUTION - The default option for general use.
+        FAST_SOLUTION - Designed for fast boot of media in special scenarios,
+                        such as the fastboot test.
+
+config NORM_SOLUTION
+    bool "Norm Solution"
+    depends on ENABLE_ALIOS
+    help
+        The default option for general use.
+
+config FAST_SOLUTION
+    bool "Fast Solution"
+    depends on ENABLE_ALIOS
+    help
+        Designed for fast boot of media in special scenarios, such as the fastboot test.
+
 endchoice
 
-config ALIOS_SOURCE
-	string
-	default "mars_alios" if ENABLE_ALIOS_UPDATE
-	default "alios" if ENABLE_ALIOS
-	default "" if DISABLE_ALIOS
-	help
-		Select build alios source.
-
 config ALIOS_SOLUTION
-	string
-	default "helloworld" if ENABLE_ALIOS_UPDATE
-	default "cv182x_helloworld" if ENABLE_ALIOS
-	default "" if DISABLE_ALIOS
-	help
-		Select solution to build alios.
+    string # "Solution in AliOS"
+    default "normboot" if NORM_SOLUTION
+    default "fastboot" if FAST_SOLUTION
+    depends on ENABLE_ALIOS
+    help
+        Don't change this value, if you don't know how to run it.
+        "normboot" - The default value for general use.
+        "fastboot" - Designed for fast boot of media in special scenarios, such as the fastboot test.
 
+config MEDIA_SUPPORT_PROC
+    bool "Media Proc Support"
+    default y
+    depends on ENABLE_ALIOS
+    help
+        If set to "y", some media modules' proc commands will be enabled in AliOS.
+        If set to "n", some media modules' proc commands will be disabled in AliOS.
+
+config RTOS_INIT_MEDIA
+    bool "Automatically Initialize Media in RTOS"
+    default n
+    depends on ENABLE_ALIOS
+    help
+        If set to "y", the media will be automatically initialized by RTOS.
+        If set to "n", the media should be initialized in applications on Linux.
+
+config RTOS_PARSE_PARAM
+    bool "Parse Params in RTOS"
+    default n
+    depends on ENABLE_ALIOS && RTOS_INIT_MEDIA
+    help
+        If set to "y", the RTOS will parse parameters from the param.bin file.
+        If set to "n", the RTOS will use the default parameters.
+
+config RTOS_ANNON_MSG
+    bool "Support Anonymous IPCM in RTOS"
+    default n
+    depends on ENABLE_ALIOS
+    help
+        If set to "y", anonymous IPCM will be supported for applications within the RTOS.
+        If set to "n", anonymous IPCM will not be supported within the RTOS.
+
+choice
+    prompt "Alios uart in dualos"
+    default DW_UART
+
+config DW_UART
+        bool "Enable dw uart"
+        depends on ENABLE_ALIOS
+        help
+          set enable dw uart in Dualos.
+
+config VIRTUAL_UART
+        bool "Enable virtual uart"
+        depends on ENABLE_ALIOS
+        help
+          set enable virtual uart in Dualos.
+
+endchoice
+
+config MIRROR_2ND_PACK_HEAD
+        bool "Update second mirror image with 128 byte headers"
+        default n
+        depends on ENABLE_ALIOS
+        help
+          set alios with 128 byte headers update to storage.
+
+config COMPRESS_RTOS_BIN
+	bool "Compress rtos bin"
+	default y if !RTOS_INIT_MEDIA
+	help
+	  compress rtos bin by lzma
+
+choice
+    prompt "Alios customization pipeline"
+	default CV180ZB_GC2053 if CHIP_ARCH_cv180x
+	default CV1811C_CV2003_1l_TRIPLE if CHIP_ARCH_cv181x
+
+config CV180ZB_SC2003_SC2003_1l_SWITCH
+        bool "CV180ZB_SC2003_SC2003_1l_SWITCH pipeline"
+        depends on ENABLE_ALIOS
+        help
+          Select pipeline for CV180ZB_SC2003_SC2003_1l_SWITCH project.
+
+config CV180ZB_SC2331_SC2331_1l_SWITCH
+        bool "CV180ZB_SC2331_SC2331_1l_SWITCH pipeline"
+        depends on ENABLE_ALIOS
+        help
+          Select pipeline for CV180ZB_SC2331_SC2331_1l_SWITCH project.
+
+config CV1811C_CV2003_1l_TRIPLE
+        bool "CV1811C_CV2003_1l_TRIPLE pipeline"
+        depends on ENABLE_ALIOS
+        help
+          Select pipeline for CV1811C_CV2003_1l_TRIPLE project.
+
+config CV180ZB_GC2053
+        bool "CV180ZB_GC2053 pipeline"
+        depends on ENABLE_ALIOS
+        help
+          Select pipeline for CV180ZB_GC2053 project.
+endchoice
 endmenu
 
 menu "Rootfs packages"

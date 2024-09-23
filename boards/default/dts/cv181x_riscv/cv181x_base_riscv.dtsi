@@ -22,7 +22,7 @@
 #include "cv181x_base.dtsi"
 
 / {
-	model = "Cvitek. CV181X ASIC. C906.";
+	model = "Cvitek. Mars ASIC. C906.";
 
 	#size-cells = <0x2>;
 	#address-cells = <0x2>;
@@ -31,9 +31,9 @@
 		#address-cells = <0x01>;
 		#size-cells = <0x00>;
 		timebase-frequency = <25000000>;
-
+		u-boot,dm-spl;
 		cpu-map {
-
+			u-boot,dm-spl;
 			cluster0 {
 
 				core0 {
@@ -43,6 +43,7 @@
 		};
 
 		cpu@0 {
+			u-boot,dm-spl;
 			device_type = "cpu";
 			reg = <0x00>;
 			status = "okay";
@@ -86,16 +87,6 @@
 
 	};
 
-	cv181x_cooling:cv181x_cooling {
-		clocks = <&clk CV181X_CLK_C906_0>, <&clk CV181X_CLK_TPU>;
-		clock-names = "clk_cpu", "clk_tpu_axi";
-		dev-freqs = <850000000 500000000>,
-			<425000000 375000000>,
-			<425000000 300000000>;
-		compatible = "cvitek,cv181x-cooling";
-		#cooling-cells = <2>;
-	};
-
 	tpu {
 		interrupts = <75 IRQ_TYPE_LEVEL_HIGH>,
 				<76 IRQ_TYPE_LEVEL_HIGH>;
@@ -109,6 +100,7 @@
 		interrupt-parent = <&plic0>;
 	};
 
+#ifndef __FASTBOOT__
 	wiegand0 {
 		interrupts = <64 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -123,6 +115,7 @@
 		interrupts = <66 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
 	};
+#endif
 
 	saradc {
 		interrupts = <100 IRQ_TYPE_EDGE_RISING>;
@@ -145,6 +138,11 @@
 
 	watchdog0: cv-wd@0x3010000 {
 		interrupts = <58 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spacc: cvi_spacc@02060000 {
+		interrupts = <91 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
 	};
 
 	spinand:cv-spinf@4060000 {
@@ -182,6 +180,7 @@
 		interrupt-parent = <&plic0>;
 	};
 
+#ifndef __FASTBOOT__
 	uart1: serial@04150000 {
 		interrupts = <45 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -201,6 +200,7 @@
 		interrupts = <48 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
 	};
+#endif
 
 	gpio0: gpio@03020000 {
 		porta: gpio-controller@0 {
@@ -226,6 +226,7 @@
 		};
 	};
 
+#ifndef __FASTBOOT__
 	gpio3: gpio@03023000 {
 		portd: gpio-controller@3 {
 			interrupt-controller;
@@ -241,6 +242,7 @@
 			interrupt-parent = <&plic0>;
 		};
 	};
+#endif
 
 	i2c0: i2c@04000000 {
 		interrupts = <49 IRQ_TYPE_LEVEL_HIGH>;
@@ -267,6 +269,11 @@
 		interrupt-parent = <&plic0>;
 	};
 
+	i2c5: i2c@0502B000 {
+		interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
+	};
+
 	ethernet0: ethernet@4070000 {
 		interrupt-names = "macirq";
 		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
@@ -283,6 +290,13 @@
 		interrupt-parent = <&plic0>;
 	};
 
+	rtos_cmdqu {
+		interrupts = <101 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mailbox";
+		interrupt-parent = <&plic0>;
+	};
+
+#ifndef __FASTBOOT__
 	i2s0: i2s@04100000 {
 		interrupts = <40 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -323,12 +337,6 @@
 		interrupt-parent = <&plic0>;
 	};
 
-	rtos_cmdqu {
-		interrupts = <101 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "mailbox";
-		interrupt-parent = <&plic0>;
-	};
-
 	wifisd:wifi-sd@4320000 {
 		interrupts = <38 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -339,12 +347,6 @@
 			     <27 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "csi0", "csi1";
 		interrupt-parent = <&plic0>;
-	};
-
-	ive {
-		interrupt-names = "ive_irq";
-		interrupt-parent = <&plic0>;
-		interrupts = <97 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	vpss {
@@ -358,15 +360,83 @@
 		interrupt-names = "dwa";
 		interrupt-parent = <&plic0>;
 	};
+#endif
+
+	ive {
+		interrupt-names = "ive_irq";
+		interrupt-parent = <&plic0>;
+		interrupts = <97 IRQ_TYPE_LEVEL_HIGH>;
+	};
 
 	usb: usb@04340000 {
 		interrupts = <30 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
 	};
 
+#ifndef __FASTBOOT__
 	thermal:thermal@030E0000 {
 		interrupts = <16 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "tempsen";
 	};
 
+	cv181x_cooling:cv181x_cooling {
+		clocks = <&clk CV181X_CLK_C906_0>, <&clk CV181X_CLK_TPU>;
+		clock-names = "clk_cpu", "clk_tpu_axi";
+		dev-freqs = <850000000 500000000>,
+			<425000000 375000000>,
+			<425000000 300000000>;
+		compatible = "cvitek,cv181x-cooling";
+		#cooling-cells = <2>;
+	};
+
+	thermal-zones {
+		soc_thermal_0: soc_thermal_0 {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			thermal-sensors = <&thermal 0>;
+
+			trips {
+				soc_thermal_trip_0: soc_thermal_trip_0 {
+					temperature = <90000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "passive";
+				};
+
+				soc_thermal_trip_1: soc_thermal_trip_1 {
+					temperature = <100000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "passive";
+				};
+
+				soc_thermal_crtical_0: soc_thermal_crtical_0 {
+					temperature = <120000>; /* millicelsius */
+					hysteresis = <0>; /* millicelsius */
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&soc_thermal_trip_0>;
+					cooling-device = <&cv181x_cooling 1 1>;
+				};
+
+				map1 {
+					trip = <&soc_thermal_trip_1>;
+					cooling-device = <&cv181x_cooling 2 2>;
+				};
+			};
+		};
+	};
+
+    irrx:irrx@0502E000 {
+		interrupts = <69 IRQ_TYPE_EDGE_RISING>;
+		interrupt-parent = <&plic0>;
+    };
+
+    keyscan:keyscan@03040000 {
+		interrupts = <59 IRQ_TYPE_EDGE_RISING>;
+		interrupt-parent = <&plic0>;
+    };
+#endif
 };

@@ -19,7 +19,20 @@
 
 		ion_reserved: ion {
 			compatible = "ion-region";
+			alloc-ranges = <0x0 CVIMMAP_ION_ADDR 0 CVIMMAP_ION_SIZE>;
 			size = <0x0 CVIMMAP_ION_SIZE>;
 		};
+
+		rtos_reserved: rtos {
+			compatible = "rtos-region";
+			alloc-ranges = <0x0 CVIMMAP_FREERTOS_ADDR 0 CVIMMAP_FREERTOS_SIZE>;
+			size = <0x0 CVIMMAP_FREERTOS_SIZE>;
+		};
+	};
+
+	alios_log {
+		reg = <0x00 CVIMMAP_ALIOS_LOG_ADDR 0x00 CVIMMAP_ALIOS_LOG_SIZE>;
+		reg-names = "alios_log_base";
+		compatible = "cvitek,alios_log";
 	};
 };

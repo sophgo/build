@@ -1,5 +1,6 @@
 int cvi_board_init(void)
 {
+#if 0 /* pinmux set in alios */
 	PINMUX_CONFIG(CAM_MCLK0, CAM_MCLK0);
 
 	PINMUX_CONFIG(IIC3_SCL, IIC3_SCL);
@@ -7,5 +8,6 @@ int cvi_board_init(void)
 
 	PINMUX_CONFIG(IIC2_SCL, IIC2_SCL);
 	PINMUX_CONFIG(IIC2_SDA, IIC2_SDA);
+#endif
 	return 0;
 }

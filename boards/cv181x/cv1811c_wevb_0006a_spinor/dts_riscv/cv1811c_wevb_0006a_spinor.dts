@@ -5,6 +5,6 @@
 #include "cv181x_default_memmap.dtsi"
 
 / {
-
+	/delete-node/ i2c@04020000;
 };
 

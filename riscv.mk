@@ -10,9 +10,14 @@ opensbi-kernel: export CROSS_COMPILE=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KER
 opensbi-kernel: export ARCH=$(patsubst "%",%,$(CONFIG_ARCH))
 opensbi-kernel:
 	$(call print_target)
-	${Q}$(MAKE) -C ${OPENSBI_PATH} PLATFORM=generic \
+ifeq (${CONFIG_SKIP_UBOOT},y)
+	${Q}python3 ${IMGTOOL_PATH}/mkcvipart.py ${FLASH_PARTITION_XML} ${OPENSBI_PATH}/include
+endif
+	${Q}$(MAKE) -C ${OPENSBI_PATH} PLATFORM=generic CONFIG_SKIP_UBOOT=$(CONFIG_SKIP_UBOOT) \
+		CONFIG_SKIP_UBOOT_DEBUG=$(CONFIG_SKIP_UBOOT_DEBUG) \
 	    FW_PAYLOAD_PATH=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/arch/${ARCH}/boot/Image \
 	    FW_FDT_PATH=${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/${CHIP}_${BOARD}.dtb
 	${Q}mkdir -p ${OUTPUT_DIR}/elf
-	${Q}cp ${OPENSBI_PATH}/build/platform/generic/firmware/fw_payload.bin ${OUTPUT_DIR}/fw_payload_linux.bin
-	${Q}cp ${OPENSBI_PATH}/build/platform/generic/firmware/fw_payload.elf ${OUTPUT_DIR}/elf/fw_payload_linux.elf
+	${Q}cp ${OPENSBI_PATH}/build/platform/generic/firmware/fw_jump.bin ${OUTPUT_DIR}/fw_jump.bin
+	${Q}cp ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/arch/${ARCH}/boot/Image ${OUTPUT_DIR}/Image
+

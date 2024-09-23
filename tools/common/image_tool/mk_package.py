@@ -54,6 +54,7 @@ def getMD5Sum(file_path: str) -> str:
 
 
 def main():
+    logging.info("mk_package small part size")
     args = argparser()
     parser = XmlParser(args.xml)
     parts = parser.parse(install=args.input)
@@ -79,7 +80,7 @@ def main():
             if p["file_size"] == 0:
                 continue
             # Try pack header first to avoid user copy image without header
-            if p["file_name"] != "fip.bin":
+            if p["file_name"] != "fip.bin" and  p["file_name"] != "fip_spl.bin":
                 imgBuilder.packHeader(p)
 
             # Add file to zipfile

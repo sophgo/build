@@ -5,7 +5,7 @@ import argparse
 import errno
 from os import getcwd, path, makedirs
 
-MAX_LOAD_SIZE = 100 * 1024 * 1024
+MAX_LOAD_SIZE = 16 * 1024 * 1024
 CHUNK_TYPE_DONT_CARE = 0
 CHUNK_TYPE_CRC_CHECK = 1
 FORMAT = "%(levelname)s: %(message)s"

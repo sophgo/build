@@ -1,8 +1,1 @@
-int cvi_board_init(void)
-{
-	PINMUX_CONFIG(CAM_MCLK0, CAM_MCLK0);
-
-	PINMUX_CONFIG(IIC3_SCL, IIC3_SCL);
-	PINMUX_CONFIG(IIC3_SDA, IIC3_SDA);
-	return 0;
-}
+../../../default/u-boot/cv181x_bga_cvi_board_init.c

@@ -1,13 +1,11 @@
-&dac{
-	mute-gpio-l = <&porta 15 GPIO_ACTIVE_LOW>;
-	mute-gpio-r = <&porta 30 GPIO_ACTIVE_LOW>;
+#ifndef __MMC_SUP_V1_8__
+&emmc {
+	no-1-8-v;
 };
-
-&i2c1 {
-	status = "disabled";
-};
+#endif
 
 / {
+	/delete-node/ wifi-sd@4320000;
 	/delete-node/ i2s@04110000;
 	/delete-node/ i2s@04120000;
 	/delete-node/ sound_ext1;

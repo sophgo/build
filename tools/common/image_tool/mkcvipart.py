@@ -46,7 +46,14 @@ def gen_cvipart_h(output, parser):
         of.write("#define CVIPART_H\n")
         env_exist = True
         env_bak = False
-
+        param_exist = False
+        param_bak = False
+        jump_exist = False
+        sec_exist = False
+        logo_exist = False
+        rtos_exist = False
+        pq_exist = False
+        root_bak_exist = False
         # Generate ENV_OFFSET
         if "ENV" in parser.parts:
             label = "ENV"
@@ -61,6 +68,27 @@ def gen_cvipart_h(output, parser):
 
         if env_exist and "ENV_BAK" in parser.parts:
             env_bak = True
+
+        if "PARAM" in parser.parts:
+            param_exist = True
+
+        if "PQ" in parser.parts:
+            pq_exist = True
+
+        if param_exist and "PARAM_BAK" in parser.parts:
+            param_bak = True
+            
+        if "jump" in parser.parts:
+            jump_exist = True
+
+        if "2nd" in parser.parts:
+            sec_exist = True
+
+        if "MISC" in parser.parts:
+            logo_exist = True
+
+        if "RTOS" in parser.parts:
+            rtos_exist = True
 
         LBA_SIZE = 1
         if parser.getStorage() == "emmc":
@@ -126,18 +154,32 @@ def gen_cvipart_h(output, parser):
                     comma = ","
                 of.write("%s(%s)%s" % (part_size, p["label"], comma))
 
+            # for i, p in enumerate(parts):
+            #     if p["label"] == "ROOTFS":
+            #         of.write('#define ROOTFS_DEV "/dev/mtdblock%d"\n' % i)
+            #         break
             for i, p in enumerate(parts):
-                if p["label"] == "ROOTFS":
-                    of.write('#define ROOTFS_DEV "/dev/mtdblock%d"\n' % i)
-                    break
+                if p["label"].startswith("ROOTFS"):
+                    of.write('#define %s_DEV "/dev/mtdblock%d"\n' % (p["label"], i))
+            for i, p in enumerate(parts):
+                if p["label"].startswith("RTOS"):
+                    of.write('#define %s_PART_LOADADDR 0x%x\n' % (p["label"], int(p["offset"] / LBA_SIZE)))
 
-        elif parser.getStorage() == "sd":
-            of.write('#define PART_LAYOUT ""\n')
-            for i, p in enumerate(parts):
-                if p["label"] == "ROOTFS":
-                    of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i+1))
-                    break
-            of.write('#define PARTS_OFFSET ""\n')
+            if jump_exist is False:
+                for i, p in enumerate(parts):
+                    if p["label"] == "BOOT_BAK":
+                        root_bak_exist = True
+            if jump_exist is False:
+                if root_bak_exist is True:
+                    of.write(
+                        "#define CONFIG_SYS_OS_BASE 0x%X\n"
+                        % (0x10000000 + parser.parts["BOOT_BAK"]["offset"])
+                    )
+                else:
+                    of.write(
+                        "#define CONFIG_SYS_OS_BASE 0x%X\n"
+                        % (0x10000000 + parser.parts["BOOT"]["offset"])
+                    )
 
         elif parser.getStorage() == "none":
             of.write('#define PART_LAYOUT ""\n')
@@ -159,11 +201,64 @@ def gen_cvipart_h(output, parser):
                 "#define CONFIG_ENV_SIZE 0x%X\n" % parser.parts[label]["part_size"]
             )
 
+        if param_exist:
+            of.write(
+                "#define PARAM_OFFSET 0x%X\n"
+                % (parser.parts["PARAM"]["offset"])
+            )
+            if param_bak:
+                of.write(
+                    "#define PARAM_OFFSET_REDUND 0x%X\n"
+                    % (parser.parts["PARAM_BAK"]["offset"] * LBA_SIZE)
+                )
+            of.write(
+                "#define PARAM_SIZE 0x%X\n" % parser.parts["PARAM"]["part_size"]
+            )
+
+        if pq_exist:
+            of.write(
+                "#define PQBIN_OFFSET 0x%X\n" % (parser.parts["PQ"]["offset"])
+            )
+            of.write(
+                "#define PQBIN_SIZE 0x%X\n" % (parser.parts["PQ"]["part_size"])
+            )
+
+        if jump_exist:
+            of.write(
+                "#define JUMP_OFFSET 0x%X\n" % (parser.parts["jump"]["offset"])
+            )
+            of.write(
+                "#define JUMP_SIZE 0x%X\n" % (parser.parts["jump"]["part_size"])
+            )
+
+        if sec_exist:
+            of.write(
+                "#define SECEND_OFFSET 0x%X\n" % (parser.parts["2nd"]["offset"])
+            )
+            of.write(
+                "#define SECEND_SIZE 0x%X\n" % (parser.parts["2nd"]["part_size"])
+            )
+
+        if logo_exist:
+            of.write(
+                "#define LOGO_OFFSET 0x%X\n" % (parser.parts["MISC"]["offset"])
+            )
+            of.write(
+                "#define LOGO_SIZE 0x%X\n" % (parser.parts["MISC"]["part_size"])
+            )
+
+        if rtos_exist:
+            of.write(
+                "#define RTOS_OFFSET 0x%X\n" % (parser.parts["RTOS"]["offset"])
+            )
+            of.write(
+                "#define RTOS_SIZE 0x%X\n" % (parser.parts["RTOS"]["part_size"])
+            )
         # Generintg PART_ENV
         if parser.getStorage() == "emmc":
             LBA_SIZE = 512
 
-        if parser.getStorage() != "none" and parser.getStorage() != "sd":
+        if parser.getStorage() != "none":
             of.write("#define PARTS_OFFSET \\\n")
             for i, p in enumerate(parts):
                 of.write('"%s_PART_OFFSET=0x%x\\0" \\\n' % (p["label"], int(p["offset"] / LBA_SIZE)))
@@ -179,10 +274,11 @@ def gen_cvipart_h(output, parser):
                     )
 
         for i, p in enumerate(parts):
-            if p["label"] == 'BOOT':
+            if p["label"].startswith("BOOT"):
                 of.write('#define SPL_%s_PART_OFFSET 0x%x\n' % (p["label"], int(p["offset"] / LBA_SIZE)))
             elif p["label"] == 'jump':
                 of.write('#define SPL_%s_PART_OFFSET 0x%x\n' % ("BOOT", 0))
+                # of.write('#define SPL_%s_PART_OFFSET 0x%x\n' % (p["label"], 0))
         of.write("#endif")
         logging.info("Done!")
 

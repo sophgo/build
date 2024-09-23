@@ -11,7 +11,7 @@
 #include "cv181x_base.dtsi"
 
 / {
-	model = "Cvitek. CV181X ASIC. ARM.";
+	model = "Cvitek. Mars ASIC. ARM.";
 	interrupt-parent = <&gic>;
 
 	#size-cells = <0x2>;
@@ -49,6 +49,7 @@
 	cpus {
 		#size-cells = <0x0>;
 		#address-cells = <0x1>;
+		u-boot,dm-spl;
 
 		A53_0: cpu@0 {
 			reg = <0x0>;
@@ -56,6 +57,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&CA53_L2>;
+			u-boot,dm-spl;
 		};
 
 		CA53_L2: l2-cache0 {
@@ -88,6 +90,46 @@
 			<400000000 300000000>;
 		compatible = "cvitek,cv181x-cooling";
 		#cooling-cells = <2>;
+	};
+
+	thermal-zones {
+		soc_thermal_0: soc_thermal_0 {
+			polling-delay-passive = <1000>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			thermal-sensors = <&thermal 0>;
+
+			trips {
+				soc_thermal_trip_0: soc_thermal_trip_0 {
+					temperature = <90000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "passive";
+				};
+
+				soc_thermal_trip_1: soc_thermal_trip_1 {
+					temperature = <100000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "passive";
+				};
+
+				soc_thermal_crtical_0: soc_thermal_crtical_0 {
+					temperature = <120000>; /* millicelsius */
+					hysteresis = <0>; /* millicelsius */
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&soc_thermal_trip_0>;
+					cooling-device = <&cv181x_cooling 1 1>;
+				};
+
+				map1 {
+					trip = <&soc_thermal_trip_1>;
+					cooling-device = <&cv181x_cooling 2 2>;
+				};
+			};
+		};
 	};
 
 	tpu {
@@ -232,6 +274,10 @@
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	i2c5: i2c@0502B000 {
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	ethernet0: ethernet@4070000 {
 		interrupt-names = "macirq";
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
@@ -317,4 +363,11 @@
 		interrupt-names = "tempsen";
 	};
 
+    irrx:irrx@0502E000 {
+		interrupts = <GIC_SPI 53 IRQ_TYPE_EDGE_RISING>;
+    };
+
+    keyscan:keyscan@03040000 {
+		interrupts = <GIC_SPI 43 IRQ_TYPE_EDGE_RISING>;
+    };
 };

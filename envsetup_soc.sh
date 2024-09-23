@@ -14,6 +14,7 @@ function _build_default_env()
   ENABLE_BOOTLOGO=${ENABLE_BOOTLOGO:-0}
   TPU_REL=${TPU_REL:-0} # TPU release build
   SENSOR=${SENSOR:-sony_imx327}
+  SCENES=${SCENES:-0} # scenes for dualos 0:normal  1:fastboot  2:low power
 }
 
 function gettop()
@@ -45,7 +46,7 @@ function gettop()
 
 function _build_fsbl_env()
 {
-  export FSBL_PATH
+  export FSBL_PATH IMGTOOL_PATH FLASH_PARTITION_XML
 }
 
 function build_fsbl()
@@ -63,6 +64,22 @@ function clean_fsbl()
   _build_uboot_env
   cd "$BUILD_PATH" || return
   make fsbl-clean
+)}
+
+function build_bl2()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_fsbl_env
+  cd "$BUILD_PATH" || return
+  make bl2-build
+)}
+
+function clean_bl2()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_fsbl_env
+  cd "$BUILD_PATH" || return
+  make bl2-clean
 )}
 
 function _build_atf_env()
@@ -95,6 +112,18 @@ function _build_uboot_env()
   export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
 }
 
+function _build_busybox_env()
+{
+  export BUSYBOX_PATH
+}
+
+function _build_kernel_opensbi_env()
+{
+  _build_kernel_env
+  _build_opensbi_env
+  export IMGTOOL_PATH FLASH_PARTITION_XML
+}
+
 function build_fip_pre()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
@@ -125,6 +154,22 @@ function menuconfig_uboot()
   make u-boot-menuconfig || return "$?"
 )}
 
+function menuconfig_busybox()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_busybox_env
+  cd "$BUILD_PATH" || return
+  make busybox-menuconfig || return "$?"
+)}
+
+function build_busybox()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_busybox_env
+  cd "$BUILD_PATH" || return
+  make busybox || return "$?"
+)}
+
 function _link_uboot_logo()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
@@ -141,7 +186,7 @@ function build_uboot()
   _build_opensbi_env
   _link_uboot_logo
   cd "$BUILD_PATH" || return
-  make u-boot
+  make u-boot 
 )}
 
 function build_uboot_env_tools()
@@ -219,7 +264,7 @@ function clean_bld()
 
 function _build_middleware_env()
 {
-  export MULTI_PROCESS_SUPPORT
+  export MULTI_PROCESS_SUPPORT BUILD_PATH
 }
 
 function build_middleware()
@@ -245,6 +290,13 @@ function clean_middleware()
   pushd "$MW_PATH"
   make clean
   make uninstall
+  popd
+}
+
+function clean_middleware_all()
+{
+  pushd "$MW_PATH"
+  make clean_all
   popd
 }
 
@@ -333,13 +385,13 @@ function build_sdk()
   CNV_SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH" \
   KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
       scripts/sdk_release.sh
-  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd return 1
+  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
   popd
 
   # copy so
   cp -a "$SDK_INSTALL_PATH"/lib/*.so* "$SYSTEM_OUT_DIR"/lib/
   # copy sample_xxx
-  if [[ "$CHIP_ARCH" != CV180X ]] && [[ "$1" = ai ]]; then
+  if [[ "$CHIP_ARCH" != CV180X ]] && [[ "$CHIP_ARCH" != CV181X ]] && [[ "$1" = ai ]]; then
     mkdir -p "$SYSTEM_OUT_DIR"/usr/bin/"$1"
     cp -a "$SDK_INSTALL_PATH"/bin/sample_* "$SYSTEM_OUT_DIR"/usr/bin/"$1"
   fi
@@ -347,6 +399,7 @@ function build_sdk()
 
 function clean_sdk()
 {
+    print_notice "Run ${FUNCNAME[0]}() $1 function"
   [[ "$1" = ive ]] && rm -rf "$IVE_SDK_INSTALL_PATH"
   [[ "$1" = ivs ]] && rm -rf "$IVS_SDK_INSTALL_PATH"
   [[ "$1" = cnv ]] && rm -rf "$CNV_SDK_INSTALL_PATH"
@@ -566,36 +619,36 @@ function clean_ramdisk()
   rm -rf "$ROOTFS_DIR"
 }
 
-function prepare_git_hook()
-{
-   print_notice "Run ${FUNCNAME[0]}() function"
-   if [[ -d ".git" ]]; then
-	mkdir -p .git/hooks
-	cp ${TOP_DIR}/build/hook/commit-msg .git/hooks/
-	chmod +x .git/hooks/commit-msg
-	cp ${TOP_DIR}/build/hook/prepare-commit-msg .git/hooks/
-	chmod +x .git/hooks/prepare-commit-msg
-   else
-	print_notice "Abort .git is not exist !!!"
-   fi
-}
+
 
 # shellcheck disable=SC2120
 function build_all()
 {(
+  if [[ "$ARCH" != "arm" ]];then
+    build_opensbi_kernel || return $?
+  else
+    build_kernel || return $?
+  fi
   build_uboot || return $?
-  build_kernel || return $?
   build_ramboot || return $?
-  build_osdrv || return $?
-  build_3rd_party || return $?
-  build_middleware || return $?
-  if [ "$TPU_REL" = 1 ]; then
-    build_tpu_sdk || return $?
+  if [[ "$BOARD" != "fpga" ]] && [[ "$BOARD" != "palladium" ]]; then
+    build_osdrv || return $?
+    build_3rd_party || return $?
+    build_middleware || return $?
+    #build_cvi_rtsp || return $?
+    if [ "$TPU_REL" = 1 ]; then
+      build_tpu_sdk || return $?
+      build_ive_sdk || return $?
+      build_ivs_sdk || return $?
+      build_ai_sdk || return $?
+    fi
+    build_pqtool_server || return $?
   fi
   pack_cfg || return $?
   pack_rootfs || return $?
   pack_data || return $?
   pack_system || return $?
+  copy_tools || return $?
   pack_upgrade || return $?
 )}
 
@@ -603,6 +656,7 @@ function clean_all()
 {
   clean_uboot
   clean_opensbi
+  clean_alios
   clean_rtos
   [[ "$ATF_SRC" == y ]] && clean_atf
   clean_kernel
@@ -617,13 +671,14 @@ function clean_all()
   fi
   clean_middleware
   clean_osdrv
+  cd "$TOP_DIR" || return
 }
 
 function distclean_all()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
   clean_all
-  #repo forall -c "git clean -dfx"
+  # repo forall -c "git clean -dfx"
 )}
 
 # shellcheck disable=SC2120
@@ -702,13 +757,10 @@ function cvi_setup_env()
   if [[ "$CHIP_ARCH" == "CV180X" ]];then
   export  CVIARCH="CV180X"
   fi
-  if [[ "$CHIP_ARCH" == "ATHENA2" ]];then
-  export  CVIARCH="ATHENA2"
-  fi
 
   export BRAND BUILD_VERBOSE DEBUG PROJECT_FULLNAME
-  export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH
-  export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH
+  export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH ALIOS_PATH
+  export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH MW_PATH
 
   PROJECT_FULLNAME="$CHIP"_"$BOARD"
 
@@ -720,10 +772,11 @@ function cvi_setup_env()
 
   # source file folders
   FSBL_PATH="$TOP_DIR"/fsbl
+  BUSYBOX_PATH="$TOP_DIR"/busybox
   ATF_PATH="$TOP_DIR"/arm-trusted-firmware
   UBOOT_PATH="$TOP_DIR/$UBOOT_SRC"
   FREERTOS_PATH="$TOP_DIR"/freertos
-  ALIOS_PATH="$TOP_DIR"/alios
+  ALIOS_PATH="$TOP_DIR"/cvi_alios
   KERNEL_PATH="$TOP_DIR"/"$KERNEL_SRC"
   OSDRV_PATH="$TOP_DIR"/osdrv
   RAMDISK_PATH="$TOP_DIR"/ramdisk
@@ -732,7 +785,7 @@ function cvi_setup_env()
   OSS_PATH="$TOP_DIR"/oss
   OPENCV_PATH="$TOP_DIR"/opencv
   APPS_PATH="$TOP_DIR"/apps
-  MW_PATH="$TOP_DIR"/middleware/"$MW_VER"
+  MW_PATH="$TOP_DIR"/cvi_mpi
   PQTOOL_SERVER_PATH="$MW_PATH"/modules/isp/"${CHIP_ARCH,,}"/isp-tool-daemon/isp_daemon_tool
   ISP_TUNING_PATH="$TOP_DIR"/isp_tuning
   TPU_SDK_PATH="$TOP_DIR"/cviruntime
@@ -831,10 +884,9 @@ function cvi_setup_env()
     fi
 
     if [[ "$ENABLE_ALIOS" != "y" ]]; then
-      pushd "$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/
-      ln -fs ../../../default/partition/partition_spinand_page_"$PAGE_SUFFIX".xml \
-        partition_"$STORAGE_TYPE".xml
-      popd
+      rm -rf "$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
+      ln -fs "$BUILD_PATH"/boards/default/partition/partition_spinand_page_"$PAGE_SUFFIX".xml \
+        "$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
     fi
   fi
 
@@ -842,21 +894,28 @@ function cvi_setup_env()
   if [ -z "${STORAGE_TYPE}" ]; then
     FLASH_PARTITION_XML="$BUILD_PATH"/boards/default/partition/partition_none.xml
   else
-    FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
+    if [[ "$DOUBLESDK" == "y" ]]; then
+      FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_doublesdk_"$STORAGE_TYPE".xml
+    else
+      if [[ "$SKIP_UBOOT" == y ]]; then
+        FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_fastboot_"$STORAGE_TYPE".xml
+      else
+        FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
+      fi
+    fi
     if ! [ -e "$FLASH_PARTITION_XML" ]; then
       print_error "${FLASH_PARTITION_XML} does not exist!!"
       return 1
     fi
   fi
 
-  export SYSTEM_OUT_DIR
-  export CROSS_COMPILE_PATH
-  # buildroot config
-  export BR_DIR="$TOP_DIR"/buildroot-2021.05
-  export BR_BOARD=cvitek_${CHIP_ARCH}_${SDK_VER}
-  export BR_OVERLAY_DIR=${BR_DIR}/board/cvitek/${CHIP_ARCH}/overlay
-  export BR_DEFCONFIG=${BR_BOARD}_defconfig
-  export BR_ROOTFS_DIR="$OUTPUT_DIR"/tmp-rootfs
+  # config yoc.bin packed in fip.bin or not
+  if [ `grep -c "partition label=\"2nd\"" $FLASH_PARTITION_XML` -ne '0' ]; then
+    export C906L_PARTITION_EXIST=1
+  else
+    export C906L_PARTITION_EXIST=0
+  fi
+
 }
 
 cvi_print_env()
@@ -871,6 +930,7 @@ cvi_print_env()
   echo -e "  CROSS_COMPILE_PREFIX: \e[34m$CROSS_COMPILE\e[0m"
   echo -e "  ENABLE_BOOTLOGO: $ENABLE_BOOTLOGO"
   echo -e "  Flash layout xml: $FLASH_PARTITION_XML"
+  echo -e "  Support EMMC large part size: $SUP_LARGE_PART_SIZE"
   echo -e "  Sensor tuning bin: $SENSOR_TUNING_PARAM"
   echo -e "  Output path: \e[33m$OUTPUT_DIR\e[0m"
   echo -e ""
@@ -884,10 +944,11 @@ function print_usage()
   printf "        ex: $ menuconfig\n\n"
   printf "    (2)\33[96m defconfig \$CHIP_ARCH \33[0m- List EVB boards(\$BOARD) by CHIP_ARCH.\n"
   "${BUILD_PATH}/scripts/boards_scan.py" --list-chip-arch
-  printf "        ex: $ defconfig cv181x\n\n"
+  printf "        ex: $ defconfig cv183x\n\n"
   printf "    (3)\33[92m defconfig \$BOARD\33[0m - Choose EVB board settings.\n"
-  printf "        ex: $ defconfig cv1813h_wevb_0007a_spinor\n"
-  printf "        ex: $ defconfig cv1812cp_wevb_0006a_spinor\n"
+  printf "        ex: $ defconfig cv1835_wevb_0002a\n"
+  printf "        ex: $ defconfig cv1826_wevb_0005a_spinand\n"
+  printf "        ex: $ defconfig cv181x_fpga_c906\n"
   printf "  -------------------------------------------------------------------------------------------------------\n"
 }
 
@@ -902,10 +963,10 @@ export TOP_DIR BUILD_PATH
 # shellcheck source=./common_functions.sh
 source "$TOP_DIR/build/common_functions.sh"
 # shellcheck source=./release_functions.sh
-#source "$TOP_DIR/build/release_functions.sh"
+source "$TOP_DIR/build/release_functions.sh"
 # shellcheck source=./riscv_functions.sh
 source "$TOP_DIR/build/riscv_functions.sh"
 # shellcheck source=./alios_functions.sh
-#source "$TOP_DIR/build/alios_functions.sh"
+source "$TOP_DIR/build/alios_functions.sh"
 
 print_usage

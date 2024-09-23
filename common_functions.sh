@@ -96,13 +96,32 @@ function pack_boot
   # Only pack header when SUBTYPE is asic to avoid storage_type is null
   if [[ ${BOARD} != "fpga" &&  ${BOARD} != "palladium" ]]; then
     command cp ./boot.itb "$OUTPUT_DIR"/rawimages/boot."$STORAGE_TYPE"
-    python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/boot."$STORAGE_TYPE" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+    # command cp "$OUTPUT_DIR"/rawimages/boot."$STORAGE_TYPE" "$OUTPUT_DIR"/rawimages/boot_v420."$STORAGE_TYPE"
+    if [ "$SUP_LARGE_PART_SIZE" = "n" ];then
+      if [ "$DOUBLESDK" = "y" ];then
+        command cp "$OUTPUT_DIR"/rawimages/boot."$STORAGE_TYPE" "$OUTPUT_DIR"/rawimages/boot_v420."$STORAGE_TYPE"
+        python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/boot_v420."$STORAGE_TYPE" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+      else
+        python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/boot."$STORAGE_TYPE" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+      fi
+    else
+      python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$OUTPUT_DIR"/rawimages/boot."$STORAGE_TYPE" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+    fi
   else
     command cp ./boot.itb "$OUTPUT_DIR"/boot.itb
   fi
   popd
 )}
 
+
+function pack_payload
+{(
+  if [ "$SUP_LARGE_PART_SIZE" = "n" ];then
+    python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/Image "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+  else
+    python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$OUTPUT_DIR"/Image "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+  fi
+)}
 # $1 : The path for rootfs partition
 function pack_rootfs
 {(
@@ -135,7 +154,27 @@ function pack_data
   mkdir -p "$OUTPUT_DIR"/data
   pushd "$OUTPUT_DIR"/data;echo "If you can dream it, you can do it." > sample;popd
   cd "$BUILD_PATH" || return
-  make jffs2
+  make data
+)}
+
+function pack_pq
+{(
+  print_notice "Run ${FUNCNAME[0]} function"
+
+  export ROOTFS_DIR COMMON_TOOLS_PATH FLASH_PARTITION_XML STORAGE_TYPE
+  export CHIP_FOLDER_PATH SDK_VER_FOLDER_PATH CUST_FOLDER_PATH
+  #python3 "$IMGTOOL_PATH"/packpq.py -i ${ISP_TUNING_PATH}/${CHIP_ARCH,,}/src/${}/${}_sdr.bin -i ${ISP_TUNING_PATH}/${CHIP_ARCH,,}/src/${}/${}_sdr_ir.bin -o "$OUTPUT_DIR"/rawimages/pq_data."$STORAGE_TYPE"
+  local input_options=""
+  for args in "$@";do
+    intput_options+=" -i "
+    intput_options+="$args"
+  done
+  python3 "$IMGTOOL_PATH"/packpq.py $intput_options -o "$OUTPUT_DIR"/rawimages/pq_data."$STORAGE_TYPE"
+  if [ "$SUP_LARGE_PART_SIZE" = "n" ];then
+    python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/pq_data."$STORAGE_TYPE" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+  else
+    python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$OUTPUT_DIR"/rawimages/pq_data."$STORAGE_TYPE" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+  fi
 )}
 
 function clean_rootfs
@@ -167,7 +206,11 @@ function pack_gpt
   pushd "$EMMCTOOL_PATH"
   mkdir -p "$OUTPUT_DIR"/rawimages
   make gpt.img PARTITION_XML="$FLASH_PARTITION_XML" INSTALL_DIR="$OUTPUT_DIR"/rawimages
-  python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/gpt.img "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+  if [ "$SUP_LARGE_PART_SIZE" = "n" ];then
+    python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/gpt.img "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+  else 
+    python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$OUTPUT_DIR"/rawimages/gpt.img "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+  fi
   popd
 )}
 
@@ -176,11 +219,7 @@ function pack_cfg
   print_notice "Run ${FUNCNAME[0]}_${STORAGE_TYPE}() function"
 
   pushd "$ISP_TUNING_PATH"
-  if [ $STORAGE_TYPE == "spinor" ]; then
-    ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/param/ "$SENSOR_TUNING_PARAM"
-  else
-    ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/tmp_secure/ "$SENSOR_TUNING_PARAM"
-  fi
+  ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/param/ "$SENSOR_TUNING_PARAM"
   popd
 
   export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML ROOTFS_DIR
@@ -188,6 +227,23 @@ function pack_cfg
   cd "$BUILD_PATH" || return
   if [ $STORAGE_TYPE != "sd" ]; then
     make cfg
+  fi
+)}
+
+function copy_tools
+{(
+  # Copy USB_DL, partition.xml and bootlogo
+  if [[ "${chip_cv[*]}" =~ "$CHIP" ]] && [[ ${BOARD} != "fpga" &&  ${BOARD} != "palladium" ]]; then
+    command rm -rf "$OUTPUT_DIR"/tools
+    command mkdir -p "$OUTPUT_DIR"/tools/
+    command cp -rf "$TOOLS_PATH"/common/usb_dl/ "$OUTPUT_DIR"/tools/
+    if [ "$ENABLE_BOOTLOGO" -eq 1 ] && [ "$SUP_LARGE_PART_SIZE" = "n" ]; then
+      python3 "$IMGTOOL_PATH"/raw2cimg.py "$BOOTLOGO_PATH" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+    fi
+    if [ "$ENABLE_BOOTLOGO" -eq 1 ] && [ "$SUP_LARGE_PART_SIZE" = "y" ]; then
+      python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$BOOTLOGO_PATH" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+    fi
+    command cp --remove-destination "$FLASH_PARTITION_XML" "$OUTPUT_DIR"/
   fi
 )}
 
@@ -225,28 +281,12 @@ function pack_upgrade
   do
   extra_files_args="$extra_files_args -f utils $each"
   done
-
+if [ "$SUP_LARGE_PART_SIZE" = "y" ];then
+  python3 "$IMGTOOL_PATH"/mk_package_lps.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args
+else 
   python3 "$IMGTOOL_PATH"/mk_package.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args
+fi
   command rm -rf "$TMPDIR"
-)}
-
-function pack_burn_image
-{(
-  pushd "$OUTPUT_DIR"
-  [ -d tmp ] && rm -rf tmp
-  [ -d br-rootfs ] && rm -rf br-rootfs && mkdir br-rootfs
-  tar xf $BR_DIR/output/$BR_BOARD/images/rootfs.tar.xz -C br-rootfs
-
-  # genimage
-  export PATH=${TOP_DIR}/build/tools/common/sd_tools:${PATH}
-  export LD_LIBRARY_PATH=$TOP_DIR/build/tools/common/sd_tools/libconfuse/lib:${LD_LIBRARY_PATH}
-
-  image=sophpi-duo-`date +%Y%m%d-%H%M`.img
-  cp $COMMON_TOOLS_PATH/sd_tools/genimage.cfg $COMMON_TOOLS_PATH/sd_tools/genimage.cfg.tmp
-  sed -i 's/sophpi-duo.img/'"$image"'/' $COMMON_TOOLS_PATH/sd_tools/genimage.cfg.tmp
-  genimage --config $COMMON_TOOLS_PATH/sd_tools/genimage.cfg.tmp  --rootpath $OUTPUT_DIR/br-rootfs --inputpath $OUTPUT_DIR --outputpath $OUTPUT_DIR
-
-  popd
 )}
 
 function pack_prog_img
@@ -389,7 +429,13 @@ function defconfig()
 
   # if input is chip series, then list boards by chip series
   if [ "${chip_arch}" != "" ]; then
-    _call_kconfig_script "${FUNCNAME[0]}" "${BUILD_PATH}/boards/${chip_arch}/${board}/${board}_defconfig"
+    if [ "${SCENES}" = 0 ]; then
+      _call_kconfig_script "${FUNCNAME[0]}" "${BUILD_PATH}/boards/${chip_arch}/${board}/${board}_defconfig"
+    elif [ "${SCENES}" = 1 ]; then
+      _call_kconfig_script "${FUNCNAME[0]}" "${BUILD_PATH}/boards/${chip_arch}/${board}/${board}_fastboot_defconfig"
+    else
+      _call_kconfig_script "${FUNCNAME[0]}" "${BUILD_PATH}/boards/${chip_arch}/${board}/${board}_defconfig" # default
+    fi
   else
     "${BUILD_PATH}/scripts/boards_scan.py" --list-boards ${board}
   fi

@@ -22,7 +22,7 @@
 #include "cv180x_base.dtsi"
 
 / {
-	model = "Cvitek. CV180X ASIC. C906.";
+	model = "Cvitek. Phobos ASIC. C906.";
 
 	#size-cells = <0x2>;
 	#address-cells = <0x2>;
@@ -86,17 +86,6 @@
 
 	};
 
-
-	cv180x_cooling:cv180x_cooling {
-		clocks = <&clk CV180X_CLK_C906_0>, <&clk CV180X_CLK_TPU>;
-		clock-names = "clk_cpu", "clk_tpu_axi";
-		dev-freqs = <850000000 500000000>,
-			<425000000 375000000>,
-			<425000000 300000000>;
-		compatible = "cvitek,cv180x-cooling";
-		#cooling-cells = <2>;
-	};
-
 	tpu {
 		interrupts = <75 IRQ_TYPE_LEVEL_HIGH>,
 				<76 IRQ_TYPE_LEVEL_HIGH>;
@@ -110,6 +99,7 @@
 		interrupt-parent = <&plic0>;
 	};
 
+#ifndef __FASTBOOT__
 	wiegand0 {
 		interrupts = <64 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -124,6 +114,7 @@
 		interrupts = <66 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
 	};
+#endif
 
 	saradc {
 		interrupts = <100 IRQ_TYPE_EDGE_RISING>;
@@ -146,6 +137,11 @@
 
 	watchdog0: cv-wd@0x3010000 {
 		interrupts = <58 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spacc: cvi_spacc@02060000 {
+		interrupts = <91 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
 	};
 
 	spinand:cv-spinf@4060000 {
@@ -183,6 +179,7 @@
 		interrupt-parent = <&plic0>;
 	};
 
+#ifndef __FASTBOOT__
 	uart1: serial@04150000 {
 		interrupts = <45 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -202,6 +199,7 @@
 		interrupts = <48 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
 	};
+#endif
 
 	gpio0: gpio@03020000 {
 		porta: gpio-controller@0 {
@@ -268,6 +266,11 @@
 		interrupt-parent = <&plic0>;
 	};
 
+	i2c5: i2c@0502B000 {
+		interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
+	};
+
 	ethernet0: ethernet@4070000 {
 		interrupt-names = "macirq";
 		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
@@ -284,6 +287,13 @@
 		interrupt-parent = <&plic0>;
 	};
 
+	rtos_cmdqu {
+		interrupts = <101 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mailbox";
+		interrupt-parent = <&plic0>;
+	};
+
+#ifndef __FASTBOOT__
 	i2s0: i2s@04100000 {
 		interrupts = <40 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -324,12 +334,6 @@
 		interrupt-parent = <&plic0>;
 	};
 
-	rtos_cmdqu {
-		interrupts = <101 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "mailbox";
-		interrupt-parent = <&plic0>;
-	};
-
 	wifisd:wifi-sd@4320000 {
 		interrupts = <38 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
@@ -360,15 +364,15 @@
 		interrupt-parent = <&plic0>;
 	};
 
-	usb: usb@04340000 {
-		interrupts = <30 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-parent = <&plic0>;
-	};
-
 	thermal:thermal@030E0000 {
 		interrupts = <16 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "tempsen";
 		interrupt-parent = <&plic0>;
 	};
+#endif
 
+	usb: usb@04340000 {
+		interrupts = <30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
+	};
 };

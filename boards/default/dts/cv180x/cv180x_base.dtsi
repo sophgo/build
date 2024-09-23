@@ -33,7 +33,7 @@
 	rst: reset-controller {
 		#reset-cells = <1>;
 		compatible = "cvitek,reset";
-		reg = <0x0 0x03003000 0x0 0x10>;
+		reg = <0x0 0x03003000 0x0 0x10>, <0x0 0x05025000 0x0 0x1000>;
 	};
 
 	restart: restart-controller {
@@ -62,6 +62,7 @@
 					<0x0 0x0800A000 0x0 0x1000>;
 	};
 
+#ifndef __FASTBOOT__
 	wiegand0 {
 		compatible = "cvitek,wiegand";
 		reg-names = "wiegand";
@@ -91,6 +92,7 @@
 		resets = <&rst RST_WGN2>;
 		reset-names = "res_wgn";
 	};
+#endif
 
 	saradc {
 		compatible = "cvitek,saradc";
@@ -149,6 +151,11 @@
 		reg = <0x0 0x03010000 0x0 0x1000>;
 		resets = <&rst RST_WDT>;
 		clocks = <&pclk>;
+	};
+
+	spacc: cvi_spacc@02060000 {
+		reg = <0x0 0x02060000 0x0 0x1000>;
+		compatible = "cvitek,spacc";
 	};
 
 	pwm0: pwm@3060000 {
@@ -257,6 +264,7 @@
 		status = "okay";
 	};
 
+#ifndef __FASTBOOT__
 	uart1: serial@04150000 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x0 0x04150000 0x0 0x1000>;
@@ -292,6 +300,7 @@
 		reg-io-width = <4>;
 		status = "disabled";
 	};
+#endif
 
 	gpio0: gpio@03020000 {
 		compatible = "snps,dw-apb-gpio";
@@ -402,9 +411,6 @@
 		clocks = <&clk CV180X_CLK_I2C>;
 		reg = <0x0 0x04020000 0x0 0x1000>;
 		clock-frequency = <100000>;
-
-		#size-cells = <0x0>;
-		#address-cells = <0x1>;
 		resets = <&rst RST_I2C2>;
 		reset-names = "i2c2";
 	};
@@ -414,9 +420,6 @@
 		clocks = <&clk CV180X_CLK_I2C>;
 		reg = <0x0 0x04030000 0x0 0x1000>;
 		clock-frequency = <400000>;
-
-		#size-cells = <0x0>;
-		#address-cells = <0x1>;
 		resets = <&rst RST_I2C3>;
 		reset-names = "i2c3";
 	};
@@ -426,11 +429,17 @@
 		clocks = <&clk CV180X_CLK_I2C>;
 		reg = <0x0 0x04040000 0x0 0x1000>;
 		clock-frequency = <400000>;
-
-		#size-cells = <0x0>;
-		#address-cells = <0x1>;
 		resets = <&rst RST_I2C4>;
 		reset-names = "i2c4";
+	};
+
+	i2c5: i2c@0502B000 {
+		compatible = "snps,designware-i2c";
+		clocks = <&clk CV180X_CLK_I2C>;
+		reg = <0x0 0x0502B000 0x0 0x1000>;
+		clock-frequency = <400000>;
+		resets = <&rst RTC_RST_I2C>;
+		reset-names = "i2c5";
 	};
 
 	eth_csrclk: eth_csrclk {
@@ -517,6 +526,8 @@
 		bus-width = <4>;
 		reg = <0x0 0x4320000 0x0 0x1000>;
 		reg_names = "core_mem";
+		clocks = <&clk CV180X_CLK_SD1>;
+		clock-names = "clk_sd";
 		src-frequency = <375000000>;
 		min-frequency = <400000>;
 		max-frequency = <50000000>;
@@ -530,6 +541,7 @@
 		status = "disabled";
 	};
 
+#ifndef __FASTBOOT__
 	i2s_mclk: i2s_mclk {
 		clock-output-names = "i2s_mclk";
 		clock-frequency = <24576000>;
@@ -643,13 +655,6 @@
 		cvi,model = "CV182X";
 		cvi,card_name = "cv182x_internal_PDM";
 	};
-	lt9611 {
-		compatible = "cvitek,cv1835-lt9611";
-		cvi,model = "CV182X";
-		cvi,card_name = "cv181x_lt9611";
-		cvi,cpu_dai_name = "4120000.i2s";
-		cvi,platform_name = "4120000.i2s";
-	};
 
 	wifi_pin {
 		compatible = "cvitek,wifi-pin";
@@ -675,10 +680,6 @@
 			 <&clk CV180X_CLK_MIPIMPLL>, <&clk CV180X_CLK_DISPPLL>, <&clk CV180X_CLK_FPLL>;
 		clock-names = "clk_cam0", "clk_cam1", "clk_sys_2",
 			      "clk_mipimpll", "clk_disppll", "clk_fpll";
-	};
-
-	sys {
-		compatible = "cvitek,sys";
 	};
 
 	base {
@@ -774,6 +775,11 @@
 		reg = <0x0 0x0B030000 0x0 0x100>,<0x0 0x0B058000 0x0 0x100>,<0x0 0x0B050000 0x0 0x400>;
 		reg-names = "vc_ctrl","vc_sbm","vc_addr_remap";
 	};
+#endif
+
+	sys {
+		compatible = "cvitek,sys";
+	};
 
 	rtos_cmdqu {
 		compatible = "cvitek,rtos_cmdqu";
@@ -800,6 +806,7 @@
 		status = "okay";
 	};
 
+#ifndef __FASTBOOT__
 	thermal:thermal@030E0000 {
 		compatible = "cvitek,cv180x-thermal";
 		reg = <0x0 0x030E0000 0x0 0x10000>;
@@ -809,17 +816,15 @@
 		#thermal-sensor-cells = <1>;
 	};
 
-#if 0
-	cv182x_cooling:cv182x_cooling {
-		clocks = <&clk CV180X_CLK_A53>, <&clk CV180X_CLK_TPU>;
-		clock-names = "clk_a53", "clk_tpu_axi";
-		dev-freqs = <1000000000 750000000>,
-			<500000000 375000000>,
-			<500000000 100000000>;
-		compatible = "cvitek,cv182x-cooling";
+	cv180x_cooling:cv180x_cooling {
+		clocks = <&clk CV180X_CLK_C906_0>, <&clk CV180X_CLK_TPU>;
+		clock-names = "clk_cpu", "clk_tpu_axi";
+		dev-freqs = <850000000 500000000>,
+			<425000000 375000000>,
+			<425000000 300000000>;
+		compatible = "cvitek,cv180x-cooling";
 		#cooling-cells = <2>;
 	};
-#endif
 
 	thermal-zones {
 		soc_thermal_0: soc_thermal_0 {
@@ -829,32 +834,37 @@
 
 			trips {
 				soc_thermal_trip_0: soc_thermal_trip_0 {
-					temperature = <100000>; /* millicelsius */
+					temperature = <90000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "passive";
 				};
 
 				soc_thermal_trip_1: soc_thermal_trip_1 {
-					temperature = <110000>; /* millicelsius */
+					temperature = <100000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "passive";
 				};
 
 				soc_thermal_crtical_0: soc_thermal_crtical_0 {
-					temperature = <130000>; /* millicelsius */
+					temperature = <120000>; /* millicelsius */
 					hysteresis = <0>; /* millicelsius */
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&soc_thermal_trip_0>;
+					cooling-device = <&cv180x_cooling 1 1>;
+				};
+
+				map1 {
+					trip = <&soc_thermal_trip_1>;
+					cooling-device = <&cv180x_cooling 2 2>;
+				};
+			};
 		};
 	};
-
-#if 0
-	cvipctrl: pinctrl@3001000 {
-		compatible = "cvitek,pinctrl-cv182x";
-		reg = <0 0x03001000 0 0x1000>;
-	};
-#endif
 
 	cviaudio_core {
 		compatible = "cvitek,audio";
@@ -869,24 +879,21 @@
 		clock-frequency = <24576000>;
 #endif
 		};
+#endif
 
+	cvipctrl: pinctrl@3001000 {
+		compatible = "cvitek,pinctrl-cv180x";
+		reg = <0 0x03001000 0 0x1000>;
+	};
 
 	aliases {
-		i2c0 = &i2c0;
-		i2c1 = &i2c1;
-		i2c2 = &i2c2;
-		i2c3 = &i2c3;
-		i2c4 = &i2c4;
 		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
 		ethernet0 = &ethernet0;
 	};
 
 	chosen {
 		stdout-path = "serial0";
+		bootargs = "mtdparts=10000000.cvi-spif:512K(fip),1792K(2nd),3072K(jump),384K(PQ),64K(PARAM),64K(PARAM_BAK),64K(ENV),64K(ENV_BAK),4096K(ROOTFS),4096K(DATA) rootwait ro root=/dev/mtdblock8  rootfstype=squashfs console=ttyS0,115200 earlycon=sbi riscv.fwsz=0x80000 loglevel=0";
 	};
 };
 

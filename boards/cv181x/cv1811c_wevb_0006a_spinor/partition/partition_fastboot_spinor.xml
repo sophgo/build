@@ -1,0 +1,12 @@
+<physical_partition type="spinor">
+    <partition label="fip" size_in_kb="512" readonly="false" file="fip_spl.bin"/>
+    <partition label="2nd" size_in_kb="2816" readonly="false" file="yoc.bin"/>
+    <partition label="jump" size_in_kb="3072" readonly="false" file="Image"/>
+    <partition label="PQ" size_in_kb="384" readonly="false" file="pq_data.spinor"/>
+    <partition label="PARAM" size_in_kb="64" file="param.bin" />
+    <partition label="PARAM_BAK" size_in_kb="64" file="" />
+    <partition label="ENV" size_in_kb="64" file="" />
+    <partition label="ENV_BAK" size_in_kb="64" file="" />
+    <partition label="ROOTFS" size_in_kb="4096" readonly="false" file="rootfs.spinor" />
+    <partition label="DATA"  size_in_kb="4096" readonly="false" file="data.spinor" mountpoint="/mnt/data" type="jffs2" />
+</physical_partition>

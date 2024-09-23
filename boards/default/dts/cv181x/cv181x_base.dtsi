@@ -1,3 +1,4 @@
+#include <dt-bindings/input/input.h>
 
 / {
 	compatible = "cvitek,cv181x";
@@ -33,7 +34,7 @@
 	rst: reset-controller {
 		#reset-cells = <1>;
 		compatible = "cvitek,reset";
-		reg = <0x0 0x03003000 0x0 0x10>;
+		reg = <0x0 0x03003000 0x0 0x10>, <0x0 0x05025000 0x0 0x1000>;
 	};
 
 	restart: restart-controller {
@@ -62,6 +63,7 @@
 					<0x0 0x0800A000 0x0 0x1000>;
 	};
 
+#ifndef __FASTBOOT__
 	wiegand0 {
 		compatible = "cvitek,wiegand";
 		reg-names = "wiegand";
@@ -91,6 +93,7 @@
 		resets = <&rst RST_WGN2>;
 		reset-names = "res_wgn";
 	};
+#endif
 
 	saradc {
 		compatible = "cvitek,saradc";
@@ -150,6 +153,18 @@
 		reg = <0x0 0x03010000 0x0 0x1000>;
 		resets = <&rst RST_WDT>;
 		clocks = <&pclk>;
+	};
+
+#ifndef __FASTBOOT__
+	trng: dw_trng@0x02070000 {
+		reg = <0x0 0x02070000 0x0 0x1000>;
+		compatible = "snps,dw-trng";
+	};
+#endif
+
+	spacc: cvi_spacc@02060000 {
+		reg = <0x0 0x02060000 0x0 0x1000>;
+		compatible = "cvitek,spacc";
 	};
 
 	pwm0: pwm@3060000 {
@@ -258,6 +273,7 @@
 		status = "okay";
 	};
 
+#ifndef __FASTBOOT__
 	uart1: serial@04150000 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x0 0x04150000 0x0 0x1000>;
@@ -293,6 +309,7 @@
 		reg-io-width = <4>;
 		status = "disabled";
 	};
+#endif
 
 	gpio0: gpio@03020000 {
 		compatible = "snps,dw-apb-gpio";
@@ -425,6 +442,15 @@
 		reset-names = "i2c4";
 	};
 
+	i2c5: i2c@0502B000 {
+		compatible = "snps,designware-i2c";
+		clocks = <&clk CV181X_CLK_I2C>;
+		reg = <0x0 0x0502B000 0x0 0x1000>;
+		clock-frequency = <400000>;
+		resets = <&rst RTC_RST_I2C>;
+		reset-names = "i2c5";
+	};
+
 	eth_csrclk: eth_csrclk {
 		clock-output-names = "eth_csrclk";
 		clock-frequency = <250000000>;
@@ -480,6 +506,7 @@
 	};
 
 	emmc:cv-emmc@4300000 {
+		u-boot,dm-spl;
 		compatible = "cvitek,cv181x-emmc";
 		reg = <0x0 0x4300000 0x0 0x1000>;
 		reg-names = "core_mem";
@@ -526,6 +553,8 @@
 		bus-width = <4>;
 		reg = <0x0 0x4320000 0x0 0x1000>;
 		reg_names = "core_mem";
+		clocks = <&clk CV181X_CLK_SD1>;
+		clock-names = "clk_sd";
 		src-frequency = <375000000>;
 		min-frequency = <400000>;
 		max-frequency = <50000000>;
@@ -536,9 +565,15 @@
 		pll_reg = <0x300207C>;
 		no-mmc;
 		no-sd;
-		status = "disabled";
 	};
 
+	ive {
+		compatible = "cvitek,ive";
+		reg = <0x0 0x0A0A0000 0x0 0x3100>;
+		reg-names = "ive_base";
+	};
+
+#ifndef __FASTBOOT__
 	i2s_mclk: i2s_mclk {
 		clock-output-names = "i2s_mclk";
 		clock-frequency = <24576000>;
@@ -667,9 +702,8 @@
 	mipi_rx: cif {
 		compatible = "cvitek,cif";
 		reg = <0x0 0x0a0c2000 0x0 0x2000>, <0x0 0x0a0d0000 0x0 0x1000>,
-		      <0x0 0x0a0c4000 0x0 0x2000>, <0x0 0x0a0c6000 0x0 0x2000>,
-		      <0x0 0x03001c30 0x0 0x30>;
-		reg-names = "csi_mac0", "csi_wrap0", "csi_mac1", "csi_mac2", "pad_ctrl";
+		      <0x0 0x0a0c4000 0x0 0x2000>, <0x0 0x03001c30 0x0 0x30>;
+		reg-names = "csi_mac0", "csi_wrap0", "csi_mac1", "pad_ctrl";
 		snsr-reset = <&porta 2 GPIO_ACTIVE_LOW>, <&porta 2 GPIO_ACTIVE_LOW>, <&porta 2 GPIO_ACTIVE_LOW>;
 		resets = <&rst RST_CSIPHY0>, <&rst RST_CSIPHY1>,
 			<&rst RST_CSIPHY0RST_APB>, <&rst RST_CSIPHY1RST_APB>;
@@ -687,10 +721,6 @@
 		power-ct-gpio = <&porte 1 GPIO_ACTIVE_HIGH>;
 		clocks = <&clk CV181X_CLK_DISP_VIP>, <&clk CV181X_CLK_DSI_MAC_VIP>;
 		clock-names = "clk_disp", "clk_dsi";
-	};
-
-	sys {
-		compatible = "cvitek,sys";
 	};
 
 	base {
@@ -731,12 +761,6 @@
 		clock-freq-vip-sys1 = <300000000>;
 	};
 
-	ive {
-		compatible = "cvitek,ive";
-		reg = <0x0 0x0A0A0000 0x0 0x3100>;
-		reg-names = "ive_base";
-	};
-
 	vo:vo {
 		compatible = "cvitek,vo";
 		reg = <0x0 0x0a080000 0x0 0x10000>, <0x0 0x0a0c8000 0x0 0xa0>, <0x0 0x0a0d1000 0x0 0x100>;
@@ -748,25 +772,12 @@
 		clock-names = "clk_disp", "clk_dsi", "clk_bt";
 	};
 
-#if (CVIMMAP_FRAMEBUFFER_SIZE > 0)
-	reserved-memory {
-	  #size-cells = <0x2>;
-	  #address-cells = <0x2>;
-	  ranges;
-
-		fb_reserved: cvifb {
-			alloc-ranges = <0x0 CVIMMAP_FRAMEBUFFER_ADDR 0 CVIMMAP_FRAMEBUFFER_SIZE>;
-			size = <0x0 CVIMMAP_FRAMEBUFFER_SIZE>;
-		};
-	};
-
 	cvifb {
 		compatible = "cvitek,fb";
-		memory-region = <&fb_reserved>;
-		reg = <0x0 0x0a088000 0x0 0x1000>;
+		reg = <0x0 0x0a080000 0x0 0x10000>;
 		reg-names = "disp";
 	};
-#endif
+
 	dwa {
 		compatible = "cvitek,dwa";
 		reg = <0x0 0x0a0c0000 0x0 0x1000>;
@@ -823,6 +834,12 @@
 		reg-names = "vc_ctrl","vc_sbm","vc_addr_remap";
 	};
 
+#endif
+
+	sys {
+		compatible = "cvitek,sys";
+	};
+
 	rtos_cmdqu {
 		compatible = "cvitek,rtos_cmdqu";
 		reg = <0x0 0x01900000 0x0 0x1000>;
@@ -848,6 +865,7 @@
 		status = "okay";
 	};
 
+#ifndef __FASTBOOT__
 	thermal:thermal@030E0000 {
 		compatible = "cvitek,cv181x-thermal";
 		reg = <0x0 0x030E0000 0x0 0x10000>;
@@ -856,41 +874,6 @@
 		reset-names = "tempsen";
 		#thermal-sensor-cells = <1>;
 	};
-
-	thermal-zones {
-		soc_thermal_0: soc_thermal_0 {
-			polling-delay-passive = <1000>; /* milliseconds */
-			polling-delay = <1000>; /* milliseconds */
-			thermal-sensors = <&thermal 0>;
-
-			trips {
-				soc_thermal_trip_0: soc_thermal_trip_0 {
-					temperature = <100000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "passive";
-				};
-
-				soc_thermal_trip_1: soc_thermal_trip_1 {
-					temperature = <110000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "passive";
-				};
-
-				soc_thermal_crtical_0: soc_thermal_crtical_0 {
-					temperature = <130000>; /* millicelsius */
-					hysteresis = <0>; /* millicelsius */
-					type = "critical";
-				};
-			};
-		};
-	};
-
-#if 0
-	cvipctrl: pinctrl@3001000 {
-		compatible = "cvitek,pinctrl-cv182x";
-		reg = <0 0x03001000 0 0x1000>;
-	};
-#endif
 
 	cviaudio_core {
 		compatible = "cvitek,audio";
@@ -906,27 +889,54 @@
 #endif
 		};
 
+    irrx:irrx@0502E000 {
+		compatible = "cvitek,irrx";
+		reg = <0x0 0x0502E000 0x0 0x1000>;
+	};
+
+	keyscan:keyscan@03040000 {
+		compatible = "cvitek,keyscan";
+		reg = <0x0 0x03040000 0x0 0x10000>;
+		clocks	= <&clk CV181X_CLK_KEYSCAN>;
+		resets = <&rst RST_KEYSCAN>;
+		reset-names = "res_keyscan";
+		keypad,num-rows = <4>;
+		keypad,num-columns = <4>;
+		mode = <1>;
+
+		// row << 24 | column << 16 | key-code
+		linux,keymap = < MATRIX_KEY(0x00, 0x00, KEY_F13)
+				MATRIX_KEY(0x00, 0x01, KEY_F9)
+				MATRIX_KEY(0x00, 0x02, KEY_F5)
+				MATRIX_KEY(0x00, 0x03, KEY_F1)
+				MATRIX_KEY(0x01, 0x00, KEY_F14)
+				MATRIX_KEY(0x01, 0x01, KEY_F10)
+				MATRIX_KEY(0x01, 0x02, KEY_F6)
+				MATRIX_KEY(0x01, 0x03, KEY_F2)
+				MATRIX_KEY(0x02, 0x00, KEY_F15)
+				MATRIX_KEY(0x02, 0x01, KEY_F11)
+				MATRIX_KEY(0x02, 0x02, KEY_F7)
+				MATRIX_KEY(0x02, 0x03, KEY_F3)
+				MATRIX_KEY(0x03, 0x00, KEY_F16)
+				MATRIX_KEY(0x03, 0x01, KEY_F12)
+				MATRIX_KEY(0x03, 0x02, KEY_F8)
+				MATRIX_KEY(0x03, 0x03, KEY_F4) >;
+	};
+#endif
+
+	cvipctrl: pinctrl@3001000 {
+		compatible = "cvitek,pinctrl-cv181x";
+		reg = <0 0x03001000 0 0x1000>;
+	};
 
 	aliases {
-		i2c0 = &i2c0;
-		i2c1 = &i2c1;
-		i2c2 = &i2c2;
-		i2c3 = &i2c3;
-		i2c4 = &i2c4;
-		//spi0 = &spi0;
-		//spi1 = &spi1;
-		//spi2 = &spi2;
-		//spi3 = &spi3;
 		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
 		ethernet0 = &ethernet0;
 	};
 
 	chosen {
 		stdout-path = "serial0";
+		bootargs = "mtdparts=10000000.cvi-spif:512K(fip),1792K(2nd),3072K(jump),384K(PQ),64K(PARAM),64K(PARAM_BAK),64K(ENV),64K(ENV_BAK),4096K(ROOTFS),4096K(DATA) rootwait ro root=/dev/mtdblock8  rootfstype=squashfs console=ttyS0,115200 earlycon=sbi riscv.fwsz=0x80000 loglevel=0";
 	};
 };
 
