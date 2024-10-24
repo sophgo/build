@@ -670,7 +670,13 @@ function build_bm1688_sdk() {
   done
   mkdir -p ${MOD_DEBS}
 
-  # copy linux kernel debs
+  # update linux kernel debs
+  shopt -s nullglob
+  matched_deb_files=("${TOP_DIR}/linux_5.10/build/"*.deb)
+  if [ ${#matched_deb_files[@]} -gt 0 ]; then
+    rm -f "${BSP_DEBS}"/*.deb
+  fi
+  shopt -u nullglob
   cp -f "${TOP_DIR}"/linux_5.10/build/*.deb ${BSP_DEBS}
 
   # copy libsophon debs
@@ -1508,4 +1514,3 @@ source "$TOP_DIR/build/alios_functions.sh"
 # pack backdoor file for PLD env
 source "$TOP_DIR/build/pld_backdoor.sh"
 
-print_usage
