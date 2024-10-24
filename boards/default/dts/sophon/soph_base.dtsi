@@ -1303,6 +1303,7 @@
 		usbdrd_dwc3_0: usb@39010000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x39010000 0x0 0x10000>;
+			snps,parkmode-disable-ss-quirk;
 #ifdef __UBOOT__
 			dr_mode = "host";
 #else
@@ -1333,6 +1334,7 @@
 		usbdrd_dwc3_1: usb@39110000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x39110000 0x0 0x10000>;
+			snps,parkmode-disable-ss-quirk;
 #ifdef __UBOOT__
 			dr_mode = "host";
 #else
