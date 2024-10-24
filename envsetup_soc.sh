@@ -706,7 +706,7 @@ function build_bm1688_package(){
     echo copy sdk files...
     sudo cp -f "$LIBSOPHON_PATH"/build/libsophon_soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
     if [ -d "${TOP_DIR}"/sophon_media ]; then
-      sudo cp -f "${TOP_DIR}"/sophon_media/media_release/sophon-media-soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
+      sudo cp -f "${TOP_DIR}"/sophon_media/media_release/sophon-media-soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge 2>/dev/null
     fi
   fi
 
