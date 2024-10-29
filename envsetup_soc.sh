@@ -754,9 +754,9 @@ function build_bm1688_all(){
 }
 
 function clean_bm1688_all(){
-  clean_edge_pack    || return $?
-  clean_libsophon    || return $?
-  clean_sophon_media || return $?
+  clean_edge_pack
+  clean_libsophon
+  clean_sophon_media
 
   if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
 	clean_rootfs || return $?
