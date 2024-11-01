@@ -316,31 +316,11 @@ function clean_v4l2_isp()
 	export V4L2_ISP_ENABLE=0
 }
 
-# 设置sophon-sdk信息
-function get_bm_sdk_info {
-    bm_root_dir=ftp://172.28.141.89/athena2
-    bm_user_name=AI
-    bm_user_psword=SophgoRelease2022
-    bm_date_ID=latest_release
-    bm_sdk_name=tpu_kernel
-    bm_chip_name=$1
-    bm_build_type=$2
-}
 
 # 拉取解压sophon-sdk
 function build_bm1686_sdk {
     # bm1686 tpu_kernel
-    get_bm_sdk_info 1686 daily_build
-    tpu_kernel_file_name=tpu-kernel-tpulv6_v*.tar.gz
-    tpu_kernel_full_path=$bm_root_dir/tpu-kernel/$bm_build_type/$bm_date_ID/$tpu_kernel_file_name
-
-    echo "Try to download ${tpu_kernel_file_name} ..."
-    wget -P ${TPU_SDK_PATH} ${tpu_kernel_full_path} --ftp-user $bm_user_name --ftp-password $bm_user_psword -q
-    mkdir -p ${TPU_SDK_PATH}/
-    tar -xzf ${TPU_SDK_PATH}/$tpu_kernel_file_name -C ${TPU_SDK_PATH}/ --strip-components 1
-    echo "Extract"
-
-    rm -rf ${TPU_SDK_PATH}/${tpu_kernel_file_name}
+    echo "build_bm1686_sdk"
 }
 function clean_bm1686_sdk {
 	rm -rf ${TPU_SDK_PATH}
