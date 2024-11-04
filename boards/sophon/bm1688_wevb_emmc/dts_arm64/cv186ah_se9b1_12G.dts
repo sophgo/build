@@ -2,7 +2,7 @@
 #include "soph_base_arm64.dtsi"
 //#include "soph_asic_bga.dtsi"
 #include "soph_asic_emmc.dtsi"
-#include "soph_default_memmap_4G.dtsi"
+#include "soph_default_memmap.dtsi"
 
 / {
 	aliases {
@@ -33,6 +33,15 @@
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
 			reg = <0x2 0x00000000 0x0 0xC0000000>; // 3G, for npu
+		};
+
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x10000000>; // 256m for cma
+			alloc-ranges = <0x1 0x54000000 0x0 0x10000000>;
+			alignment = <0x0 0x100000>; // 1MB
+			linux,cma-default;
 		};
 
 		ion_for_vpp: ion_vpp_mem {

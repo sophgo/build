@@ -2,7 +2,7 @@
 #include "soph_base_arm64.dtsi"
 //#include "soph_asic_bga.dtsi"
 #include "soph_asic_emmc.dtsi"
-#include "soph_default_memmap_4G.dtsi"
+#include "soph_default_memmap.dtsi"
 
 / {
 	aliases {
@@ -33,6 +33,15 @@
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
 			reg = <0x2 0x00000000 0x0 0xC0000000>; // 3G, for npu
+		};
+
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x10000000>; // 256m for cma
+			alloc-ranges = <0x1 0x54000000 0x0 0x10000000>;
+			alignment = <0x0 0x100000>; // 1MB
+			linux,cma-default;
 		};
 
 		ion_for_vpp: ion_vpp_mem {
@@ -247,6 +256,22 @@
 			compatible = "BasisLink,cs32l010";
 			shutdown-gpio = <&portg 0 GPIO_ACTIVE_HIGH>;
 			reg = <0x50>;
+		};
+	};
+
+	i2c12: i2c@12 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&portg 8 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&portc 6 GPIO_ACTIVE_HIGH>;
+		i2c-gpio,delay-us = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reset-names = "i2c12";
+		status = "okay";
+
+		pmic020: pmic020@60 {
+			compatible = "BasisLink,SM9Pro";
+			reg = <0x60>;
 		};
 	};
 };

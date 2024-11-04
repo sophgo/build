@@ -15,7 +15,7 @@
 
 	memory@100000000 {
 		device_type = "memory";
-		reg = <0x1 0x00000000 0x4 0x00000000>;	//16G
+		reg = <0x1 0x00000000 0x3 0x00000000>;	//12G
 	};
 
 	reserved-memory {
@@ -30,18 +30,18 @@
 			no-map;
 		};
 
-               cma_reserved: linux,cma {
-                       compatible = "shared-dma-pool";
-                       reusable;
-                       size = <0x0 0x10000000>; // 256m for drm 0x7C00000->0x10000000
-                       alloc-ranges = <0x1 0x30000000 0x0 0x10000000>;   // to fix hdmi audio bug 0x7C00000->0x10000000 0x40400000->0x30000000
-                       alignment = <0x0 0x100000>; // 1MB
-                       linux,cma-default;
-               };
-
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
-			reg = <0x2 0x00000000 0x1 0x00000000>; // 4G, for npu
+			reg = <0x2 0x00000000 0x0 0xC0000000>; // 3G, for npu
+		};
+
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x10000000>; // 256m for cma
+			alloc-ranges = <0x1 0x54000000 0x0 0x10000000>;
+			alignment = <0x0 0x100000>; // 1MB
+			linux,cma-default;
 		};
 
 		ion_for_vpp: ion_vpp_mem {
@@ -52,8 +52,15 @@
 	};
 
 	pcie1:pcie@20400000 {
-		pipe-mode = <0x2>; //b'00 x2&&x2; b'10 sata&&x2
+		pipe-mode = <0x0>; //b'00 x2&&x2; b'10 sata&&x2
 		reset-gpio = <&porte 2 GPIO_ACTIVE_HIGH>; //gpio 130
+	};
+
+	pcie0:pcie@20800000 {
+                status = "okay";
+                pipe-mode = <0x0>; //b'00 x2&&x2; b'10 sata&&x2
+                num-lanes = <1>;
+		reset-gpio = <&porte 1 GPIO_ACTIVE_HIGH>; //gpio 129
 	};
 
 	/delete-node/ cv-sd1;
@@ -65,19 +72,19 @@
 		soc_thermal_0 {
 			trips {
 				soc_thermal_trip_0 {
-					temperature = <90000>; /* millicelsius 85->110000 */
+					temperature = <110000>; /* millicelsius 85->110000 */
 					hysteresis = <10000>; /* millicelsius */
 					type = "passive";
 				};
 
 				soc_thermal_trip_1 {
-					temperature = <100000>; /* millicelsius 95->120 */
+					temperature = <120000>; /* millicelsius 95->120 */
 					hysteresis = <20000>; /* millicelsius */
 					type = "passive";
 				};
 
 				soc_thermal_crtical_0 {
-					temperature = <115000>; /* millicelsius 105->125 */
+					temperature = <125000>; /* millicelsius 105->125 */
 					hysteresis = <0>; /* millicelsius */
 					type = "critical";
 				};
@@ -85,11 +92,45 @@
 		};
 	};
 
+	cpus {
+		#size-cells = <0x0>;
+		#address-cells = <0x1>;
+
+		/delete-node/ cpu-map;
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+			};
+		};
+		/delete-node/ cpu@102;
+		/delete-node/ cpu@103;
+	};
+
 	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
 			label = "disk-blue";
-			gpios = <&porta 2 GPIO_ACTIVE_HIGH>;
+			gpios = <&portf 23 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
@@ -114,6 +155,8 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpios = <&portg 11 GPIO_ACTIVE_HIGH>;
 	};
 
 	vcc5v0_sys: vcc5v0-sys {
@@ -123,6 +166,9 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		//gpios = <&portd 21 GPIO_ACTIVE_HIGH>;
+		gpios = <&portd 16 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dc>;
 	};
 
@@ -133,6 +179,8 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&portd 3 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc12v_dc>;
 	};
 
@@ -144,7 +192,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpios = <&portb 19 GPIO_ACTIVE_HIGH>;
+		gpios = <&portc 15 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -156,7 +204,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpios = <&porta 5 GPIO_ACTIVE_HIGH>;
+		gpios = <&portg 5 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -168,7 +216,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpios = <&portf 21 GPIO_ACTIVE_HIGH>;
+		gpios = <&portb 18 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -180,7 +228,7 @@
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
 		enable-active-high;
-		gpios = <&portf 23 GPIO_ACTIVE_HIGH>;
+		gpios = <&portg 4 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -193,18 +241,6 @@
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpios = <&porta 1 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc5v0_sys>;
-	};
-
-	vcc3v3_gps: vcc3v3-gps {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_gps";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpios = <&portg 5 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
 
@@ -222,22 +258,6 @@
 			compatible = "BasisLink,cs32l010";
 			shutdown-gpio = <&portg 0 GPIO_ACTIVE_HIGH>;
 			reg = <0x50>;
-		};
-	};
-
-	i2c12: i2c@12 {
-		compatible = "i2c-gpio";
-		sda-gpios = <&portg 8 GPIO_ACTIVE_HIGH>;
-		scl-gpios = <&portc 6 GPIO_ACTIVE_HIGH>;
-		i2c-gpio,delay-us = <5>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reset-names = "i2c12";
-		status = "okay";
-
-		pmic020: pmic020@60 {
-			compatible = "BasisLink,SM9Pro";
-			reg = <0x60>;
 		};
 	};
 };
@@ -281,4 +301,8 @@
 
 &uart6 {
 	status = "okay";
+};
+
+&sata {
+	status = "disable";
 };

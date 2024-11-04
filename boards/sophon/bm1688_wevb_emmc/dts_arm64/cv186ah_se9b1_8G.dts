@@ -31,6 +31,15 @@
 			reg = <0x1 0x7A000000 0x0 0x60000000>; // 1.5G, for TPU
 		};
 
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x10000000>; // 256m for cma
+			alloc-ranges = <0x1 0x54000000 0x0 0x10000000>;
+			alignment = <0x0 0x100000>; // 1MB
+			linux,cma-default;
+		};
+
 		//0x2_0000_0000 - 0x3_0000_0000 for VPP (owner: kenneth.liu@sophgo.com)
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";

@@ -18,7 +18,6 @@
 		reg = <0x1 0x00000000 0x3 0x00000000>;	//12G
 	};
 
-
 	reserved-memory {
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
@@ -30,6 +29,15 @@
 			reg = <0x1 0x04000000 0x0 0x20000000>;  //512MB for TPU firmware
 			no-map;
 		};
+
+               cma_reserved: linux,cma {
+                       compatible = "shared-dma-pool";
+                       reusable;
+                       size = <0x0 0x10000000>; // 256m for drm 0x7C00000->0x10000000
+                       alloc-ranges = <0x1 0x30000000 0x0 0x10000000>;   // to fix hdmi audio bug 0x7C00000->0x10000000 0x40400000->0x30000000
+                       alignment = <0x0 0x100000>; // 1MB
+                       linux,cma-default;
+               };
 
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
@@ -214,6 +222,22 @@
 			compatible = "BasisLink,cs32l010";
 			shutdown-gpio = <&portg 0 GPIO_ACTIVE_HIGH>;
 			reg = <0x50>;
+		};
+	};
+
+	i2c12: i2c@12 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&portg 8 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&portc 6 GPIO_ACTIVE_HIGH>;
+		i2c-gpio,delay-us = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reset-names = "i2c12";
+		status = "okay";
+
+		pmic020: pmic020@60 {
+			compatible = "BasisLink,SM9Pro";
+			reg = <0x60>;
 		};
 	};
 };
