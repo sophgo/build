@@ -77,7 +77,7 @@ function build_ramboot
   create_ramdisk_folder || return "$?"
   _build_kernel_env
   cd "$BUILD_PATH" || return
-  make ramboot
+  make ramboot || return "$?"
 )}
 
 function pack_boot

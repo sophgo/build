@@ -34,5 +34,5 @@ function build_opensbi_kernel()
   
   cd "$BUILD_PATH" || return "$?"
   make opensbi-kernel || return "$?"
-  pack_payload
+  pack_payload || return "$?"
 )}
