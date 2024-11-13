@@ -849,10 +849,16 @@ function clean_pqtool_server()
   make uninstall DESTDIR="$SYSTEM_OUT_DIR"
 )}
 
+
 function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
-
+  pushd "$OSS_TARBALL_PATH"
+  pip3 install dfss --upgrade
+  python -m dfss --url=open@sophgo.com:/gemini-sdk/oss/latest/${SDK_VER}.tar.gz
+  tar -zxf ${SDK_VER}.tar.gz
+  rm -rf ${SDK_VER}.tar.gz
+  popd
   local oss_list=(
     "zlib"
     "glog"
@@ -874,22 +880,16 @@ function build_3rd_party()
 
   for name in "${oss_list[@]}"
   do
-    if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
-      echo "$name found"
-    else
-      echo "Try to download $name tarball ..."
-      wget ftp://swftp:cvitek@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/${name}.tar.gz \
-          -T 3 -t 3 -q -P ${OSS_TARBALL_PATH}
-      if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
-        "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
-        echo "$name successfully downloaded and untared."
-      else
-        echo "No prebuilt tarball, build oss $name"
-        "$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
-      fi
-    fi
+	  if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
+		"$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+		echo "$name successfully downloaded and untared."
+	  else
+		echo "No prebuilt tarball, build oss $name"
+		"$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
+	  fi
   done
 }
+
 
 function clean_3rd_party()
 {
