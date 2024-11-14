@@ -854,10 +854,13 @@ function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
   pushd "$OSS_TARBALL_PATH"
-  pip3 install dfss --upgrade
-  python -m dfss --url=open@sophgo.com:/gemini-sdk/oss/latest/${SDK_VER}.tar.gz
+  if [ ! -f "${SDK_VER}.tar.gz" ]; then
+    pip3 install dfss --upgrade
+    python -m dfss --url=open@sophgo.com:/gemini-sdk/oss/latest/${SDK_VER}.tar.gz
+  else
+    echo "${SDK_VER}.tar.gz already exists. Skipping download."
+  fi
   tar -zxf ${SDK_VER}.tar.gz
-  rm -rf ${SDK_VER}.tar.gz
   popd
   local oss_list=(
     "zlib"
