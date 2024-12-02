@@ -635,6 +635,11 @@ function build_bm1688_overlay() {
             python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}.tgz
         fi
     fi
+    FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
+    if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
+        echo "The distro_${DISTRO}.tgz is corrupted; Please check."
+	return -1
+    fi
     zcat "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" |\
 		sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
   fi
