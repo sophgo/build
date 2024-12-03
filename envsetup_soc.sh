@@ -813,6 +813,8 @@ function build_cvi_rtsp()
   _build_cvi_rtsp_env
 
   cd "$CVI_RTSP_PATH" || return
+  mkdir -p prebuilt
+  cp ${OSS_TARBALL_PATH}/live555.tar.gz prebuilt/
   BUILD_SERVICE=1 MW_DIR=${MW_PATH} ./build.sh
   test $? -ne 0 && print_notice "build_cvi_rtsp failed !!" && return 1
   BUILD_SERVICE=1 make install DESTDIR="$(pwd)/install"
