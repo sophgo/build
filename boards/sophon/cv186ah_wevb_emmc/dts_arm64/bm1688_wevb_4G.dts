@@ -19,7 +19,7 @@
 		wake {
 			label = "wake key";
 			gpios = <&portg 8 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
+			linux,code = <143>;
 			linux,input-type = <EV_KEY>;
 			wakeup-source;
 		};
@@ -122,6 +122,8 @@
 		status = "okay";
 		compatible = "cvitek,sensor0";
 		reg = <0x1a>;
+		irq-gpio = <&portb 18 GPIO_ACTIVE_LOW>;
+		reset-gpio = <&portc 6 GPIO_ACTIVE_LOW>;
 		port {
 			sensor0_out: endpoint {
 				remote-endpoint = <&cif_in_ep0>;

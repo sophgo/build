@@ -561,7 +561,7 @@ function cvi_setup_env()
   CNV_SDK_PATH="$TOP_DIR"/cnv
   ACCESSGUARD_PATH="$TOP_DIR"/access-guard-turnkey
   IPC_APP_PATH="$TOP_DIR"/framework/applications/ipc
-  AI_SDK_PATH="$TOP_DIR"/cviai
+  AI_SDK_PATH="$TOP_DIR"/tdl_sdk
   CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
   OPENSBI_PATH="$TOP_DIR"/opensbi
   TOOLS_PATH="$BUILD_PATH"/tools
@@ -598,7 +598,7 @@ function cvi_setup_env()
   CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
   CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
   CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
-  CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
 
   # add toolchain path
   pathprepend "$CROSS_COMPILE_PATH_64"/bin

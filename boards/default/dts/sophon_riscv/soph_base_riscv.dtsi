@@ -24,6 +24,8 @@
 / {
 	model = "Cvitek. SOPHON ASIC. C906.";
 
+	compatible = "sophgo,tc906";
+
 	#size-cells = <0x2>;
 	#address-cells = <0x2>;
 
@@ -49,7 +51,7 @@
 		};
 #endif
 #if (HART_ID == 1)
-		cpu@1 {
+		tc906:cpu@1 {
 			device_type = "cpu";
 			reg = <1>;
 			status = "okay";
@@ -66,7 +68,7 @@
 		};
 #endif
 #if (HART_ID == 2)
-		cpu@2 {
+		tc906:cpu@2 {
 			device_type = "cpu";
 			reg = <2>;
 			status = "okay";
@@ -218,6 +220,11 @@
 
 	uart1: serial@29190000 {
 		interrupts = <145 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
+	};
+
+	uart4: serial@291c0000 {
+		interrupts = <148 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&plic0>;
 	};
 #if 0
@@ -401,17 +408,12 @@
 		interrupt-parent = <&plic0>;
 	};
 
-	dwa {
-		interrupts = <31 IRQ_TYPE_LEVEL_HIGH>,
-			     <32 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "dwa0", "dwa1";
-		interrupt-parent = <&plic0>;
-	};
-
-	ldc {
+	gdc {
 		interrupts = <36 IRQ_TYPE_LEVEL_HIGH>,
-			     <37 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "ldc0", "ldc1";
+			     <37 IRQ_TYPE_LEVEL_HIGH>,
+			     <31 IRQ_TYPE_LEVEL_HIGH>,
+			     <32 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ldc0", "ldc1", "dwa0", "dwa1";
 		interrupt-parent = <&plic0>;
 	};
 
