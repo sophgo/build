@@ -21,7 +21,7 @@ project cnpy/
 project cvi_pipeline/
 8ae60a44a52bd749bcc228e3f1d2ad45cc453f5a Remove the venc duplicate BS_MODE definition
 
-project cviai/
+project tdl_sdk/
 01baca393d35c02be4adf0a3a6dc1bbef8dbd573 [core] Fix memory leak
 
 project cvibuilder/
@@ -156,7 +156,7 @@ project u-boot/
     project cvi_pipeline/
     2a3755bc7f62f4f91b76d018db636ab2f295e1be workaround to support chip cv182x
 
-    project cviai/
+    project tdl_sdk/
     60941654c6ef9de848c5fe77c23ea4b6f6eb7ad6 [cmake] Fix header not found
 
     project cviruntime/

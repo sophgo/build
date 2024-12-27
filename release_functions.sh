@@ -85,11 +85,18 @@ function build_sdk_ver()
     [[ -d cvitek_ive_sdk ]] && tar zcf "$install_extra_ver_dir"/cvitek_ive_sdk.tar.gz cvitek_ive_sdk
     # ivs sdk
     [[ -d cvitek_ivs_sdk ]] && tar zcf "$install_extra_ver_dir"/cvitek_ivs_sdk.tar.gz cvitek_ivs_sdk
-    #ai sdk
-    tar zcf "$install_internal_ver_dir"/cvitek_ai_sdk_internal."$SDK_VER".tar.gz cvitek_ai_sdk
-    rm -rf cvitek_ai_sdk/regression
-    tar zcf "$install_extra_ver_dir"/cvitek_ai_sdk.tar.gz cvitek_ai_sdk
   popd
+  # tdl_sdk
+  if [ -d "$TDL_SDK_PATH/install" ]; then
+    pushd "$TDL_SDK_PATH"
+      mkdir cvitek_tdl_sdk
+      cp -ar install/* cvitek_tdl_sdk/
+      tar zcf "$install_internal_ver_dir"/cvitek_tdl_sdk_internal."$SDK_VER".tar.gz cvitek_tdl_sdk
+      rm -rf cvitek_tdl_sdk/regression
+      tar zcf "$install_extra_ver_dir"/cvitek_tdl_sdk.tar.gz cvitek_tdl_sdk
+      rm -rf cvitek_tdl_sdk
+    popd
+  fi
 #  fi
 
   # package mw sdk
@@ -111,8 +118,8 @@ function build_sdk_ver()
     [[ -d cvitek_ive_sdk ]] && cp -a cvitek_ive_sdk/* mmf/
     [[ -f "$install_extra_ver_dir"/cvitek_ivs_sdk.tar.gz ]] && tar xhzf "$install_extra_ver_dir"/cvitek_ivs_sdk.tar.gz
     [[ -d cvitek_ivs_sdk ]] && cp -a cvitek_ivs_sdk/* mmf/
-    tar xhzf "$install_extra_ver_dir"/cvitek_ai_sdk.tar.gz
-    cp -a cvitek_ai_sdk/* mmf/
+    [[ -f "$install_extra_ver_dir"/cvitek_tdl_sdk.tar.gz ]] && tar xhzf "$install_extra_ver_dir"/cvitek_tdl_sdk.tar.gz
+    [[ -d cvitek_tdl_sdk ]] && cp -a cvitek_tdl_sdk/* mmf/
     pushd mmf
       tar zcf "$install_sdk_ver_dir"/mmf.tar.gz ./*
     popd
@@ -131,8 +138,16 @@ function build_sdk_ver()
 function build_all_sdk_ver()
 {
   if [[ "$CHIP_ARCH" == SOPHON ]]; then
-    setconfig TOOLCHAIN_GLIBC_ARM64=y
-    build_sdk_ver "$@"
+	  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' "$BUILD_PATH"/.config; then
+		  setconfig TOOLCHAIN_GLIBC_ARM64_V930=y
+		  build_sdk_ver "$@"
+	  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' "$BUILD_PATH"/.config; then
+		  setconfig TOOLCHAIN_GLIBC_ARM64_V1131=y
+		  build_sdk_ver "$@"
+	  else
+		  setconfig TOOLCHAIN_GLIBC_ARM64=y
+		  build_sdk_ver "$@"
+	  fi
   fi
   #if [[ "$CHIP_ARCH" == CV183X ]]; then
   #  setconfig TOOLCHAIN_GLIBC_ARM64=y
@@ -403,6 +418,7 @@ function add_source_to_sdk_package()
       fi
     done
     cp -f "$MW_PATH"/modules/sys/include/devmem.h include/
+    cp -f "$MW_PATH"/modules/vi/include/* include/
     cp -a "$MW_PATH"/sample .
     rm -rf sample/tpu
     rm -rf sample/multivenc

@@ -17,7 +17,7 @@
 		device_type = "memory";
 		reg = <0x1 0x00000000 0x3 0x00000000>;	//12G
 	};
-	
+
 	reserved-memory {
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
@@ -47,7 +47,7 @@
 		reset-gpio = <&porte 1 GPIO_ACTIVE_HIGH>; //gpio 129
 	};
 
-	/delete-node/ cv-sd1;
+	/delete-node/ cv-sd1@29320000;
 	sd:cv-sd@29310000 {
 		 pwr-gpios = <&porte 6 GPIO_ACTIVE_HIGH>;
 	};
@@ -146,7 +146,18 @@
 };
 
 &hdmi {
-	label = "SE9";
+	phy-table =
+			<0  0x0007 0x0120 0x8d88>,
+			<1  0x0007 0x0120 0x8d88>,
+			<2  0x0007 0x0120 0x8d88>,
+			<3  0x0007 0x0120 0x8d88>,
+			<4  0x0007 0x0120 0x8d88>,
+			<5  0x0007 0x0120 0x8d88>,
+			<6  0x0000 0x0120 0x83F8>,
+			<7  0x0000 0x0120 0x83F8>,
+			<8  0x0000 0x0120 0x83F8>,
+			<9  0x0000 0x0080 0x8FF4>,
+			<10 0x0000 0x0080 0x8FF4>;
 };
 
 &panel {

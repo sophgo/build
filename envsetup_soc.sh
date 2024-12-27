@@ -316,83 +316,33 @@ function clean_v4l2_isp()
 	export V4L2_ISP_ENABLE=0
 }
 
-# 设置sophon-sdk信息
-function get_bm_sdk_info {
-    bm_root_dir=ftp://172.28.141.89/athena2
-    bm_user_name=AI
-    bm_user_psword=SophgoRelease2022
-    bm_date_ID=latest_release
-    bm_sdk_name=tpu_kernel
-    bm_chip_name=$1
-    bm_build_type=$2
-}
 
 # 拉取解压sophon-sdk
 function build_bm1686_sdk {
     # bm1686 tpu_kernel
-    get_bm_sdk_info 1686 daily_build
-    tpu_kernel_file_name=tpu-kernel-tpul_v6_v*.tar.gz
-    tpu_kernel_full_path=$bm_root_dir/tpu-kernel/$bm_build_type/$bm_date_ID/$tpu_kernel_file_name
-
-    echo "Try to download ${tpu_kernel_file_name} ..."
-    wget -P ${TPU_SDK_PATH} ${tpu_kernel_full_path} --ftp-user $bm_user_name --ftp-password $bm_user_psword -q
-    mkdir -p ${TPU_SDK_PATH}/
-    tar -xzf ${TPU_SDK_PATH}/$tpu_kernel_file_name -C ${TPU_SDK_PATH}/ --strip-components 1
-    echo "Extract"
-
-    rm -rf ${TPU_SDK_PATH}/${tpu_kernel_file_name}
+    echo "build_bm1686_sdk"
 }
 function clean_bm1686_sdk {
 	rm -rf ${TPU_SDK_PATH}
 }
 
-function clean_ai_sdk()
+function clean_tdl_sdk()
 {
-    rm -rf "$AI_SDK_INSTALL_PATH"
-    rm -rf "$AI_SDK_PATH"/tmp/_deps
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh clean
+  popd
 }
 
-function build_ai_sdk()
+function build_tdl_sdk()
 {
   if [ ! -e "$TPU_SDK_INSTALL_PATH" ]; then
     echo "$TPU_SDK_INSTALL_PATH not present, run build_tpu_sdk first"
     return 1
   fi
 
-  if [ "$SDK_VER" = 64bit ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_64"
-  elif [ "$SDK_VER" = 32bit ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_32"
-  elif [ "$SDK_VER" = uclibc ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_UCLIBC"
-  elif [ "$SDK_VER" = glibc_riscv64 ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
-  elif [ "$SDK_VER" = musl_riscv64 ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL_RISCV64"
-  else
-    echo "Unknown SDK_VER=$SDK_VER"
-    return 1
-  fi
-  local SDK_PATH=
-  local SDK_INSTALL_PATH=
-
-  SDK_PATH="$AI_SDK_PATH"
-  SDK_INSTALL_PATH="$AI_SDK_INSTALL_PATH"
-  pushd "$SDK_PATH"
-  HOST_TOOL_PATH="$HOST_TOOL_PATH" \
-  MW_PATH="$MW_PATH" \
-  CHIP_ARCH="$CHIP_ARCH" \
-  OPENCV_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
-  TRACER_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
-  TPU_SDK_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
-  IVE_SDK_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
-  AI_SDK_INSTALL_PATH="$AI_SDK_INSTALL_PATH" \
-  IVS_SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH" \
-  CNV_SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH" \
-  SYSTEM_OUT_DIR="$SYSTEM_OUT_DIR" \
-  KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
-      scripts/sdk_release.sh
-  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd return 1
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh all
+  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
   popd
 }
 
@@ -422,254 +372,447 @@ function clean_osdrv()
   popd
 }
 
-function build_libsophon()
-{
-  print_notice "Run ${FUNCNAME[0]}() function"
-
-  # pushd "$LIBSOPHON_PATH" || return
-  #   echo "running 'git submodule update --init' ..."
-  #   git submodule update --init
-  # popd
-
-  if [ ! -d "$LIBSOPHON_PATH"/build ]; then
-    mkdir -p "$LIBSOPHON_PATH"/build
-  fi
-
-  pushd "$LIBSOPHON_PATH"/build || return
-  # rm -rf "$LIBSOPHON_PATH"/build/*
-
-  cmake -DPLATFORM=soc \
-        -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
-        -DLIB_DIR="$LIBSOPHON_PATH"/3rdparty/soc/ \
-        -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
-        -DCMAKE_TOOLCHAIN_FILE="$LIBSOPHON_PATH"/toolchain-aarch64-linux.cmake \
-        -DBUILD_STATIC_LIB=ON \
-        -DCMAKE_INSTALL_PREFIX="$LIBSOPHON_PATH"/install ..
-
-  make
-  make driver
-  make install
-  make package
-
-  if [ ! -d "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/data ]; then
-    mkdir -p "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/data
-  fi
-  if [ ! -d "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/lib ]; then
-    mkdir -p "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/lib
-  fi
-  if [ ! -d "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/bin ]; then
-    mkdir -p "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/bin
-  fi
-  if [ ! -d "$SYSTEM_OUT_DIR"/ko ]; then
-    mkdir -p "$SYSTEM_OUT_DIR"/ko
-  fi
-  mkdir -p ${TPU_SDK_INSTALL_PATH}
-
-  cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/data/*_os.bin "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/data || return
-  cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/lib/* "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/lib || return
-  cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/bin/* "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9/bin || return
-  cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9 "$TPU_SDK_INSTALL_PATH" || return
-  # cp *.deb "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.9
-  cp -f "$LIBSOPHON_PATH"/build/driver/sg_aarch64_soc_device/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
-
-  popd
-}
-
 function clean_libsophon()
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  rm -rf ${TPU_SDK_INSTALL_PATH}
-  rm -rf "$LIBSOPHON_PATH"/build/*
-  rm -rf "$LIBSOPHON_PATH"/install/*
-  rm -rf "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.4
-  rm -rf "$SYSTEM_OUT_DIR"/ko/bmtpu.ko
+  if [ -d "${TPU_SDK_INSTALL_PATH}" ]; then
+    find "${TPU_SDK_INSTALL_PATH}" \
+      -maxdepth 1 -type d -name "libsophon-*" \
+      -exec rm -rf {} \;
+    find "${TPU_SDK_INSTALL_PATH}" \
+      -maxdepth 1 -type l -name "libsophon-*" \
+      -exec rm -rf {} \;
+  fi
+
+  if [ -d "$SYSTEM_OUT_DIR"/usr/lib ]; then
+    find "$SYSTEM_OUT_DIR"/usr/lib \
+      -maxdepth 1 -type d -name "libsophon-*" \
+      -exec rm -rf {} \;
+    find "$SYSTEM_OUT_DIR"/usr/lib \
+      -maxdepth 1 -type l -name "libsophon-*" \
+      -exec rm -rf {} \;
+  fi
+
+  if [ -f "$SYSTEM_OUT_DIR"/ko/bmtpu.ko ]; then
+    rm -f "$SYSTEM_OUT_DIR"/ko/bmtpu.ko
+  fi
+
+  if [ -d "$LIBSOPHON_PATH"/install ]; then
+    rm -rf "$LIBSOPHON_PATH"/install/*
+  fi
 }
 
+function clean_bmsophon()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf "$LIBSOPHON_PATH"/pcie_build
+}
+
+
+
+function build_bmsophon()
+{
+  clean_bmsophon
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  local _static_lib=OFF
+  local _install_prefix="$LIBSOPHON_PATH"/pcie_build/install
+  if ! grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config && ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+    _static_lib=ON
+    _install_prefix="$SYSTEM_OUT_DIR"/usr/lib
+  fi
+
+  local lib_dir="$LIBSOPHON_PATH"/3rdparty/soc/
+  local toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux.cmake
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib930/
+    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-930.cmake
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib1131/
+    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-1131.cmake
+  fi
+
+  pushd "$LIBSOPHON_PATH" || return
+
+  cmake \
+    -B pcie_build \
+    -G Ninja \
+    -DPLATFORM=pcie_arm64 \
+    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
+    -DLIB_DIR="${lib_dir}" \
+    -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
+    -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
+    -DBUILD_STATIC_LIB="${_static_lib}" \
+    -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
+    -DDEBUG=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+
+  cmake --build pcie_build --parallel "$(nproc)"
+  cmake --build pcie_build --target driver
+  cmake --build pcie_build --target package --parallel "$(nproc)"
+}
+
+function clean_amd64_bmsophon()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf "$LIBSOPHON_PATH"/amd64_build
+}
+
+
+
+function build_amd64_bmsophon()
+{
+  clean_amd64_bmsophon
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  local _install_prefix="$LIBSOPHON_PATH"/build/install
+
+  pushd "$LIBSOPHON_PATH" || return
+
+  cmake \
+    -B amd64_build \
+    -G Ninja \
+    -DPLATFORM=pcie_arm64 \
+    -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
+    -DDEBUG=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+
+  cmake --build amd64_build --parallel "$(nproc)"
+  cmake --build amd64_build --target driver
+  cmake --build amd64_build --target package --parallel "$(nproc)"
+}
+
+
+function build_libsophon()
+{
+  clean_libsophon
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  local _static_lib=OFF
+  local _install_prefix="$LIBSOPHON_PATH"/build/install
+  if ! grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config && ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+    _static_lib=ON
+    _install_prefix="$SYSTEM_OUT_DIR"/usr/lib
+  fi
+
+  local lib_dir="$LIBSOPHON_PATH"/3rdparty/soc/
+  local toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux.cmake
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib930/
+    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-930.cmake
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib1131/
+    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-1131.cmake
+  fi
+
+  pushd "$LIBSOPHON_PATH" || return
+
+  cmake \
+    -B build \
+    -G Ninja \
+    -DPLATFORM=soc \
+    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
+    -DLIB_DIR="${lib_dir}" \
+    -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
+    -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
+    -DBUILD_STATIC_LIB="${_static_lib}" \
+    -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
+    -DDEBUG=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+
+  cmake --build build --parallel "$(nproc)"
+  cmake --build build --target driver
+
+  if grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config || grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+    cmake --build build --target package --parallel "$(nproc)"
+    if [ "${BUILD_DOC}" == "1" ]; then
+      cmake --build build --target doc
+      cmake --build build --target rtdoc
+      pushd libsophav/bmcv || return
+      CHIP=bm1688 make doc
+      popd
+    fi
+  else
+    cmake --build build --target install --parallel "$(nproc)"
+    cp -af "${_install_prefix}"/libsophon-* "$TPU_SDK_INSTALL_PATH" || return
+    cp -af "$LIBSOPHON_PATH"/build/driver/sg_aarch64_soc_device/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
+    LIBSOPHON_VERSION=$(grep "CMAKE_PROJECT_VERSION:STATIC" < "${LIBSOPHON_PATH}"/build/CMakeCache.txt | awk -F '=' '{print $2}') || { echo "Failed to get version"; return; }
+    if [ ! -d "$LIBSOPHON_PATH"/install/libsophon-${LIBSOPHON_VERSION} ]; then
+      mkdir -p "$LIBSOPHON_PATH"/install #some modules use it
+      cp -af "${_install_prefix}"/libsophon-* "$LIBSOPHON_PATH"/install || return
+    fi
+    if [ ! -d "$LIBSOPHON_PATH"/install/libsophon-0.4.9 ]; then
+      ln -sf libsophon-${LIBSOPHON_VERSION} "$LIBSOPHON_PATH"/install/libsophon-0.4.9
+    fi
+    if [ ! -d "${_install_prefix}"/libsophon-0.4.9 ]; then
+      ln -sf libsophon-${LIBSOPHON_VERSION} "${_install_prefix}"/libsophon-0.4.9
+    fi
+    if [ ! -d "$TPU_SDK_INSTALL_PATH"/libsophon-0.4.9 ]; then
+      ln -sf libsophon-${LIBSOPHON_VERSION} "$TPU_SDK_INSTALL_PATH"/libsophon-0.4.9
+    fi
+  fi
+  popd
+}
 
 function build_bm1688_rootfs()
 {
-    ROOT_TOP_DIR="$TOP_DIR"/ubuntu
-    DISTRO=${DISTRO:-focal}
-    ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
-    # out-of-tree path
-    DEB_INSTALL_DIR="$ROOT_OUT_DIR"/debs
-    BSP_DEB_DIR="$ROOT_OUT_DIR"/bsp-debs
-    if grep -q '^CONFIG_ROOTFS_DEBIAN=y' ${TOP_DIR}/build/.config; then
-        DISTRO_DIR="$ROOT_TOP_DIR"/bookworm
-        DISTRO_BASE_PKT="$DISTRO_DIR"/bookworm.tgz
-    else
-        DISTRO_DIR="$ROOT_TOP_DIR"/distro
-        DISTRO_BASE_PKT="$DISTRO_DIR"/distro_${DISTRO}.tgz
-    fi
-    DISTRO_MOD_DIR="$ROOT_TOP_DIR"/bootloader-arm64/distro
-    DISTRO_OVERLAY_DIR="$ROOT_TOP_DIR"/bootloader-arm64/distro/overlay
-    echo cleanup previous build...
-    mkdir -p "$ROOT_OUT_DIR"/rootfs
-    sudo rm -rf "$ROOT_OUT_DIR"/rootfs
-    rm -f "$ROOT_OUT_DIR"/rootfs.tgz
-    mkdir "$ROOT_OUT_DIR"/rootfs
+  print_notice "Run ${FUNCNAME[0]}() function"
 
-    echo copy distro rootfs files from ${DISTRO_BASE_PKT}...
-    zcat "$DISTRO_BASE_PKT" | sudo tar -C "$ROOT_OUT_DIR"/rootfs -x -f -
+  build_bm1688_overlay || { ret=$?; echo "Error: build_bm1688_overlay failed with exit code $ret"; return $ret; }
+  local version=$(grep Version $DISTRO_OVERLAY_DIR/$CVIARCH/sophgo-fs/DEBIAN/control | cut -d ' ' -f 2)
+  mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/debs
+  dpkg-deb -b "${DISTRO_OVERLAY_DIR}/${CVIARCH}/sophgo-fs" \
+    "${EDGE_ROOTFS_DIR}/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb"
 
-    echo copy linux debs...
-    sudo mkdir -p "$ROOT_OUT_DIR"/rootfs/home/linaro
-    sudo cp -r "$BSP_DEB_DIR" "$ROOT_OUT_DIR"/rootfs/home/linaro/
+  # update linux kernel debs
+  shopt -s nullglob
+  matched_deb_files=("${TOP_DIR}/linux_5.10/build/"*.deb)
+  if [ ${#matched_deb_files[@]} -gt 0 ]; then
+    rm -f "${BSP_DEBS}"/*.deb
+  fi
+  shopt -u nullglob
+  cp -f "${TOP_DIR}"/linux_5.10/build/*.deb ${BSP_DEBS}
 
-    local version=$(echo $(cat /$DISTRO_OVERLAY_DIR/$CVIARCH/sophgo-fs/DEBIAN/control | grep Version) | cut -d ' ' -f 2)
-    echo "$DISTRO_OVERLAY_DIR/$CVIARCH/rootfs/home/linaro/debs/"
-    mkdir -p "$ROOT_OUT_DIR"/rootfs/home/linaro/debs
-    dpkg-deb -b "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/sophgo-fs \
-        "$ROOT_OUT_DIR"/rootfs/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb
+  echo copy overlay file to rootfs...
+  sudo cp -rf \
+    "$DISTRO_OVERLAY_DIR"/common/rootfs/* \
+    "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/rootfs/* \
+    "${EDGE_ROOTFS_DIR}"
+  # copy customer's debs
+  find "${TOP_DIR}"/ubuntu/bootloader-arm64/distro/debs \
+    -name *.deb -exec cp -f {} "${MOD_DEBS}" \;
 
-    echo copy overlay file to rootfs...
-    if [ -d "$DISTRO_OVERLAY_DIR"/common/rootfs ]; then
-        echo copy common rootfs overlay files...
-        sudo cp -rf "$DISTRO_OVERLAY_DIR"/common/rootfs/* "$ROOT_OUT_DIR"/rootfs
-    fi
-    if [ -d "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/rootfs ]; then
-        echo copy project rootfs overlay files...
-        sudo cp -rf "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/rootfs/* "$ROOT_OUT_DIR"/rootfs
-    fi
-    # debs will be installed later after chroot and then deleted
-    sudo cp -r "$DISTRO_MOD_DIR"/debs "$ROOT_OUT_DIR"/rootfs
-    sudo cp -r "$DEB_INSTALL_DIR"/* "$ROOT_OUT_DIR"/rootfs/home/linaro/debs/
+  mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs
+  find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs \;
+  find "${SDK_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${EDGE_ROOTFS_DIR}"/home/linaro/debs \;
+  find "${MOD_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${EDGE_ROOTFS_DIR}"/home/linaro/debs \;
 
-    if [ "$PRODUCT" != "" ] && [ -d "$DISTRO_OVERLAY_DIR"/"$PRODUCT"/debs ]; then
-        echo copy product "$PRODUCT" debs overlay files...
-        sudo cp -rf "$DISTRO_OVERLAY_DIR"/"$PRODUCT"/debs/* "$ROOT_OUT_DIR"/rootfs/debs/
-    fi
-
-    echo install packages...
-    pushd "$ROOT_OUT_DIR"/rootfs
-# following lines must not be started with space or tab.
-# install bsp images first, so it won't run flash_update
-sudo chroot . /bin/bash << "EOT"
-
-if [  -d /debs ] && [ $(ls /debs/*.deb | wc -l) -gt 0 ]; then
-    dpkg -i -R /debs
-    retries=0
-    while [ $? -ne 0 ] && [ $retries -lt 3 ];
-    do
-        sleep 1
-        dpkg -i -R /debs
-        retries=$((retries+1))
-    done
-fi
-for file in /debs/*
-do
-    file=$(basename $file)
-    if  [ "${file##*.}" == "whl" ]; then
-        pip3 install --no-index --find-links=file:///debs ${file%%-*}
-    fi
-done
-rm -rf /debs
-
-if [  -d /home/linaro/debs ] && [ $(ls /home/linaro//debs/*.deb | wc -l) -gt 0 ]; then
-    dpkg -i -R /home/linaro/debs
-    retries=0
-    while [ $? -ne 0 ] && [ $retries -lt 3 ];
-    do
-        sleep 1
-        dpkg -i -R /home/linaro/debs
-        retries=$((retries+1))
-    done
-fi
+  echo install packages...
+sudo chroot "${EDGE_ROOTFS_DIR}" /bin/bash << EOT
+#!/bin/bash
 
 echo -e "LC_ALL=C.UTF-8\n" > /etc/default/locale
+echo "Defaults timestamp_timeout=43200" | tee -a /etc/sudoers
 
-
-exit
-EOT
-    popd
-
-    echo packing rootfs...
-    pushd "$ROOT_OUT_DIR"/rootfs
-    sudo chown 1000:1000 -R data
-    sudo tar -czf ../rootfs.tgz *
-    popd
-}
-function build_sophon_media(){
-	pushd ${TOP_DIR}/sophon_media
-	source build/build_cmake.sh
-	popd
-}
-
-
-
-function update_bm1688_debs(){
-  cd ${TOP_DIR}
-  BSP_DEBS=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/bsp-debs
-  SDK_DEBS=${TOP_DIR}/ubuntu/install/soc_$CVIARCH/debs
-  #SOPHLITEOS_DIR=sophliteos/release_build/latest_release
-  SOPHLITEOS_DIR=${TOP_DIR}/sophliteos/release
-  cd ${TOP_DIR}/ubuntu/
-  if [  -e "${TOP_DIR}/ubuntu/install" ]; then
-     rm -rf ${TOP_DIR}/ubuntu/install
+for deb_dir in /debs /home/linaro/debs; do
+  if [  -d \${deb_dir} ] && [ \$(ls \${deb_dir}/*.deb | wc -l) -gt 0 ]; then
+    retries=0
+    while [ \${retries} -lt 3 ]; do
+      sleep 1
+      if dpkg -i -R \${deb_dir}; then
+        break
+      fi
+      retries=\$((retries + 1))
+    done
   fi
 
-  pip3 install dfss --upgrade
+  if [ \${retries} -eq 3 ]; then
+    exit 1
+  fi
+
+  for file in \${deb_dir}/*; do
+    file=\$(basename \${file})
+    if  [ "\${file##*.}" == "whl" ]; then
+        pip3 install --no-index --find-links=file://\${deb_dir} \${file%%-*}
+    fi
+  done
+  rm -rf \${deb_dir}
+done
+
+EOT
+
+  echo packing rootfs...
+  pushd "${EDGE_ROOTFS_DIR}"
+  sudo chown 1000:1000 -R data
+  popd
+}
+
+function build_sophon_media(){
+  if [ ! -d "${TOP_DIR}/sophon_media" ]; then
+    return 0
+  fi
+
+  print_notice "Run ${FUNCNAME[0]}() function"
+  pushd ${TOP_DIR}/sophon_media
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    source build/build_cmake.sh 930
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    source build/build_cmake.sh 1131
+  else
+    source build/build_cmake.sh
+  fi
+  popd
+}
+
+function clean_sophon_media(){
+  if [ ! -d "${TOP_DIR}/sophon_media" ]; then
+    return 0
+  fi
+
+  print_notice "Run ${FUNCNAME[0]}() function"
+  pushd ${TOP_DIR}/sophon_media
+  cmake --build buildit --target clean
+  popd
+}
+
+function clean_distro() {
+  if [ -d "${TOP_DIR}/ubuntu/distro" ]; then
+    find "${TOP_DIR}/ubuntu/distro" \
+      -name "distro_*.tgz" -delete
+  fi
+}
+
+function build_bm1688_env() {
+  #export DISTRO=${DISTRO:-focal}
+  export DISTRO=jammy
+  export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
+  export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
+  export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
+  export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
+  export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
+
+  export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
+  export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
+  export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
+}
+
+function build_bm1688_overlay() {
+  sudo rm -rf "${EDGE_ROOTFS_DIR}"
+  mkdir -p "${EDGE_ROOTFS_DIR}"
+
   if grep -q '^CONFIG_ROOTFS_DEBIAN=y' ${TOP_DIR}/build/.config; then
       mkdir -p ${TOP_DIR}/ubuntu/bookworm
-	  cd ${TOP_DIR}/ubuntu/bookworm
-	  python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/bookworm.tgz
+      cd ${TOP_DIR}/ubuntu/bookworm
+      if [ ! -e "${TOP_DIR}/ubuntu/bookworm/bookworm.tgz" ]; then
+          python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/bookworm.tgz
+      fi
+      zcat "${TOP_DIR}/ubuntu/bookworm/bookworm.tgz" |\
+         sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
   else
-	if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_focal.tgz" ]; then
-	mkdir -p ${TOP_DIR}/ubuntu/distro
-	cd ${TOP_DIR}/ubuntu/distro
-	python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_focal.tgz
-	fi
+    mkdir -p "${TOP_DIR}"/ubuntu/distro
+    if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" ]; then
+      echo "load distro_${DISTRO}.tgz ..."
+      cd ${TOP_DIR}/ubuntu/distro
+      python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
+      mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
+    else
+        FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
+        if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
+            echo "update distro_${DISTRO}.tgz ..."
+            rm -f "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz"
+			cd ${TOP_DIR}/ubuntu/distro
+            python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
+	    mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
+        fi
+    fi
+    FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
+    if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
+        echo "The distro_${DISTRO}.tgz is corrupted; Please check."
+	return -1
+    fi
+    zcat "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" |\
+		sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
   fi
 
-  cd ${TOP_DIR}
-
-  mkdir -p ${BSP_DEBS}
-  mkdir -p ${SDK_DEBS}
-  rm -rf ${BSP_DEBS}/*
-  rm -rf ${SDK_DEBS}/*
-  cp linux_5.10/build/*.deb ${BSP_DEBS}
-  cp libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
-  cp sophon_media/buildit/sophon[_-]media-soc-sophon-{ffmpeg_,opencv_,sample}*_arm64.deb ${SDK_DEBS}
-  cp middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
-  pushd ${TOP_DIR}/ubuntu/
-  if [  -e "${TOP_DIR}/ubuntu/${SOPHLITEOS_DIR}" ]; then
-      rm -rf ${TOP_DIR}/ubuntu/sophliteos
-  fi
-
-  cp ${SOPHLITEOS_DIR}/sophliteos_soc_*_sdk.deb ${SDK_DEBS}
-  cp ${SOPHLITEOS_DIR}/bmssm_soc_*_SDK.deb       ${SDK_DEBS}
-
-  popd
-  ln -sf ${TOP_DIR}/host-tools/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu ${TOP_DIR}/ubuntu/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
 }
 
+function build_bm1688_sdk() {
+  print_notice "Run ${FUNCNAME[0]}() function"
+  local preinstall_sdks="$*"
 
+  for _dir in "${BSP_DEBS}" "${SDK_DEBS}"; do
+    mkdir -p "${_dir}"
+  done
+  mkdir -p ${MOD_DEBS}
 
-function pack_bm1688_rootfs(){
+  # copy libsophon debs
+  if [[ "${preinstall_sdks}" == *"libsophon"* ]]; then
+    build_libsophon || return $?
+    cp -f "${TOP_DIR}"/libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
+  fi
+
+  # copy sophon_media debs
+  if [[ "${preinstall_sdks}" == *"sophon_media"* ]]; then
+    cp -f middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
+    if [ -d "${TOP_DIR}"/sophon_media ]; then
+      build_sophon_media
+      cp "${TOP_DIR}"/sophon_media/buildit/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb ${SDK_DEBS}
+      #cp "${TOP_DIR}"/sophon_media/media_release/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb ${SDK_DEBS}
+    fi
+  fi
+
+  # copy sophliteos debs
+  if [[ "${preinstall_sdks}" == *"sophliteos"* ]]; then
+    cp "${TOP_DIR}"/sophliteos/release/sophliteos_soc_*_sdk.deb "${SDK_DEBS}"
+    cp "${TOP_DIR}"/sophliteos/release/bmssm_soc_*_SDK.deb "${SDK_DEBS}"
+  fi
+
+}
+
+function build_bm1688_package(){
   cd ${TOP_DIR}
-  cp ${TOP_DIR}/ubuntu/install/soc_$CVIARCH/rootfs.tgz  ${TOP_DIR}/install/soc_bm1688_wevb_emmc/
   cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/local_update.sh ${TOP_DIR}/build/scripts
-  #source build/envsetup_soc.sh
-  #defconfig bm1688_wevb_emmc
+  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update.sh ${TOP_DIR}/build/scripts
   build_package
+  if [ -d "$OUTPUT_DIR"/package_edge ]; then
+    echo copy sdk files...
+    sudo cp -f "$LIBSOPHON_PATH"/build/libsophon_soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
+    #if [ -d "${TOP_DIR}"/sophon_media ]; then
+      #sudo cp -f "${TOP_DIR}"/sophon_media/media_release/sophon-media-soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge 2>/dev/null
+    #fi
+  fi
+
 }
 
 function build_bm1688_edge()
 {
-  cd ${TOP_DIR}
-  build_edge_pack
+  build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
+  build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
+  build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
+  build_ramboot || { ret=$?; echo "Error: build_ramboot failed with exit code $ret"; return $ret; }
+  build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
 }
 
 function build_bm1688_all(){
-     build_sophon_media || $? return
-     build_bm1688_edge || $? return
-     build_libsophon || $? return
-     update_bm1688_debs || $? return
-     build_bm1688_rootfs || $? return
-     pack_bm1688_rootfs || $? return
+  local target=${1:-all}
+
+  build_bm1688_env || { ret=$?; echo "Error: build_bm1688_env failed with exit code $ret"; return $ret; }
+  build_bm1688_edge || { ret=$?; echo "Error: build_bm1688_edge failed with exit code $ret"; return $ret; }
+
+  if [ "${target}" == "regression" ]; then
+    build_bm1688_sdk libsophon || { echo "Error: build_bm1688_sdk libsophon failed with exit code $?"; return $?; }
+  else
+    #build_bm1688_sdk libsophon sophon_media sophliteos || { echo "Error: build_bm1688_sdk failed with exit code $?"; return $?; }
+    build_bm1688_sdk libsophon || { ret=$?; echo "Error: build_bm1688_sdk libsophon failed with exit code $ret"; return $ret; }
+    build_bm1688_sdk sophon_media || { ret=$?; echo "Error: build_bm1688_sdk sophon_media failed with exit code $ret"; return $ret; }
+    build_bm1688_sdk sophliteos || { ret=$?; echo "Error: build_bm1688_sdk sophliteos failed with exit code $ret"; return $ret; }
+  fi
+
+  if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
+    pack_rootfs || { ret=$?; echo "Error: pack_rootfs failed with exit code $ret"; return $ret; }
+  else
+    build_bm1688_rootfs || { ret=$?; echo "Error: build_bm1688_rootfs failed with exit code $ret"; return $ret; }
+
+	if [ "${target}" != "regression" ]; then
+        build_bm1688_package || { ret=$?; echo "Error: build_bm1688_package failed with exit code $ret"; return $ret; }
+	fi
+  fi
 }
 
+function clean_bm1688_all(){
+  clean_edge_pack    || return $?
+  clean_libsophon    || return $?
+  clean_sophon_media || return $?
+
+  if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
+	clean_rootfs || return $?
+  fi
+  cd ${TOP_DIR}
+  rm -rf ubuntu/install
+}
 
 function build_bmcpu()
 {
@@ -727,12 +870,15 @@ function _build_cvi_rtsp_env()
   export CROSS_COMPILE
 }
 
+
 function build_cvi_rtsp()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_cvi_rtsp_env
 
   cd "$CVI_RTSP_PATH" || return
+  mkdir -p prebuilt
+  cp ${OSS_TARBALL_PATH}/live555.tar.gz prebuilt/
   BUILD_SERVICE=1 MW_DIR=${MW_PATH} ./build.sh
   test $? -ne 0 && print_notice "build_cvi_rtsp failed !!" && return 1
   BUILD_SERVICE=1 make install DESTDIR="$(pwd)/install"
@@ -777,12 +923,17 @@ function clean_pqtool_server()
 function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
-  pushd "$OSS_TARBALL_PATH"
-  pip3 install dfss --upgrade
-  python -m dfss --url=open@sophgo.com:/gemini-sdk/oss/latest/${SDK_VER}.tar.gz
-  tar -zxf ${SDK_VER}.tar.gz
-  rm -rf ${SDK_VER}.tar.gz
-  popd
+
+  if [ -d "${OSS_PATH}/oss_release_tarball" ]; then
+    echo "oss prebuilt tarball found!"
+  else
+    echo "Try to download oss_release_tarball.tar tarball ..."
+    #wget ...
+    #tar -xvf ${OSS_PATH}/oss_release_tarball.tar -C ${OSS_PATH}
+  fi
+  echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
+  cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
+
   local oss_list=(
     "zlib"
     "glog"
@@ -804,15 +955,16 @@ function build_3rd_party()
 
   for name in "${oss_list[@]}"
   do
-	  if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
-		"$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
-		echo "$name successfully downloaded and untared."
-	  else
-		echo "No prebuilt tarball, build oss $name"
-		"$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
-	  fi
+    if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
+      echo "$name found"
+      "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+        echo "$name successfully downloaded and untared."
+    else
+      echo "$name not found"
+    fi
   done
 }
+
 
 function clean_3rd_party()
 {
@@ -972,30 +1124,28 @@ function build_update()
 
 	pushd $OUTPUT_DIR/package_edge/$1
 	cp $SCRIPTS_DIR/local_update.sh .
+	cp $SCRIPTS_DIR/ota_update.sh .
 	md5sum * > md5.txt
 	popd
 
 }
 
+function gen_sd_image()
+{
+    _build_kernel_env
+    _build_uboot_env
+    echo "Using partition xml: $FLASH_PARTITION_XML"
+    python ${TOP_DIR}/build/tools/common/image_tool/mk_sd_image.py $FLASH_PARTITION_XML $OUTPUT_DIR 
+}
 
 
 function build_edge_pack()
 {
-    build_uboot || return $?
-    build_kernel || return $?
-    build_osdrv || return $?
-    build_ramboot || return $?
-    build_v4l2_isp || return $?
-    #rename deb
-    pushd ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
-    export LOCALVERSION=-tag-
-    KERNELRELEASE=`make kernelrelease`
-    pushd ${KERNEL_PATH}/build
-    mv linux-headers-${KERNELRELEASE}_*.deb linux-headers-${KERNELRELEASE}.deb
-    mv linux-image-${KERNELRELEASE}-dbg_*.deb linux-image-${KERNELRELEASE}-dbg.deb
-    mv linux-image-${KERNELRELEASE}_*.deb linux-image-${KERNELRELEASE}.deb
-    popd
-    popd
+    build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
+    build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
+    build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
+    build_ramboot || { ret=$?; echo "Error: build_ramboot failed with exit code $ret"; return $ret; }
+    build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
 }
 
 function clean_edge_pack()
@@ -1009,16 +1159,17 @@ function clean_edge_pack()
 
 function build_package()
 {
-
-    PACKAGE_OUTPUT_DIR="$OUTPUT_DIR"/package_edge
     sudo rm -rf $PACKAGE_OUTPUT_DIR
     mkdir $PACKAGE_OUTPUT_DIR
     mkdir $PACKAGE_OUTPUT_DIR/boot
+    mkdir $PACKAGE_OUTPUT_DIR/rootfs_rw
+    mkdir $PACKAGE_OUTPUT_DIR/bsp-debs
 
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/boot.itb $PACKAGE_OUTPUT_DIR/boot/
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/multi.its $PACKAGE_OUTPUT_DIR/boot/
-    cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR//boot/
-    cp -rf $BOOTLOGO_PATH $PACKAGE_OUTPUT_DIR/boot/
+    cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/boot/
+    cp -rf $HDCP_KEY_PATH/hdcp_key.bin $PACKAGE_OUTPUT_DIR/boot/
+    cp -rf $BOOTLOGO_PATH/soph_logo.bmp $PACKAGE_OUTPUT_DIR/boot/
 
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/
     cp -rf $OUTPUT_DIR/ramboot.itb $PACKAGE_OUTPUT_DIR/
@@ -1027,32 +1178,35 @@ function build_package()
             -d ${TOP_DIR}/build/boot.cmd.emmc ${OUTPUT_DIR}/boot.scr.emmc
     cp -rf ${OUTPUT_DIR}/boot.scr.emmc $PACKAGE_OUTPUT_DIR/boot/
     pushd $PACKAGE_OUTPUT_DIR
-    pushd boot
-    tar -zcvf ../boot.tgz *
-    popd
+
+    tar -zcvf boot.tgz -C boot .
     mv ramboot.itb recovery.itb
-    tar -zcvf recovery.tgz  recovery.itb
+    tar -zcvf recovery.tgz recovery.itb
 
-    if ! [ -e "../rootfs.tgz" ]; then
-      print_error "edge rootfs.tgz does not exist!!"
-      return 1
-    fi
+    #echo "stty cols 160" >> "${EDGE_ROOTFS_DIR}"/home/linaro/.bashrc
+    #echo "stty cols 160" >> "${EDGE_ROOTFS_DIR}"/root/.bashrc
+    sudo cp -rf  $OUTPUT_DIR/rootfs/mnt/system "${EDGE_ROOTFS_DIR}"/mnt/
 
-    mkdir rootfs
-    sudo tar -zxf ../rootfs.tgz -C ./rootfs
-    sudo cp -rf  $OUTPUT_DIR/rootfs/mnt/system rootfs/mnt/
-    cd rootfs
-    sudo tar -zcf rootfs.tgz *
-    mv rootfs.tgz ../
-    cd ..
+    mkdir -p rootfs_rw/overlay/home/linaro
+    cp -rf "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs rootfs_rw/overlay/home/linaro
+    sudo chown 1000:1000 -R rootfs_rw/overlay/home/linaro
+
+    sudo tar -zcf rootfs.tgz --exclude=home/linaro/bsp-debs -C "${EDGE_ROOTFS_DIR}" .
+    sudo tar -zcf .rootfs_rw.tgz -C rootfs_rw .
+    sudo mv .rootfs_rw.tgz rootfs_rw/
+    sudo tar -zcf rootfs_rw.tgz -C rootfs_rw .
     popd
 
-    build_update sdcard
-    build_update usb
-    build_update tftp
+    find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
+    find "${SDK_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
+    find "${MOD_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
+
     pushd $PACKAGE_OUTPUT_DIR
+    build_update sdcard
     tar -zcf sdcard.tgz sdcard
+    build_update usb
     tar -zcf usb.tgz usb
+    build_update tftp
     tar -zcf tftp.tgz tftp
     popd
 }
@@ -1069,9 +1223,14 @@ function build_all()
   build_middleware || return $?
   build_ramboot || return $?
   if [[ "$BOARD" != "fpga" ]] && [[ "$BOARD" != "palladium" ]]; then
+    build_cvi_rtsp || return $?
     if [ "$TPU_REL" = 1 ]; then
       build_bm1686_sdk || return $?
+      build_tdl_sdk || return $?
     fi
+    build_pqtool_server || return $?
+    build_access_guard_turnkey_app || return $?
+    build_ipc_app || return $?
   fi
   pack_cfg || return $?
   pack_rootfs || return $?
@@ -1094,7 +1253,7 @@ function clean_all()
   clean_3rd_party
   if [ "$TPU_REL" = 1 ]; then
     clean_bm1686_sdk
-    clean_ai_sdk
+    clean_tdl_sdk
   fi
   clean_access_guard_turnkey_app
   clean_ipc_app
@@ -1234,7 +1393,7 @@ function cvi_setup_env()
   CNV_SDK_PATH="$TOP_DIR"/cnv
   ACCESSGUARD_PATH="$TOP_DIR"/access-guard-turnkey
   IPC_APP_PATH="$TOP_DIR"/framework/applications/ipc
-  AI_SDK_PATH="$TOP_DIR"/cviai
+  TDL_SDK_PATH="$TOP_DIR"/tdl_sdk
   CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
   CVI_RTSP_PATH="$TOP_DIR"/cvi_rtsp
   OPENSBI_PATH="$TOP_DIR"/opensbi
@@ -1246,7 +1405,8 @@ function cvi_setup_env()
   SCRIPTTOOL_PATH="$COMMON_TOOLS_PATH"/scripts
   ROOTFSTOOL_PATH="$COMMON_TOOLS_PATH"/rootfs_tool
   SPINANDTOOL_PATH="$COMMON_TOOLS_PATH"/spinand_tool
-  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo/soph_logo.bmp
+  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo
+  HDCP_KEY_PATH="$COMMON_TOOLS_PATH"/hdcp_key
 
   # subfolder path for buidling, chosen accroding to .gitignore rules
   UBOOT_OUTPUT_FOLDER=build/"$PROJECT_FULLNAME"
@@ -1257,7 +1417,14 @@ function cvi_setup_env()
   PACKAGE_OUTPUT_DIR="$OUTPUT_DIR"/package_edge
 
   # toolchain
-  export CROSS_COMPILE_64=aarch64-linux-gnu-
+  if [ "$TOOLCHAIN_GLIBC_ARM64_V930" == "y" ]; then
+	export CROSS_COMPILE_64=aarch64-linux-
+  elif [ "$TOOLCHAIN_GLIBC_ARM64_V1131" == "y" ]; then
+	export CROSS_COMPILE_64=aarch64-none-linux-gnu-
+  else
+	export CROSS_COMPILE_64=aarch64-linux-gnu-
+  fi
+
   export CROSS_COMPILE_32=arm-linux-gnueabihf-
   export CROSS_COMPILE_UCLIBC=arm-cvitek-linux-uclibcgnueabihf-
   export CROSS_COMPILE_64_NONOS=aarch64-elf-
@@ -1267,14 +1434,20 @@ function cvi_setup_env()
   export CROSS_COMPILE="$CROSS_COMPILE_64"
 
   # toolchain path
-  CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
+  if [ "$TOOLCHAIN_GLIBC_ARM64_V930" == "y" ]; then
+	CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/gcc-buildroot-9.3.0-aarch64-linux-gnu
+  elif [ "$TOOLCHAIN_GLIBC_ARM64_V1131" == "y" ]; then
+	CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu
+  else
+	CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
+  fi
   CROSS_COMPILE_PATH_32="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf
   CROSS_COMPILE_PATH_UCLIBC="$TOOLCHAIN_PATH"/gcc/arm-cvitek-linux-uclibcgnueabihf
   CROSS_COMPILE_PATH_64_NONOS="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-elf
   CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
   CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
   CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
-  CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
 
   # add toolchain path
   pathprepend "$CROSS_COMPILE_PATH_64"/bin
@@ -1311,7 +1484,13 @@ function cvi_setup_env()
   fi
 
   # sysroot
-  SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-glibc-linaro-2.23-2017.05-aarch64-linux-gnu
+  if [ "$TOOLCHAIN_GLIBC_ARM64_V930" == "y" ]; then
+	SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-gcc-buildroot-9.3.0-aarch64-linux-gnu
+  elif [ "$TOOLCHAIN_GLIBC_ARM64_V1131" == "y" ]; then
+	SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-gcc-buildroot-11.3.0-aarch64-linux-gnu
+  else
+	SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-glibc-linaro-2.23-2017.05-aarch64-linux-gnu
+  fi
   SYSROOT_PATH_32="$RAMDISK_PATH"/sysroot/sysroot-glibc-linaro-2.23-2017.05-arm-linux-gnueabihf
   SYSROOT_PATH_UCLIBC="$RAMDISK_PATH"/sysroot/sysroot-uclibc
   SYSROOT_PATH_GLIBC_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-glibc-riscv64
@@ -1345,6 +1524,12 @@ function cvi_setup_env()
       return 1
     fi
   fi
+  build_bm1688_env
+}
+
+function croot()
+{
+    cd $TOP_DIR
 }
 
 cvi_print_env()
@@ -1386,6 +1571,7 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
+export FTP_SERVER_IP=${FTP_SERVER_IP:-10.80.0.5}
 
 # import common functions
 # shellcheck source=./common_functions.sh

@@ -196,6 +196,9 @@ u-boot-build: ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER} ${UBOOT_CVIPART_DEP} ${UBOOT_
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvi_board_init.c ${UBOOT_CVI_BOARD_INIT_PATH}
 	${Q}rm -f ${UBOOT_CVITEK_PATH}
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvitek.h ${UBOOT_CVITEK_PATH}
+ifeq ($(STORAGE_TYPE),sd)
+	${Q}sed -i "s/.*CONFIG_SD_BOOT is not set/CONFIG_SD_BOOT=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endif
 ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
 	${Q}sed -i "s/CONFIG_ROOTFS_UBUNTU=n/CONFIG_ROOTFS_UBUNTU=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
@@ -230,7 +233,7 @@ else
 KERNEL_CONFIG_NAME := ${PROJECT_FULLNAME}_rls_defconfig
 endif
 
-KERNEL_VERSION ?= -tag-$(shell git -C ${KERNEL_PATH} describe --exact-match HEAD 2>/dev/null)
+# KERNEL_VERSION ?= -tag-$(shell git -C ${KERNEL_PATH} describe --exact-match HEAD 2>/dev/null)
 
 ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}:
 	${Q}mkdir -p $@
@@ -250,9 +253,8 @@ endef
 ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),CV181X CV180X SOPHON))
 define copy_header_action
 	# TODO change "soph" to "$(shell echo $(CHIP_ARCH) | tr A-Z a-z)"
-	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
-	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
-	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/common/uapi/linux/* ${1}/linux/
+	#${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
+	#${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/common/uapi/linux/* ${1}/linux/
 	${Q}cp ${OSDRV_PATH}/interdrv/${MW_VER}/usb/gadget/function/f_cvg.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/
 	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/
@@ -291,7 +293,9 @@ ifeq ($(STORAGE_TYPE), spinor)
 	$(call kernel_erasesize_set)
 endif
 
-kerne%: export LOCALVERSION=${KERNEL_VERSION}
+kerne%: export LOCALVERSION=-sophon-custom
+kerne%: export KERNELRELEASE=5.10.4
+# kerne%: export KDEB_PKGVERSION=${KERNELRELEASE}${LOCALVERSION}
 kerne%: export CVIBOARD=${BOARD}
 kerne%: export CROSS_COMPILE=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
 kerne%: export INSTALL_MOD_PATH=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/modules
@@ -310,7 +314,6 @@ kernel-setconfig: ${KERNEL_OUTPUT_CONFIG_PATH}
 
 kernel-build: ${KERNEL_OUTPUT_CONFIG_PATH}
 	$(call print_target)
-	${Q}echo LOCALVERSION=${LOCALVERSION}
 ifeq ($(_BUILD_OPENSBI_KERNEL_),y)
 ifneq ($(CONFIG_TPU_DEBUG_PORT),y)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG=SERIAL_8250=n'
@@ -337,7 +340,7 @@ kernel-dts: ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
 	${Q}ln -snrf ${CVI_BOARD_MEMMAP_H_PATH} ${KERNEL_PATH}/scripts/dtc/include-prefixes/
 	${Q}find ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ -type l -delete
 	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
-	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/ \
+	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/ \
 		\( -path "*linux/*.dts*" -o -path "*dts_${ARCH}/*.dts*" \) \
 		-exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} dtbs
@@ -345,12 +348,18 @@ kernel-dts: ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
 kernel: $(OUTPUT_DIR)/rootfs
 kernel: kernel-build
 	$(call print_target)
-	${Q}echo LOCALVERSION=${LOCALVERSION}
-ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+ifneq ($(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)),)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
-else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
-	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
+
+	# Add postinst for linux-headers
+	${Q}dpkg-deb -x ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../linux-headers*.deb ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+	${Q}cp -r ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/debian/linux-headers/DEBIAN ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+	${Q}printf "make -C /usr/src/linux-headers-\$$(uname -r) olddefconfig prepare0" > ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
+	${Q}chmod +x ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
+	${Q}find ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../ -name 'linux-headers*.deb' -exec dpkg -b ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/ {} \;
+	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/
 endif
+	
 	$(call copy_Image_action)
 	$(call copy_ko_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/modules)
 	$(call copy_header_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/$(ARCH)/usr/include)
@@ -361,6 +370,10 @@ endif
 	${Q}ln -sf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}  ${KERNEL_PATH}/build/kernel_output
 
 ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64),y)
+INITRAMFS_BASE := glibc_arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
+INITRAMFS_BASE := glibc_arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131),y)
 INITRAMFS_BASE := glibc_arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 INITRAMFS_BASE := glibc_arm
@@ -422,16 +435,19 @@ BOOT_IMAGE_ARG += --gen_single_board_its --chip_name "${CHIP}" --board_name "${B
 RAMBOOT_IMAGE_ARG = --gen_single_board_its --chip_name "${CHIP}" --board_name "${BOARD}"
 else
 BOOT_IMAGE_ARG += --gen-board-its ${CHIP_ARCH}
-RAMBOOT_IMAGE_ARG = --gen-board-its ${CHIP_ARCH}
+RAMBOOT_IMAGE_ARG = --gen_single_board_its --chip_name "${CHIP}" --board_name "${BOARD}"
 endif
 
 boot: export KERNEL_COMPRESS=$(patsubst "%",%,$(CONFIG_KERNEL_COMPRESS))
 boot: kernel-dts
 	$(call print_target)
-ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+
+ifneq (,$(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)))
+ifeq ($(STORAGE_TYPE),sd)
+	$(call gen_cpio,sdboot_fixed_files.txt)
+else
 	$(call gen_cpio,boot_fixed_files.txt)
-else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
-	$(call gen_cpio,boot_fixed_files.txt)
+endif #STORAGE_TYPE!=sd
 else
 ifeq ($(CONFIG_ROOTFS_OVERLAYFS),y)
 	$(call gen_cpio,overlayfs_fixed_files.txt.sqsh)
@@ -495,7 +511,8 @@ endif
 ifneq ($(wildcard $(RAMDISK_PATH)/keys/cfg.key),)
 	openssl genpkey -algorithm RSA -out $(RAMDISK_PATH)/keys/cfg.key
 endif
-	$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -k $(RAMDISK_PATH)/keys -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
+	#$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -k $(RAMDISK_PATH)/keys -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
+	$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -r ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.itb
 
 ramboot: kernel-dts
 	$(call print_target)
@@ -543,6 +560,10 @@ endif
 
 ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64),y)
 packages_arch := arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
+packages_arch := arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131),y)
+packages_arch := arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 packages_arch := arm
 else ifeq ($(CONFIG_TOOLCHAIN_UCLIBC_ARM),y)
@@ -552,7 +573,14 @@ packages_arch := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)
 packages_arch := musl_riscv64
 endif
+
+ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
+ROOTFS_BASE := common_$(packages_arch)_v930
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131),y)
+ROOTFS_BASE := common_$(packages_arch)_v1130
+else
 ROOTFS_BASE := common_$(packages_arch)
+endif
 
 $(OUTPUT_DIR)/rootfs:
 	${Q}mkdir -p $@

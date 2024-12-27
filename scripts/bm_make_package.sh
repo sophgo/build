@@ -212,6 +212,12 @@ function compress_and_update_partition_script()
 
 	gzip ${filename}
 
+	if [[ $filename == *"usb"* ]]; then
+		echo "raw to cimg: $filename"
+		python raw2cimg_edge.py $filename.gz
+		mv $filename.gz.head $filename.gz
+	fi
+
 	script_update "${LOAD_COMMAND} ${IN_ADDR} ${OTA_PATH}$(basename ${filename}.gz)"
 	script_update "if test \$? -ne 0; then"
 	script_update "led status off"
@@ -510,6 +516,7 @@ function do_gen_partition_subimg()
 					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} -C $RECOVERY_DIR/$MOUNT_DIR-$2
 				fi
 				sync
+				sleep 1 # wait for sync
 				sudo umount $RECOVERY_DIR/$MOUNT_DIR-$2
 			else
 				echo $1 may be an empty parition.
