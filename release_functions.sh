@@ -605,6 +605,7 @@ function generate_fip_bin()
         fi
         # copy .xml for usb download
         copy_tools
+	pack_gpt
       )
     done
   done

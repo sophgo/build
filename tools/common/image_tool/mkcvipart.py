@@ -74,7 +74,7 @@ def gen_cvipart_h(output, parser):
 
             # Generintg BLKDEV
             of.write("#define PART_LAYOUT    ")
-            of.write('"blkdevparts=mmcblk0:')
+            #of.write('"blkdevparts=mmcblk0:')
             for i, p in enumerate(parts):
                 if p["part_size"] != sys.maxsize:
                     part_size = str(int(p["part_size"] / 1024)) + "K"
@@ -84,13 +84,15 @@ def gen_cvipart_h(output, parser):
                     comma = ";"
                 else:
                     comma = ","
-                of.write("%s(%s)%s" % (part_size, p["label"], comma))
-            of.write('mmcblk0boot0:1M(fip),1M(fip_bak);"')
+                #of.write("%s(%s)%s" % (part_size, p["label"], comma))
+            #of.write('mmcblk0boot0:1M(fip),1M(fip_bak);"')
             of.write("\n")
 
             for i, p in enumerate(parts):
                 if p["label"] == "ROOTFS":
-                    of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i + 1))
+                    #of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i + 1))
+                    # need to ignore gpt partition
+                    of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i))
 
         elif parser.getStorage() == "spinand":
             if env_exist:
