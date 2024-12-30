@@ -258,6 +258,28 @@
 			};
 		};
 
+		fdt-bm1688_sm9v2_8G {
+			description = "cvitek device tree - bm1688_sm9v2_8G";
+			data = /incbin/("./bm1688_sm9v2_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_sm9v2_16G {
+			description = "cvitek device tree - bm1688_sm9v2_16G";
+			data = /incbin/("./bm1688_sm9v2_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
 		fdt-bm1688_wevb_emmc {
 			description = "cvitek device tree - bm1688_wevb_emmc";
 			data = /incbin/("./bm1688_wevb_8G.dtb");
@@ -640,6 +662,28 @@
 			};
 		};
 
+		fdt-cv186ah_sm9v2_4G {
+			description = "cvitek device tree - cv186ah_sm9v2_4G";
+			data = /incbin/("./cv186ah_sm9v2_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_sm9v2_8G {
+			description = "cvitek device tree - cv186ah_sm9v2_8G";
+			data = /incbin/("./cv186ah_sm9v2_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
 		fdt-cv186ah_nvrv1_4G {
 			description = "cvitek device tree - cv186ah_nvrv1_4G";
 			data = /incbin/("./cv186ah_nvrv1_4G.dtb");
@@ -827,6 +871,20 @@
 			kernel = "kernel-1";
 			ramdisk = "ramdisk-1";
 			fdt = "fdt-bm1688_sm9v1_16G";
+		};
+
+		config-bm1688_sm9v2_8G {
+			description = "boot cvitek system with board bm1688_sm9v2_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v2_8G";
+		};
+
+		config-bm1688_sm9v2_16G {
+			description = "boot cvitek system with board bm1688_sm9v2_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v2_16G";
 		};
 
 		config-bm1688_wevb_emmc {
@@ -1077,6 +1135,20 @@
 			kernel = "kernel-1";
 			ramdisk = "ramdisk-1";
 			fdt = "fdt-cv186ah_sm9v1_16G";
+		};
+
+		config-cv186ah_sm9v2_4G {
+			description = "boot cvitek system with board cv186ah_sm9v2_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v2_4G";
+		};
+
+		config-cv186ah_sm9v2_8G {
+			description = "boot cvitek system with board cv186ah_sm9v2_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v2_8G";
 		};
 
 		config-cv186ah_nvrv1_4G {
