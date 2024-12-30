@@ -40,8 +40,12 @@ def genScript(out, parts: list, storage):
         out.write("if [ -f $TOP/%s ];then\n" % p["file_name"])
         out.write("$SCRIPT_PATH/cimg2raw $TOP/%s\n" % p["file_name"])
         if storage == "emmc":
+            if p["label"] == "GPT":
+                out.write("dd if=$TOP/%s of=/dev/mmcblk0\n\n" % (p["file_name"]))
+                continue
+
             out.write("dd if=$TOP/%s of=/dev/mmcblk0p%d\n" %
-                      (p["file_name"], i + 1))
+                      (p["file_name"], i))
         elif storage == "spinand":
             out.write("$SCRIPT_PATH/nandwrite -m -p /dev/mtd%d $TOP/%s\n" %
                       (i, p["file_name"]))
