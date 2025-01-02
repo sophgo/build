@@ -55,10 +55,10 @@ def gen_cvipart_h(output, parser):
         else:
             # If no ENV or U-BOOT ENV has been set in partition.xml, we assume
             # there is no env support
-            of.write(
-                "#ifndef CONFIG_ENV_IS_NOWHERE\n#define CONFIG_ENV_IS_NOWHERE\n#endif\n"
-            )
-            of.write("#define CONFIG_ENV_SIZE 0x20000\n")
+        #    of.write(
+        #        "#ifndef CONFIG_ENV_IS_NOWHERE\n#define CONFIG_ENV_IS_NOWHERE\n#endif\n"
+        #    )
+            of.write("#define CONFIG_ENV_SIZE 0x80000\n")
             env_exist = False
 
         if env_exist and "ENV_BAK" in parser.parts:
@@ -66,11 +66,15 @@ def gen_cvipart_h(output, parser):
 
         LBA_SIZE = 1
         if parser.getStorage() == "emmc":
+            of.write("#define CONFIG_ENV_IS_IN_MMC\n")
+            of.write("#define CONFIG_ENV_SECT_SIZE  0x40000\n")
             if env_exist:
-                of.write("#define CONFIG_ENV_IS_IN_MMC\n")
-                of.write("#define CONFIG_ENV_SECT_SIZE  0x40000\n")
                 of.write("#define CONFIG_SYS_MMC_ENV_DEV 0\n")
                 of.write("#define CONFIG_SYS_MMC_ENV_PART 0\n")
+            else:
+                of.write("#define CONFIG_SYS_MMC_ENV_DEV 0\n")
+                of.write("#define CONFIG_SYS_MMC_ENV_PART 1\n")
+                of.write("#define CONFIG_ENV_OFFSET 0x200000\n")
 
             # Generintg BLKDEV
             of.write("#define PART_LAYOUT    ")
