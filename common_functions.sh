@@ -172,7 +172,6 @@ function pack_gpt
   print_notice "Run ${FUNCNAME[0]}() function"
   pushd "$EMMCTOOL_PATH"
   mkdir -p "$OUTPUT_DIR"/rawimages
-  ll $FLASH_PARTITION_XML
   cp -rf "$FLASH_PARTITION_XML" $OUTPUT_DIR/rawimages/partition_emmc_tmp.xml
   sed -i '/<partition label="GPT" size_in_kb="8192" file="gpt.img" \/>/d' $OUTPUT_DIR/rawimages/partition_emmc_tmp.xml
   make gpt.img PARTITION_XML=$OUTPUT_DIR/rawimages/partition_emmc_tmp.xml INSTALL_DIR="$OUTPUT_DIR"/rawimages
