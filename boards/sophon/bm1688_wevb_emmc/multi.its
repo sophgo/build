@@ -1224,6 +1224,55 @@
 			ramdisk = "ramdisk-1";
 			fdt = "fdt-cv186ah_se9b3_16G";
 		};
+		
+		config-bm1688_se9k1_4G {
+			description = "boot cvitek system with board bm1688_se9k1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_4G";
+		};
+		config-bm1688_se9k1_8G {
+			description = "boot cvitek system with board bm1688_se9k1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_8G";
+		};
+		config-bm1688_se9k1_12G {
+			description = "boot cvitek system with board bm1688_se9k1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_12G";
+		};
+		config-bm1688_se9k1_16G {
+			description = "boot cvitek system with board bm1688_se9k1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_16G";
+		};
+		config-cv186ah_se9k1_4G {
+			description = "boot cvitek system with board cv186ah_se9k1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_4G";
+		};
+		config-cv186ah_se9k1_8G {
+			description = "boot cvitek system with board cv186ah_se9k1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_8G";
+		};
+		config-cv186ah_se9k1_12G {
+			description = "boot cvitek system with board cv186ah_se9k1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_12G";
+		};
+		config-cv186ah_se9k1_16G {
+			description = "boot cvitek system with board cv186ah_se9k1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_16G";
+		};
 
 		config-cv186ah_se9b4_4G {
 			description = "boot cvitek system with board cv186ah_se9b4_4G";
