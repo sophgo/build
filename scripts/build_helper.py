@@ -82,9 +82,9 @@ def get_segment_from_chip(chip):
         din = json.load(fp)
 
     for arch, segments in din.items():
-        for seg, chips in segments.items():
+        for chips, seg in segments.items():
             if chip in chips:
-                return seg
+                return chip
 
     raise IndexError("%s is not in chip_list.json" % chip)
 
@@ -95,6 +95,17 @@ def get_chip_list():
 
     chips = {}
     for arch, segments in din.items():
+        chips[arch] = list(segments.keys())
+
+    return chips
+
+def get_side_list():
+    with open(CHIP_LIST_PATH, "r", encoding="utf-8") as fp:
+        din = json.load(fp)
+
+    chips = {}
+    for arch, segments in din.items():
         chips[arch] = [j for i in segments.values() for j in i]
 
     return chips
+

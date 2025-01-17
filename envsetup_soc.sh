@@ -440,7 +440,7 @@ function build_bmsophon()
     -B pcie_build \
     -G Ninja \
     -DPLATFORM=pcie_arm64 \
-    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
+    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD" \
     -DLIB_DIR="${lib_dir}" \
     -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
     -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
@@ -475,7 +475,7 @@ function build_amd64_bmsophon()
   cmake \
     -B amd64_build \
     -G Ninja \
-    -DPLATFORM=pcie_arm64 \
+    -DPLATFORM=pcie \
     -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
     -DDEBUG=OFF \
     -DCMAKE_BUILD_TYPE=Release \
@@ -514,7 +514,7 @@ function build_libsophon()
     -B build \
     -G Ninja \
     -DPLATFORM=soc \
-    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
+    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD" \
     -DLIB_DIR="${lib_dir}" \
     -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
     -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
@@ -567,14 +567,41 @@ function build_bm1688_rootfs()
   dpkg-deb -b "${DISTRO_OVERLAY_DIR}/${CVIARCH}/sophgo-fs" \
     "${EDGE_ROOTFS_DIR}/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb"
 
-  # update linux kernel debs
   shopt -s nullglob
+  # update linux kernel debs
   matched_deb_files=("${TOP_DIR}/linux_5.10/build/"*.deb)
   if [ ${#matched_deb_files[@]} -gt 0 ]; then
-    rm -f "${BSP_DEBS}"/*.deb
+    echo "update linux kernel debs ..."
+    mkdir -p ${BSP_DEBS}
+    cp -f "${TOP_DIR}"/linux_5.10/build/*.deb ${BSP_DEBS}
   fi
+
+  # update media debs
+  SOURCE_MEDIA_FILES=("${TOP_DIR}/sophon_media/buildit/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb")
+  TARGET_MEDIA_FILES=("${SDK_DEBS}/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb")
+  if [ ${#SOURCE_MEDIA_FILES[@]} -gt 0 ]; then
+    echo "update sophon media debs ..."
+    mkdir -p ${SDK_DEBS}
+    cp -f "${TOP_DIR}"/sophon_media/buildit/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb ${SDK_DEBS}
+  fi
+
+  #update isp debs
+  SOURCE_ISP_FILES=("${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb")
+  if [ ${#SOURCE_ISP_FILES[@]} -gt 0 ]; then
+    mkdir -p ${SDK_DEBS}
+    echo "update isp debs ..."
+    cp -f "${TOP_DIR}"/middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
+  fi
+
+  #update libsophon debs
+  SOURCE_LIBSOPHON_FILES=("${TOP_DIR}/libsophon/build/sophon-soc-libsophon*.deb")
+  if [ ${#SOURCE_LIBSOPHON_FILES[@]} -gt 0 ]; then
+    mkdir -p ${SDK_DEBS}
+    echo "update libsophon debs ..."
+    cp -f "${TOP_DIR}"/libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
+  fi
+  #liteos and bmssm's deb in bootloader-arm64 project
   shopt -u nullglob
-  cp -f "${TOP_DIR}"/linux_5.10/build/*.deb ${BSP_DEBS}
 
   echo copy overlay file to rootfs...
   sudo cp -rf \
@@ -744,11 +771,6 @@ function build_bm1688_sdk() {
     fi
   fi
 
-  # copy sophliteos debs
-  if [[ "${preinstall_sdks}" == *"sophliteos"* ]]; then
-    cp "${TOP_DIR}"/sophliteos/release/sophliteos_soc_*_sdk.deb "${SDK_DEBS}"
-    cp "${TOP_DIR}"/sophliteos/release/bmssm_soc_*_SDK.deb "${SDK_DEBS}"
-  fi
 
 }
 
@@ -788,7 +810,6 @@ function build_bm1688_all(){
     #build_bm1688_sdk libsophon sophon_media sophliteos || { echo "Error: build_bm1688_sdk failed with exit code $?"; return $?; }
     build_bm1688_sdk libsophon || { ret=$?; echo "Error: build_bm1688_sdk libsophon failed with exit code $ret"; return $ret; }
     build_bm1688_sdk sophon_media || { ret=$?; echo "Error: build_bm1688_sdk sophon_media failed with exit code $ret"; return $ret; }
-    build_bm1688_sdk sophliteos || { ret=$?; echo "Error: build_bm1688_sdk sophliteos failed with exit code $ret"; return $ret; }
   fi
 
   if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
@@ -986,7 +1007,7 @@ function build_access_guard_turnkey_app()
     export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
     export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
     export SDK_INSTALL_PATH="$OUTPUT_DIR"
-    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    export KERNEL_INC="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD"/usr/include/
     ln -sf "$SDK_INSTALL_PATH"/tpu_* "$SDK_INSTALL_PATH"/tpu
     pushd "$ACCESSGUARD_PATH"
       source build.sh
@@ -1005,7 +1026,7 @@ function clean_access_guard_turnkey_app()
     export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
     export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
     export SDK_INSTALL_PATH="$OUTPUT_DIR"
-    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    export KERNEL_INC="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD"/usr/include/
     pushd "$ACCESSGUARD_PATH"
     source build.sh
     access_guard_clean
@@ -1236,6 +1257,7 @@ function build_all()
   pack_rootfs || return $?
   pack_data || return $?
   pack_system || return $?
+  pack_gpt || return $?
   copy_tools || return $?
   pack_upgrade || return $?
 )}
@@ -1358,7 +1380,7 @@ function cvi_setup_env()
   export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH
   export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH LIBSOPHON_PATH BMCPU_PATH
 
-  PROJECT_FULLNAME="$CHIP"_"$BOARD"
+  PROJECT_FULLNAME="$SIDE_TYPE"_"$BOARD"
 
   # output folder path
   INSTALL_PATH="$TOP_DIR"/install
@@ -1556,10 +1578,10 @@ function print_usage()
   printf "    (1)\33[94m menuconfig \33[0m- Use menu to configure your board.\n"
   printf "        ex: $ menuconfig\n\n"
   printf "    (2)\33[96m defconfig \$CHIP_ARCH \33[0m- List EVB boards(\$BOARD) by CHIP_ARCH.\n"
-  "${BUILD_PATH}/scripts/boards_scan.py" --list-chip-arch
-  printf "        ex: $ defconfig sophon\n\n"
+  "${BUILD_PATH}/scripts/boards_scan.py" --list-side-arch
+  printf "        ex: $ defconfig edge\n\n"
   printf "    (3)\33[92m defconfig \$BOARD\33[0m - Choose EVB board settings.\n"
-  printf "        ex: $ defconfig cv186ah_wevb_emmc\n"
+  printf "        ex: $ defconfig edge_wevb_emmc\n"
   printf "  -------------------------------------------------------------------------------------------------------\n"
 }
 

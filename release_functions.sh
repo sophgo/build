@@ -566,7 +566,8 @@ function generate_fip_bin()
 
   #[[ "$CHIP_ARCH" == CV182X ]] && chip_list=("${chip_cv182x[@]}")
   #[[ "$CHIP_ARCH" == CV183X ]] && chip_list=("${chip_cv183x[@]}")
-  [[ "$CHIP_ARCH" == SOPHON ]] && chip_list=("${chip_sophon[@]}" "${chip_bm1688[@]}" "${chip_cv186ah[@]}")
+  #[[ "$CHIP_ARCH" == SOPHON ]] && chip_list=("${chip_sophon[@]}" "${chip_bm1688[@]}" "${chip_cv186ah[@]}")
+  [[ "$CHIP_ARCH" == SOPHON ]] && chip_list=("device" "edge")
   [[ "$CVIARCH" == CV181X ]] && chip_list=("${chip_cv181x[@]}")
   [[ "$CVIARCH" == CV180X ]] && chip_list=("${chip_cv180x[@]}")
 
