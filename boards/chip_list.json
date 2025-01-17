@@ -1,6 +1,6 @@
 {
   "sophon": {
-	"bm1688": ["bm1688"],
-	"cv186ah": ["cv186ah"]
+	"bm1688": ["edge"],
+	"cv186ah": ["device"]
   }
 }

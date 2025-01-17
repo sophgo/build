@@ -203,6 +203,13 @@ config SDK_VER
 	help
 	  Set sdk version.
 
+config SIDE_TYPE
+	string
+	default "edge" if SIDE_TYPE_edge
+	default "device" if SIDE_TYPE_device
+	help
+	  Set side type.
+
 config STATIC
 	bool "Build static binary (no shared libs)"
 	default n
@@ -496,6 +503,7 @@ config ROOTFS_OVERLAYFS
 config ROOTFS_UBUNTU
 	bool "Enable ubuntu file system"
 	default n
+        depends on SIDE_TYPE_edge
 	help
 	  Enable ubuntu file system.
 
