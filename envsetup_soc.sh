@@ -43,6 +43,52 @@ function gettop()
   fi
 }
 
+
+update_files_if_newer() {
+    local filename_pattern="$1"
+    local source_path="$2"
+    local target_path="$3"
+
+
+    if [[ ! -d "$source_path" ]]; then
+        return 1
+    fi
+
+    if [[ ! -d "$target_path" ]]; then
+        mkdir -p "$target_path" || { echo "Failed to create target path."; return 1; }
+    fi
+
+    local expanded_patterns
+    expanded_patterns=$(eval echo "$source_path/$filename_pattern")
+
+    local files=($expanded_patterns)
+
+    for source_file in "${files[@]}"; do
+        if [[ ! -e "$source_file" ]]; then
+            #echo "No files matching pattern in $source_path."
+            continue
+        fi
+
+        local target_file="${target_path}/$(basename "$source_file")"
+
+        if [[ ! -e "$target_file" ]]; then
+            echo "update $target_file"
+            cp "$source_file" "$target_file" || echo "update failed."
+            continue
+        fi
+
+        local source_mtime=$(stat -c %Y "$source_file")
+        local target_mtime=$(stat -c %Y "$target_file")
+
+        if [[ "$source_mtime" -gt "$target_mtime" ]]; then
+            echo "update  $target_file"
+            cp "$source_file" "$target_file" || echo "update failed."
+        fi
+    done
+}
+
+
+
 function _build_fsbl_env()
 {
   export FSBL_PATH
@@ -557,50 +603,22 @@ function build_libsophon()
   popd
 }
 
-function build_bm1688_rootfs()
+function build_edge_rootfs()
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  build_bm1688_overlay || { ret=$?; echo "Error: build_bm1688_overlay failed with exit code $ret"; return $ret; }
+  build_edge_overlay || { ret=$?; echo "Error: build_edge_overlay failed with exit code $ret"; return $ret; }
   local version=$(grep Version $DISTRO_OVERLAY_DIR/$CVIARCH/sophgo-fs/DEBIAN/control | cut -d ' ' -f 2)
   mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/debs
   dpkg-deb -b "${DISTRO_OVERLAY_DIR}/${CVIARCH}/sophgo-fs" \
     "${EDGE_ROOTFS_DIR}/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb"
 
   shopt -s nullglob
-  # update linux kernel debs
-  matched_deb_files=("${TOP_DIR}/linux_5.10/build/"*.deb)
-  if [ ${#matched_deb_files[@]} -gt 0 ]; then
-    echo "update linux kernel debs ..."
-    mkdir -p ${BSP_DEBS}
-    cp -f "${TOP_DIR}"/linux_5.10/build/*.deb ${BSP_DEBS}
-  fi
+  update_files_if_newer "linux*.deb" "${TOP_DIR}/linux_5.10/build" "${BSP_DEBS}"
+  update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${SDK_DEBS}"
+  update_files_if_newer "sophon-soc-libisp*arm64.deb" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "${SDK_DEBS}"
+  update_files_if_newer "sophon-soc-libsophon*.deb" "${TOP_DIR}/libsophon/build" "${SDK_DEBS}"
 
-  # update media debs
-  SOURCE_MEDIA_FILES=("${TOP_DIR}/sophon_media/buildit/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb")
-  TARGET_MEDIA_FILES=("${SDK_DEBS}/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb")
-  if [ ${#SOURCE_MEDIA_FILES[@]} -gt 0 ]; then
-    echo "update sophon media debs ..."
-    mkdir -p ${SDK_DEBS}
-    cp -f "${TOP_DIR}"/sophon_media/buildit/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb ${SDK_DEBS}
-  fi
-
-  #update isp debs
-  SOURCE_ISP_FILES=("${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb")
-  if [ ${#SOURCE_ISP_FILES[@]} -gt 0 ]; then
-    mkdir -p ${SDK_DEBS}
-    echo "update isp debs ..."
-    cp -f "${TOP_DIR}"/middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
-  fi
-
-  #update libsophon debs
-  SOURCE_LIBSOPHON_FILES=("${TOP_DIR}/libsophon/build/sophon-soc-libsophon*.deb")
-  if [ ${#SOURCE_LIBSOPHON_FILES[@]} -gt 0 ]; then
-    mkdir -p ${SDK_DEBS}
-    echo "update libsophon debs ..."
-    cp -f "${TOP_DIR}"/libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
-  fi
-  #liteos and bmssm's deb in bootloader-arm64 project
   shopt -u nullglob
 
   echo copy overlay file to rootfs...
@@ -663,25 +681,37 @@ function build_sophon_media(){
   fi
 
   print_notice "Run ${FUNCNAME[0]}() function"
-  pushd ${TOP_DIR}/sophon_media
-  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
-    source build/build_cmake.sh 930
-  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
-    source build/build_cmake.sh 1131
+  MEDIA_DEBUG="off"
+  if [ "$MEDIA_DEBUG" = "on" ]; then
+    CMAKE_BUILD_TYPE="Debug"
   else
-    source build/build_cmake.sh
+    CMAKE_BUILD_TYPE="Release"
   fi
+  mkdir -p ${TOP_DIR}/sophon_media/buildit
+  pushd ${TOP_DIR}/sophon_media/buildit
+  GCC_V="1131"
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    #source build/build_cmake.sh 930
+    GCC_V="930"
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    #source build/build_cmake.sh 1131
+    GCC_V="1131"
+  fi
+  cmake -DPLATFORM=soc -DGCC_VERSION=$GCC_V -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -DDEBUG=$MEDIA_DEBUG -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
+  cmake --build . --target all -- -j`nproc`
+  cmake --build . --target sophon_sample
+  cmake --build . --target package
   popd
 }
 
-function clean_sophon_media(){
+function clean_sophon_media(){ 
+  print_notice "Run ${FUNCNAME[0]}() function"
   if [ ! -d "${TOP_DIR}/sophon_media" ]; then
     return 0
   fi
 
-  print_notice "Run ${FUNCNAME[0]}() function"
   pushd ${TOP_DIR}/sophon_media
-  cmake --build buildit --target clean
+  rm -rf buildit install
   popd
 }
 
@@ -692,7 +722,7 @@ function clean_distro() {
   fi
 }
 
-function build_bm1688_env() {
+function build_edge_env() {
   #export DISTRO=${DISTRO:-focal}
   export DISTRO=jammy
   export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
@@ -706,7 +736,7 @@ function build_bm1688_env() {
   export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
 }
 
-function build_bm1688_overlay() {
+function build_edge_overlay() {
   sudo rm -rf "${EDGE_ROOTFS_DIR}"
   mkdir -p "${EDGE_ROOTFS_DIR}"
 
@@ -746,7 +776,7 @@ function build_bm1688_overlay() {
 
 }
 
-function build_bm1688_sdk() {
+function build_edge_sdk() {
   print_notice "Run ${FUNCNAME[0]}() function"
   local preinstall_sdks="$*"
 
@@ -758,81 +788,63 @@ function build_bm1688_sdk() {
   # copy libsophon debs
   if [[ "${preinstall_sdks}" == *"libsophon"* ]]; then
     build_libsophon || return $?
-    cp -f "${TOP_DIR}"/libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
   fi
 
   # copy sophon_media debs
   if [[ "${preinstall_sdks}" == *"sophon_media"* ]]; then
-    cp -f middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
     if [ -d "${TOP_DIR}"/sophon_media ]; then
       build_sophon_media
-      cp "${TOP_DIR}"/sophon_media/buildit/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb ${SDK_DEBS}
-      #cp "${TOP_DIR}"/sophon_media/media_release/sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb ${SDK_DEBS}
     fi
   fi
 
 
 }
 
-function build_bm1688_package(){
+function build_edge_package(){
   cd ${TOP_DIR}
   cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/local_update.sh ${TOP_DIR}/build/scripts
   cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update.sh ${TOP_DIR}/build/scripts
   build_package
-  if [ -d "$OUTPUT_DIR"/package_edge ]; then
-    echo copy sdk files...
-    sudo cp -f "$LIBSOPHON_PATH"/build/libsophon_soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
-    #if [ -d "${TOP_DIR}"/sophon_media ]; then
-      #sudo cp -f "${TOP_DIR}"/sophon_media/media_release/sophon-media-soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge 2>/dev/null
-    #fi
-  fi
-
 }
 
-function build_bm1688_edge()
-{
+function build_edge_all(){
+  local target=${1:-all}
+
+  build_edge_env || { ret=$?; echo "Error: build_edge_env failed with exit code $ret"; return $ret; }
   build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
   build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
   build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
   build_ramboot || { ret=$?; echo "Error: build_ramboot failed with exit code $ret"; return $ret; }
   build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
-}
-
-function build_bm1688_all(){
-  local target=${1:-all}
-
-  build_bm1688_env || { ret=$?; echo "Error: build_bm1688_env failed with exit code $ret"; return $ret; }
-  build_bm1688_edge || { ret=$?; echo "Error: build_bm1688_edge failed with exit code $ret"; return $ret; }
 
   if [ "${target}" == "regression" ]; then
-    build_bm1688_sdk libsophon || { echo "Error: build_bm1688_sdk libsophon failed with exit code $?"; return $?; }
+    build_edge_sdk libsophon || { echo "Error: build_edge_sdk libsophon failed with exit code $?"; return $?; }
   else
-    #build_bm1688_sdk libsophon sophon_media sophliteos || { echo "Error: build_bm1688_sdk failed with exit code $?"; return $?; }
-    build_bm1688_sdk libsophon || { ret=$?; echo "Error: build_bm1688_sdk libsophon failed with exit code $ret"; return $ret; }
-    build_bm1688_sdk sophon_media || { ret=$?; echo "Error: build_bm1688_sdk sophon_media failed with exit code $ret"; return $ret; }
+    #build_edge_sdk libsophon sophon_media sophliteos || { echo "Error: build_edge_sdk failed with exit code $?"; return $?; }
+    build_edge_sdk libsophon || { ret=$?; echo "Error: build_edge_sdk libsophon failed with exit code $ret"; return $ret; }
+    build_edge_sdk sophon_media || { ret=$?; echo "Error: build_edge_sdk sophon_media failed with exit code $ret"; return $ret; }
   fi
 
   if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
     pack_rootfs || { ret=$?; echo "Error: pack_rootfs failed with exit code $ret"; return $ret; }
   else
-    build_bm1688_rootfs || { ret=$?; echo "Error: build_bm1688_rootfs failed with exit code $ret"; return $ret; }
+    build_edge_rootfs || { ret=$?; echo "Error: build_edge_rootfs failed with exit code $ret"; return $ret; }
 
-	if [ "${target}" != "regression" ]; then
-        build_bm1688_package || { ret=$?; echo "Error: build_bm1688_package failed with exit code $ret"; return $ret; }
-	fi
+    if [ "${target}" != "regression" ]; then
+        build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
+    fi
   fi
 }
 
-function clean_bm1688_all(){
-  clean_edge_pack    || return $?
-  clean_libsophon    || return $?
-  clean_sophon_media || return $?
+function clean_edge_all(){
+  clean_edge_pack
+  clean_libsophon
+  clean_sophon_media
+  rm -rf ${TOP_DIR}/ubuntu/install
 
   if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
 	clean_rootfs || return $?
   fi
-  cd ${TOP_DIR}
-  rm -rf ubuntu/install
 }
 
 function build_bmcpu()
@@ -1156,7 +1168,7 @@ function gen_sd_image()
     _build_kernel_env
     _build_uboot_env
     echo "Using partition xml: $FLASH_PARTITION_XML"
-    python ${TOP_DIR}/build/tools/common/image_tool/mk_sd_image.py $FLASH_PARTITION_XML $OUTPUT_DIR 
+    python ${TOP_DIR}/build/tools/common/image_tool/mk_sd_image.py $FLASH_PARTITION_XML $OUTPUT_DIR
 }
 
 
@@ -1171,11 +1183,12 @@ function build_edge_pack()
 
 function clean_edge_pack()
 {
-    clean_uboot || return $?
-    clean_kernel || return $?
-    clean_osdrv || return $?
-    clean_ramdisk || return $?
-    clean_v4l2_isp || return $?
+    clean_uboot
+    clean_kernel
+    clean_osdrv
+    clean_ramdisk
+    clean_v4l2_isp
+    cd ${TOP_DIR}
 }
 
 function build_package()
@@ -1194,6 +1207,8 @@ function build_package()
 
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/
     cp -rf $OUTPUT_DIR/ramboot.itb $PACKAGE_OUTPUT_DIR/
+    update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$OUTPUT_DIR/package_edge"
+    update_files_if_newer "sophon-media-soc_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/buildit" "$OUTPUT_DIR/package_edge"
 
     mkimage -A arm64 -O linux -T script -C none -a 0 -e 0 -n "eMMC Boot Script" \
             -d ${TOP_DIR}/build/boot.cmd.emmc ${OUTPUT_DIR}/boot.scr.emmc
@@ -1234,7 +1249,7 @@ function build_package()
 
 
 # shellcheck disable=SC2120
-function build_all()
+function build_device_all()
 {(
   build_uboot || return $?
   build_kernel || return $?
@@ -1262,7 +1277,7 @@ function build_all()
   pack_upgrade || return $?
 )}
 
-function clean_all()
+function clean_device_all()
 {
   clean_uboot
   clean_opensbi
@@ -1546,7 +1561,7 @@ function cvi_setup_env()
       return 1
     fi
   fi
-  build_bm1688_env
+  build_edge_env
 }
 
 function croot()
