@@ -333,7 +333,7 @@ function clean_middleware()
   popd
 }
 
-function build_bm1688_sdk {
+function build_dev_tpu_sdk {
   pushd ${TPU_SDK_PATH}
   cp -af lib/*.so*  "$SYSTEM_OUT_DIR"/lib/
   popd
@@ -418,14 +418,14 @@ function build_update()
 
 }
 
-function build_all()
+function build_device_all()
 {
   # build bsp
   build_uboot || return $?
   build_kernel || return $?
   build_middleware || return $?
   if [ "$TPU_REL" = 1 ]; then
-    build_bm1688_sdk || return $?
+    build_dev_tpu_sdk || return $?
   fi
   pack_access_guard_turnkey_app || return $?
   pack_ipc_turnkey_app || return $?

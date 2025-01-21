@@ -820,6 +820,7 @@
 
 	/*CFG*/
 	configurations {
+		default = "config-cv186ah_wevb_4G";
 
 		config-bm1688_se9v1_4G {
 			description = "boot cvitek system with board bm1688_se9v1_4G";

@@ -550,9 +550,13 @@ function make_partition_imgs()
 		gen_partition_img $i ${LABELS[$i]} ${PART_FORMAT[$i]}
 	) done
 
+
 	for i in $(seq 0 $[${#LABELS[@]}-1]); do (
+	    if [ $i -ne 2 ]; then
 		split_and_compress_img $i ${LABELS[$i]}
+	    fi
 	) done
+	split_and_compress_img 2 ${LABELS[2]}
 
 	wait
 }

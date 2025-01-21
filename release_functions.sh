@@ -346,7 +346,7 @@ function repo_build()
   DATE=$(date '+%Y%m%d')
   TPU_REL=1
 
-  build_all
+  build_device_all
 
   printf "Copy bin to the FTP release path\n"
   install_dir="$1"
@@ -580,33 +580,40 @@ function generate_fip_bin()
         continue
       fi
       (
+        if [[ "$CHIP" = "cv186ah" ]]; then
+          PROJECT_FULLNAME=device_"${board_sel[$b]}"
+        elif [[ "$CHIP" = "bm1688" ]]; then
+          PROJECT_FULLNAME=edge_"${board_sel[$b]}"
+        else
+          PROJECT_FULLNAME="${chip_list[$c]}"_"${board_sel[$b]}"
+        fi
         cd "$TOP_DIR" || exit
         source build/envsetup_soc.sh
-        defconfig "${chip_list[$c]}"_"${board_sel[$b]}"
+        defconfig "${PROJECT_FULLNAME}"
 
         # generate fip.bin w/o uboot
         clean_uboot; build_uboot
 
-        command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip.bin \
-          install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_default.bin
+        command mv install/soc_"${PROJECT_FULLNAME}"/fip.bin \
+          install/soc_"${PROJECT_FULLNAME}"/fip_default.bin
 
         # cv182x/ cv183x chips need to generate fip_pre.bin
         if [[ "$CHIP_ARCH" == CV182X ]] || [[ "$CHIP_ARCH" == CV183X ]]; then
-          command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre.bin \
-            install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre_default.bi
+          command mv install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre.bin \
+            install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre_default.bi
         fi
         # cv183x chips need to generate KEY1 fip_pre.bin
         if [[ "$CHIP_ARCH" == CV183X ]]; then
           setconfig ATF_KEY_SEL_key1=y
           build_uboot
-          command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre.bin \
-            install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre_key1.bi
-          command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip.bin \
-            install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_key1.bin
+          command mv install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre.bin \
+            install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre_key1.bi
+          command mv install/soc_"${PROJECT_FULLNAME}"/fip.bin \
+            install/soc_"${PROJECT_FULLNAME}"/fip_key1.bin
         fi
         # copy .xml for usb download
         copy_tools
-	pack_gpt
+        pack_gpt
       )
     done
   done
