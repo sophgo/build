@@ -150,7 +150,10 @@
 		resets = <&rst RST_WDT>;
 		clocks = <&pclk>;
 	};
-
+	trng: dw_trng@0x02070000 {
+		reg = <0x0 0x02070000 0x0 0x1000>;
+		compatible = "snps,dw-trng";
+	};
 	spacc: cvi_spacc@02060000 {
 		reg = <0x0 0x02060000 0x0 0x1000>;
 		compatible = "cvitek,spacc";

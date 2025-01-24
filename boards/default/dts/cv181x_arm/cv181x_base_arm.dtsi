@@ -132,7 +132,10 @@
 		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 	};
 #endif
-
+	trng: dw_trng@0x02070000 {
+		reg = <0x0 0x02070000 0x0 0x1000>;
+		compatible = "snps,dw-trng";
+	};
 	spinand:cv-spinf@4060000 {
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 	};

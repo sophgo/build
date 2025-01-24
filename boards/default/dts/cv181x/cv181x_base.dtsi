@@ -486,6 +486,7 @@
 	};
 
 	emmc:cv-emmc@4300000 {
+		u-boot,dm-spl;
 		compatible = "cvitek,cv181x-emmc";
 		reg = <0x0 0x4300000 0x0 0x1000>;
 		reg-names = "core_mem";
