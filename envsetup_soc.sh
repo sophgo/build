@@ -837,7 +837,12 @@ function build_edge_all(){
 }
 
 function clean_edge_all(){
-  clean_edge_pack
+  clean_uboot
+  clean_kernel
+  clean_osdrv
+  clean_ramdisk
+  clean_v4l2_isp
+  cd ${TOP_DIR}
   clean_libsophon
   clean_sophon_media
   rm -rf ${TOP_DIR}/ubuntu/install
@@ -1171,26 +1176,6 @@ function gen_sd_image()
     python ${TOP_DIR}/build/tools/common/image_tool/mk_sd_image.py $FLASH_PARTITION_XML $OUTPUT_DIR
 }
 
-
-function build_edge_pack()
-{
-    build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
-    build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
-    build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
-    build_ramboot || { ret=$?; echo "Error: build_ramboot failed with exit code $ret"; return $ret; }
-    build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
-}
-
-function clean_edge_pack()
-{
-    clean_uboot
-    clean_kernel
-    clean_osdrv
-    clean_ramdisk
-    clean_v4l2_isp
-    cd ${TOP_DIR}
-}
-
 function build_package()
 {
     sudo rm -rf $PACKAGE_OUTPUT_DIR
@@ -1219,8 +1204,6 @@ function build_package()
     mv ramboot.itb recovery.itb
     tar -zcvf recovery.tgz recovery.itb
 
-    #echo "stty cols 160" >> "${EDGE_ROOTFS_DIR}"/home/linaro/.bashrc
-    #echo "stty cols 160" >> "${EDGE_ROOTFS_DIR}"/root/.bashrc
     sudo cp -rf  $OUTPUT_DIR/rootfs/mnt/system "${EDGE_ROOTFS_DIR}"/mnt/
 
     mkdir -p rootfs_rw/overlay/home/linaro
@@ -1231,6 +1214,10 @@ function build_package()
     sudo tar -zcf .rootfs_rw.tgz -C rootfs_rw .
     sudo mv .rootfs_rw.tgz rootfs_rw/
     sudo tar -zcf rootfs_rw.tgz -C rootfs_rw .
+
+    mkdir -p $PACKAGE_OUTPUT_DIR/data
+    rsync -av $ROOT_TOP_DIR/bootloader-arm64/distro/data/ $PACKAGE_OUTPUT_DIR/data/
+    tar -zcf data.tgz -C data .
     popd
 
     find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
