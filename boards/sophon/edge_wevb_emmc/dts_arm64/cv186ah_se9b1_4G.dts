@@ -118,7 +118,7 @@
 	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
-			label = "error";
+			label = "disk-blue";
 			gpios = <&portf 23 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
