@@ -410,6 +410,21 @@ config NANDFLASH_PAGESIZE
 	default 2048
 	help
 	  The page size of nand flash
+
+config ENABLE_EMMC_SET_RESET_OTP
+	bool "Enable eMMC set OTP bit for hardware reset"
+	default N
+	depends on STORAGE_TYPE_emmc
+	help
+	  "y": The OTP bit: "RST_n_ENABLE" of this emmc chip will be permanently enabled
+
+config ENABLE_EMMC_HW_RESET_QFN
+	bool "Enable EMMC hardware reset for QFN"
+	default N
+	depends on STORAGE_TYPE_emmc && ENABLE_EMMC_SET_RESET_OTP
+	help
+		"y": Enable EMMC hardware reset for QFN (will use GPIOA_19(JTAG_CPU_TMS) to reset)
+		"n": Enable EMMC hardware reset for BGA (default)
 endmenu
 
 source "output/Kconfig.sensors"

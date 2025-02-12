@@ -494,6 +494,7 @@
 		non-removable;
 		no-sdio;
 		no-sd;
+		cap-mmc-hw-reset;
 		src-frequency = <375000000>;
 		min-frequency = <400000>;
 		max-frequency = <200000000>;
