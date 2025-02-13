@@ -447,6 +447,7 @@ function clean_libsophon()
   if [ -d "$LIBSOPHON_PATH"/install ]; then
     rm -rf "$LIBSOPHON_PATH"/install/*
   fi
+  rm -rf "$LIBSOPHON_PATH"/build
 }
 
 function clean_bmsophon()
