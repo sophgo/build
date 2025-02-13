@@ -1595,7 +1595,6 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
-export FTP_SERVER_IP=${FTP_SERVER_IP:-10.80.0.5}
 
 # import common functions
 # shellcheck source=./common_functions.sh
