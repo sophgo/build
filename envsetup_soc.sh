@@ -614,6 +614,10 @@ function build_edge_rootfs()
   dpkg-deb -b "${DISTRO_OVERLAY_DIR}/${CVIARCH}/sophgo-fs" \
     "${EDGE_ROOTFS_DIR}/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb"
 
+  mkdir -p ${BSP_DEBS}
+  mkdir -p ${SDK_DEBS}
+  mkdir -p ${MOD_DEBS}
+
   shopt -s nullglob
   update_files_if_newer "linux*.deb" "${TOP_DIR}/linux_5.10/build" "${BSP_DEBS}"
   update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${SDK_DEBS}"
@@ -819,11 +823,10 @@ function build_edge_all(){
   build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
 
   if [ "${target}" == "regression" ]; then
-    build_edge_sdk libsophon || { echo "Error: build_edge_sdk libsophon failed with exit code $?"; return $?; }
+    build_libsophon || { echo "Error: build_libsophon failed with exit code $?"; return $?; }
   else
-    #build_edge_sdk libsophon sophon_media sophliteos || { echo "Error: build_edge_sdk failed with exit code $?"; return $?; }
-    build_edge_sdk libsophon || { ret=$?; echo "Error: build_edge_sdk libsophon failed with exit code $ret"; return $ret; }
-    build_edge_sdk sophon_media || { ret=$?; echo "Error: build_edge_sdk sophon_media failed with exit code $ret"; return $ret; }
+    build_libsophon || { ret=$?; echo "Error: build_libsophon failed with exit code $ret"; return $ret; }
+    build_sophon_media || { ret=$?; echo "Error: build_sophon_media failed with exit code $ret"; return $ret; }
   fi
 
   if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
