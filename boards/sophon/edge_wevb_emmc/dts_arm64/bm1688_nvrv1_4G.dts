@@ -20,7 +20,7 @@
 #ifndef __UBOOT__
 		//0x1_0400_0000 - 0x1_2400_0000 for TPU (owner: zhuolin.li@sophgo.com)
 		scalar_reserved: scalar_mem {
-			reg = <0x1 0x04000000 0x0 0x20000000>;  //512MB for TPU firmware
+			reg = <0x1 0x04000000 0x0 0x10000000>;  //512MB for TPU firmware
 			no-map;
 		};
 
