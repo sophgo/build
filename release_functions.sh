@@ -85,11 +85,18 @@ function build_sdk_ver()
     [[ -d cvitek_ive_sdk ]] && tar zcf "$install_extra_ver_dir"/cvitek_ive_sdk.tar.gz cvitek_ive_sdk
     # ivs sdk
     [[ -d cvitek_ivs_sdk ]] && tar zcf "$install_extra_ver_dir"/cvitek_ivs_sdk.tar.gz cvitek_ivs_sdk
-    #ai sdk
-    tar zcf "$install_internal_ver_dir"/cvitek_ai_sdk_internal."$SDK_VER".tar.gz cvitek_ai_sdk
-    rm -rf cvitek_ai_sdk/regression
-    tar zcf "$install_extra_ver_dir"/cvitek_ai_sdk.tar.gz cvitek_ai_sdk
   popd
+  # tdl_sdk
+  if [ -d "$TDL_SDK_PATH/install" ]; then
+    pushd "$TDL_SDK_PATH"
+      mkdir cvitek_tdl_sdk
+      cp -ar install/* cvitek_tdl_sdk/
+      tar zcf "$install_internal_ver_dir"/cvitek_tdl_sdk_internal."$SDK_VER".tar.gz cvitek_tdl_sdk
+      rm -rf cvitek_tdl_sdk/regression
+      tar zcf "$install_extra_ver_dir"/cvitek_tdl_sdk.tar.gz cvitek_tdl_sdk
+      rm -rf cvitek_tdl_sdk
+    popd
+  fi
 #  fi
 
   # package mw sdk
@@ -111,8 +118,8 @@ function build_sdk_ver()
     [[ -d cvitek_ive_sdk ]] && cp -a cvitek_ive_sdk/* mmf/
     [[ -f "$install_extra_ver_dir"/cvitek_ivs_sdk.tar.gz ]] && tar xhzf "$install_extra_ver_dir"/cvitek_ivs_sdk.tar.gz
     [[ -d cvitek_ivs_sdk ]] && cp -a cvitek_ivs_sdk/* mmf/
-    tar xhzf "$install_extra_ver_dir"/cvitek_ai_sdk.tar.gz
-    cp -a cvitek_ai_sdk/* mmf/
+    [[ -f "$install_extra_ver_dir"/cvitek_tdl_sdk.tar.gz ]] && tar xhzf "$install_extra_ver_dir"/cvitek_tdl_sdk.tar.gz
+    [[ -d cvitek_tdl_sdk ]] && cp -a cvitek_tdl_sdk/* mmf/
     pushd mmf
       tar zcf "$install_sdk_ver_dir"/mmf.tar.gz ./*
     popd
@@ -133,6 +140,9 @@ function build_all_sdk_ver()
   if [[ "$CHIP_ARCH" == SOPHON ]]; then
 	  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' "$BUILD_PATH"/.config; then
 		  setconfig TOOLCHAIN_GLIBC_ARM64_V930=y
+		  build_sdk_ver "$@"
+	  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' "$BUILD_PATH"/.config; then
+		  setconfig TOOLCHAIN_GLIBC_ARM64_V1131=y
 		  build_sdk_ver "$@"
 	  else
 		  setconfig TOOLCHAIN_GLIBC_ARM64=y
@@ -336,7 +346,7 @@ function repo_build()
   DATE=$(date '+%Y%m%d')
   TPU_REL=1
 
-  build_all
+  build_device_all
 
   printf "Copy bin to the FTP release path\n"
   install_dir="$1"
@@ -556,7 +566,8 @@ function generate_fip_bin()
 
   #[[ "$CHIP_ARCH" == CV182X ]] && chip_list=("${chip_cv182x[@]}")
   #[[ "$CHIP_ARCH" == CV183X ]] && chip_list=("${chip_cv183x[@]}")
-  [[ "$CHIP_ARCH" == SOPHON ]] && chip_list=("${chip_sophon[@]}" "${chip_bm1688[@]}" "${chip_cv186ah[@]}")
+  #[[ "$CHIP_ARCH" == SOPHON ]] && chip_list=("${chip_sophon[@]}" "${chip_bm1688[@]}" "${chip_cv186ah[@]}")
+  [[ "$CHIP_ARCH" == SOPHON ]] && chip_list=("device" "edge")
   [[ "$CVIARCH" == CV181X ]] && chip_list=("${chip_cv181x[@]}")
   [[ "$CVIARCH" == CV180X ]] && chip_list=("${chip_cv180x[@]}")
 
@@ -569,32 +580,40 @@ function generate_fip_bin()
         continue
       fi
       (
+        if [[ "$CHIP" = "cv186ah" ]]; then
+          PROJECT_FULLNAME=device_"${board_sel[$b]}"
+        elif [[ "$CHIP" = "bm1688" ]]; then
+          PROJECT_FULLNAME=edge_"${board_sel[$b]}"
+        else
+          PROJECT_FULLNAME="${chip_list[$c]}"_"${board_sel[$b]}"
+        fi
         cd "$TOP_DIR" || exit
         source build/envsetup_soc.sh
-        defconfig "${chip_list[$c]}"_"${board_sel[$b]}"
+        defconfig "${PROJECT_FULLNAME}"
 
         # generate fip.bin w/o uboot
         clean_uboot; build_uboot
 
-        command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip.bin \
-          install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_default.bin
+        command mv install/soc_"${PROJECT_FULLNAME}"/fip.bin \
+          install/soc_"${PROJECT_FULLNAME}"/fip_default.bin
 
         # cv182x/ cv183x chips need to generate fip_pre.bin
         if [[ "$CHIP_ARCH" == CV182X ]] || [[ "$CHIP_ARCH" == CV183X ]]; then
-          command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre.bin \
-            install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre_default.bi
+          command mv install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre.bin \
+            install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre_default.bi
         fi
         # cv183x chips need to generate KEY1 fip_pre.bin
         if [[ "$CHIP_ARCH" == CV183X ]]; then
           setconfig ATF_KEY_SEL_key1=y
           build_uboot
-          command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre.bin \
-            install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_pre/fip_pre_key1.bi
-          command mv install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip.bin \
-            install/soc_"${chip_list[$c]}"_"${board_sel[$b]}"/fip_key1.bin
+          command mv install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre.bin \
+            install/soc_"${PROJECT_FULLNAME}"/fip_pre/fip_pre_key1.bi
+          command mv install/soc_"${PROJECT_FULLNAME}"/fip.bin \
+            install/soc_"${PROJECT_FULLNAME}"/fip_key1.bin
         fi
         # copy .xml for usb download
         copy_tools
+        pack_gpt
       )
     done
   done

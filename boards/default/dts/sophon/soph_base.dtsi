@@ -210,7 +210,7 @@
 		capability = "rxtx";
 #endif
 		cs-gpios = <&portd 11 GPIO_ACTIVE_LOW>;
-		status = "okay";
+		status = "disabled";	//default disabled, for pcie EP/RC mode clk select
 		num-cs = <1>;
 		spidev@0 {
 			compatible = "rohm,dh2228fv";
@@ -778,10 +778,13 @@
 		compatible = "cvitek,i2s_tdm_subsys";
 		reg = <0x0 0x29100000 0x0 0x10000>;
 		clocks = <&i2s_mclk>, <&clk CV186X_CLK_A0PLL>,
+			<&clk CV186X_CLK_AUDSRC>, <&clk CV186X_CLK_AUD_DW>,
 			<&clk CV186X_CLK_AUD0>, <&clk CV186X_CLK_AUD1>,
 			<&clk CV186X_CLK_AUD2>, <&clk CV186X_CLK_AUD3>,
 			<&clk CV186X_CLK_AUD4>, <&clk CV186X_CLK_AUD5>;
+
 		clock-names = "i2sclk", "clk_a0pll",
+			"clk_audsrc", "clk_aud_dw",
 			"clk_sdma_aud0", "clk_sdma_aud1",
 			"clk_sdma_aud2", "clk_sdma_aud3",
 			"clk_sdma_aud4", "clk_sdma_aud5";
@@ -1433,7 +1436,7 @@
 		max-frequency = <200000000>;
 #else
 		no-1-8-v;
-		max-frequency = <20000000>;
+		max-frequency = <50000000>;
 #endif
 		64_addressing;
 		reset_tx_rx_phy;
@@ -1954,7 +1957,22 @@
 		interrupt-names = "dw_hdmi";
 		interrupt-parent = <&gic>;
 		status = "okay";
-		hpd_polarity = "normal"; // normal: high active; inversed: low active
+		hpd_level = "high"; 		/* high: high hpd level; low: low hpd level */
+		hdcp1x-enable = "false";	/* default HDCP disable */
+		ddc-i2c-scl-high-time-ns = <4500>;
+		ddc-i2c-scl-low-time-ns = <5200>;
+		phy-table =
+			<0  0x0007 0x0160 0x8d88>,
+			<1  0x0007 0x0160 0x8d88>,
+			<2  0x0007 0x0160 0x8d88>,
+			<3  0x0007 0x0160 0x8d88>,
+			<4  0x0007 0x0160 0x8d88>,
+			<5  0x0007 0x0160 0x8d88>,
+			<6  0x0000 0x0120 0x83F8>,
+			<7  0x0000 0x0120 0x83F8>,
+			<8  0x0000 0x0120 0x83F8>,
+			<9  0x0000 0x0140 0x80F6>,
+			<10 0x0000 0x0140 0x80F6>;
 
 		ports {
 			#address-cells = <1>;

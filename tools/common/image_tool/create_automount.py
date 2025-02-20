@@ -26,7 +26,7 @@ def genCase(case, out, parts, storage):
     out.write("%s)\n" % case)
     ubi_cnt = 0
     for i, p in enumerate(parts):
-        if p["label"] in ("BOOT", "MISC", "ROOTFS", "fip"):
+        if p["label"] in ("BOOT", "MISC", "ROOTFS", "fip", "GPT"):
             continue
         if not p["mountpoint"]:
             continue
@@ -37,7 +37,8 @@ def genCase(case, out, parts, storage):
             )
             out.write('printf "Mounting %s partition\\n"\n' % p["label"])
             if storage == "emmc":
-                source = "/dev/mmcblk0p" + str((i + 1))
+                # ignore GPT
+                source = "/dev/mmcblk0p" + str((i))
                 #if i == len(parts) - 1:
                 #    out.write(
                 #        "if [ $DL_FLAG'h' == '0x50524F47''h' ] || [ -z $ENV_DLFLAG ] || [ $ENV_DLFLAG == 'prog' ]; then\n"  # noqa

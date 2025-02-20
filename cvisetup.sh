@@ -333,7 +333,7 @@ function clean_middleware()
   popd
 }
 
-function build_bm1688_sdk {
+function build_dev_tpu_sdk {
   pushd ${TPU_SDK_PATH}
   cp -af lib/*.so*  "$SYSTEM_OUT_DIR"/lib/
   popd
@@ -418,14 +418,14 @@ function build_update()
 
 }
 
-function build_all()
+function build_device_all()
 {
   # build bsp
   build_uboot || return $?
   build_kernel || return $?
   build_middleware || return $?
   if [ "$TPU_REL" = 1 ]; then
-    build_bm1688_sdk || return $?
+    build_dev_tpu_sdk || return $?
   fi
   pack_access_guard_turnkey_app || return $?
   pack_ipc_turnkey_app || return $?
@@ -598,7 +598,7 @@ function cvi_setup_env()
   CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
   CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
   CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
-  CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
 
   # add toolchain path
   pathprepend "$CROSS_COMPILE_PATH_64"/bin

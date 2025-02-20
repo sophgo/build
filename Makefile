@@ -196,6 +196,9 @@ u-boot-build: ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER} ${UBOOT_CVIPART_DEP} ${UBOOT_
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvi_board_init.c ${UBOOT_CVI_BOARD_INIT_PATH}
 	${Q}rm -f ${UBOOT_CVITEK_PATH}
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvitek.h ${UBOOT_CVITEK_PATH}
+ifeq ($(STORAGE_TYPE),sd)
+	${Q}sed -i "s/.*CONFIG_SD_BOOT is not set/CONFIG_SD_BOOT=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endif
 ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
 	${Q}sed -i "s/CONFIG_ROOTFS_UBUNTU=n/CONFIG_ROOTFS_UBUNTU=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
@@ -356,7 +359,7 @@ ifneq ($(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)),)
 	${Q}find ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../ -name 'linux-headers*.deb' -exec dpkg -b ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/ {} \;
 	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/
 endif
-
+	
 	$(call copy_Image_action)
 	$(call copy_ko_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/modules)
 	$(call copy_header_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/$(ARCH)/usr/include)
@@ -369,6 +372,8 @@ endif
 ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64),y)
 INITRAMFS_BASE := glibc_arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
+INITRAMFS_BASE := glibc_arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131),y)
 INITRAMFS_BASE := glibc_arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 INITRAMFS_BASE := glibc_arm
@@ -436,10 +441,13 @@ endif
 boot: export KERNEL_COMPRESS=$(patsubst "%",%,$(CONFIG_KERNEL_COMPRESS))
 boot: kernel-dts
 	$(call print_target)
-ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+
+ifneq (,$(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)))
+ifeq ($(STORAGE_TYPE),sd)
+	$(call gen_cpio,sdboot_fixed_files.txt)
+else
 	$(call gen_cpio,boot_fixed_files.txt)
-else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
-	$(call gen_cpio,boot_fixed_files.txt)
+endif #STORAGE_TYPE!=sd
 else
 ifeq ($(CONFIG_ROOTFS_OVERLAYFS),y)
 	$(call gen_cpio,overlayfs_fixed_files.txt.sqsh)
@@ -554,6 +562,8 @@ ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64),y)
 packages_arch := arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
 packages_arch := arm64
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131),y)
+packages_arch := arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 packages_arch := arm
 else ifeq ($(CONFIG_TOOLCHAIN_UCLIBC_ARM),y)
@@ -566,6 +576,8 @@ endif
 
 ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V930),y)
 ROOTFS_BASE := common_$(packages_arch)_v930
+else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131),y)
+ROOTFS_BASE := common_$(packages_arch)_v1130
 else
 ROOTFS_BASE := common_$(packages_arch)
 endif

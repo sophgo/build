@@ -43,6 +43,52 @@ function gettop()
   fi
 }
 
+
+update_files_if_newer() {
+    local filename_pattern="$1"
+    local source_path="$2"
+    local target_path="$3"
+
+
+    if [[ ! -d "$source_path" ]]; then
+        return 1
+    fi
+
+    if [[ ! -d "$target_path" ]]; then
+        mkdir -p "$target_path" || { echo "Failed to create target path."; return 1; }
+    fi
+
+    local expanded_patterns
+    expanded_patterns=$(eval echo "$source_path/$filename_pattern")
+
+    local files=($expanded_patterns)
+
+    for source_file in "${files[@]}"; do
+        if [[ ! -e "$source_file" ]]; then
+            #echo "No files matching pattern in $source_path."
+            continue
+        fi
+
+        local target_file="${target_path}/$(basename "$source_file")"
+
+        if [[ ! -e "$target_file" ]]; then
+            echo "update $target_file"
+            cp "$source_file" "$target_file" || echo "update failed."
+            continue
+        fi
+
+        local source_mtime=$(stat -c %Y "$source_file")
+        local target_mtime=$(stat -c %Y "$target_file")
+
+        if [[ "$source_mtime" -gt "$target_mtime" ]]; then
+            echo "update  $target_file"
+            cp "$source_file" "$target_file" || echo "update failed."
+        fi
+    done
+}
+
+
+
 function _build_fsbl_env()
 {
   export FSBL_PATH
@@ -326,52 +372,22 @@ function clean_bm1686_sdk {
 	rm -rf ${TPU_SDK_PATH}
 }
 
-function clean_ai_sdk()
+function clean_tdl_sdk()
 {
-    rm -rf "$AI_SDK_INSTALL_PATH"
-    rm -rf "$AI_SDK_PATH"/tmp/_deps
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh clean
+  popd
 }
 
-function build_ai_sdk()
+function build_tdl_sdk()
 {
   if [ ! -e "$TPU_SDK_INSTALL_PATH" ]; then
     echo "$TPU_SDK_INSTALL_PATH not present, run build_tpu_sdk first"
     return 1
   fi
 
-  if [ "$SDK_VER" = 64bit ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_64"
-  elif [ "$SDK_VER" = 32bit ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_32"
-  elif [ "$SDK_VER" = uclibc ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_UCLIBC"
-  elif [ "$SDK_VER" = glibc_riscv64 ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
-  elif [ "$SDK_VER" = musl_riscv64 ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL_RISCV64"
-  else
-    echo "Unknown SDK_VER=$SDK_VER"
-    return 1
-  fi
-  local SDK_PATH=
-  local SDK_INSTALL_PATH=
-
-  SDK_PATH="$AI_SDK_PATH"
-  SDK_INSTALL_PATH="$AI_SDK_INSTALL_PATH"
-  pushd "$SDK_PATH"
-  HOST_TOOL_PATH="$HOST_TOOL_PATH" \
-  MW_PATH="$MW_PATH" \
-  CHIP_ARCH="$CHIP_ARCH" \
-  OPENCV_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
-  TRACER_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
-  TPU_SDK_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
-  IVE_SDK_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
-  AI_SDK_INSTALL_PATH="$AI_SDK_INSTALL_PATH" \
-  IVS_SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH" \
-  CNV_SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH" \
-  SYSTEM_OUT_DIR="$SYSTEM_OUT_DIR" \
-  KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
-      scripts/sdk_release.sh
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh all
   test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
   popd
 }
@@ -431,7 +447,91 @@ function clean_libsophon()
   if [ -d "$LIBSOPHON_PATH"/install ]; then
     rm -rf "$LIBSOPHON_PATH"/install/*
   fi
+  rm -rf "$LIBSOPHON_PATH"/build
 }
+
+function clean_bmsophon()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf "$LIBSOPHON_PATH"/pcie_build
+}
+
+
+
+function build_bmsophon()
+{
+  clean_bmsophon
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  local _static_lib=OFF
+  local _install_prefix="$LIBSOPHON_PATH"/pcie_build/install
+  if ! grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config && ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+    _static_lib=ON
+    _install_prefix="$SYSTEM_OUT_DIR"/usr/lib
+  fi
+
+  local lib_dir="$LIBSOPHON_PATH"/3rdparty/soc/
+  local toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux.cmake
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib930/
+    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-930.cmake
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib1131/
+    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-1131.cmake
+  fi
+
+  pushd "$LIBSOPHON_PATH" || return
+
+  cmake \
+    -B pcie_build \
+    -G Ninja \
+    -DPLATFORM=pcie_arm64 \
+    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD" \
+    -DLIB_DIR="${lib_dir}" \
+    -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
+    -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
+    -DBUILD_STATIC_LIB="${_static_lib}" \
+    -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
+    -DDEBUG=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+
+  cmake --build pcie_build --parallel "$(nproc)"
+  cmake --build pcie_build --target driver
+  cmake --build pcie_build --target package --parallel "$(nproc)"
+}
+
+function clean_amd64_bmsophon()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf "$LIBSOPHON_PATH"/amd64_build
+}
+
+
+
+function build_amd64_bmsophon()
+{
+  clean_amd64_bmsophon
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  local _install_prefix="$LIBSOPHON_PATH"/build/install
+
+  pushd "$LIBSOPHON_PATH" || return
+
+  cmake \
+    -B amd64_build \
+    -G Ninja \
+    -DPLATFORM=pcie \
+    -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
+    -DDEBUG=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+
+  cmake --build amd64_build --parallel "$(nproc)"
+  cmake --build amd64_build --target driver
+  cmake --build amd64_build --target package --parallel "$(nproc)"
+}
+
 
 function build_libsophon()
 {
@@ -450,6 +550,9 @@ function build_libsophon()
   if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
     lib_dir="$LIBSOPHON_PATH"/3rdparty/lib930/
     toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-930.cmake
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib1131/
+    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-1131.cmake
   fi
 
   pushd "$LIBSOPHON_PATH" || return
@@ -458,7 +561,7 @@ function build_libsophon()
     -B build \
     -G Ninja \
     -DPLATFORM=soc \
-    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
+    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD" \
     -DLIB_DIR="${lib_dir}" \
     -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
     -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
@@ -501,21 +604,36 @@ function build_libsophon()
   popd
 }
 
-function build_bm1688_rootfs()
+function build_edge_rootfs()
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  build_bm1688_overlay || { ret=$?; echo "Error: build_bm1688_overlay failed with exit code $ret"; return $ret; }
+  build_edge_overlay || { ret=$?; echo "Error: build_edge_overlay failed with exit code $ret"; return $ret; }
   local version=$(grep Version $DISTRO_OVERLAY_DIR/$CVIARCH/sophgo-fs/DEBIAN/control | cut -d ' ' -f 2)
   mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/debs
   dpkg-deb -b "${DISTRO_OVERLAY_DIR}/${CVIARCH}/sophgo-fs" \
     "${EDGE_ROOTFS_DIR}/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb"
+
+  mkdir -p ${BSP_DEBS}
+  mkdir -p ${SDK_DEBS}
+  mkdir -p ${MOD_DEBS}
+
+  shopt -s nullglob
+  update_files_if_newer "linux*.deb" "${TOP_DIR}/linux_5.10/build" "${BSP_DEBS}"
+  update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${SDK_DEBS}"
+  update_files_if_newer "sophon-soc-libisp*arm64.deb" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "${SDK_DEBS}"
+  update_files_if_newer "sophon-soc-libsophon*.deb" "${TOP_DIR}/libsophon/build" "${SDK_DEBS}"
+
+  shopt -u nullglob
 
   echo copy overlay file to rootfs...
   sudo cp -rf \
     "$DISTRO_OVERLAY_DIR"/common/rootfs/* \
     "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/rootfs/* \
     "${EDGE_ROOTFS_DIR}"
+  # copy customer's debs
+  find "${TOP_DIR}"/ubuntu/bootloader-arm64/distro/debs \
+    -name *.deb -exec cp -f {} "${MOD_DEBS}" \;
 
   mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs
   find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs \;
@@ -568,23 +686,37 @@ function build_sophon_media(){
   fi
 
   print_notice "Run ${FUNCNAME[0]}() function"
-  pushd ${TOP_DIR}/sophon_media
-  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
-    source build/build_cmake.sh 930
+  MEDIA_DEBUG="off"
+  if [ "$MEDIA_DEBUG" = "on" ]; then
+    CMAKE_BUILD_TYPE="Debug"
   else
-    source build/build_cmake.sh
+    CMAKE_BUILD_TYPE="Release"
   fi
+  mkdir -p ${TOP_DIR}/sophon_media/buildit
+  pushd ${TOP_DIR}/sophon_media/buildit
+  GCC_V="1131"
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    #source build/build_cmake.sh 930
+    GCC_V="930"
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    #source build/build_cmake.sh 1131
+    GCC_V="1131"
+  fi
+  cmake -DPLATFORM=soc -DGCC_VERSION=$GCC_V -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -DDEBUG=$MEDIA_DEBUG -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
+  cmake --build . --target all -- -j`nproc`
+  cmake --build . --target sophon_sample
+  cmake --build . --target package
   popd
 }
 
-function clean_sophon_media(){
+function clean_sophon_media(){ 
+  print_notice "Run ${FUNCNAME[0]}() function"
   if [ ! -d "${TOP_DIR}/sophon_media" ]; then
     return 0
   fi
 
-  print_notice "Run ${FUNCNAME[0]}() function"
   pushd ${TOP_DIR}/sophon_media
-  cmake --build buildit --target clean
+  rm -rf buildit install
   popd
 }
 
@@ -595,20 +727,21 @@ function clean_distro() {
   fi
 }
 
-function build_bm1688_env() {
-  export DISTRO=${DISTRO:-focal}
+function build_edge_env() {
+  #export DISTRO=${DISTRO:-focal}
+  export DISTRO=jammy
   export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
   export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
   export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
   export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
-  export DISTRO_MD5="28ad82b4cf01327b1f81d3d193923424"
+  export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
 
   export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
   export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
   export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
 }
 
-function build_bm1688_overlay() {
+function build_edge_overlay() {
   sudo rm -rf "${EDGE_ROOTFS_DIR}"
   mkdir -p "${EDGE_ROOTFS_DIR}"
 
@@ -625,14 +758,16 @@ function build_bm1688_overlay() {
     if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" ]; then
       echo "load distro_${DISTRO}.tgz ..."
       cd ${TOP_DIR}/ubuntu/distro
-	  python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}.tgz
+      python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
+      mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
     else
         FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
         if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
             echo "update distro_${DISTRO}.tgz ..."
             rm -f "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz"
 			cd ${TOP_DIR}/ubuntu/distro
-            python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}.tgz
+            python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
+	    mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
         fi
     fi
     FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
@@ -646,7 +781,7 @@ function build_bm1688_overlay() {
 
 }
 
-function build_bm1688_sdk() {
+function build_edge_sdk() {
   print_notice "Run ${FUNCNAME[0]}() function"
   local preinstall_sdks="$*"
 
@@ -655,99 +790,70 @@ function build_bm1688_sdk() {
   done
   mkdir -p ${MOD_DEBS}
 
-  # update linux kernel debs
-  shopt -s nullglob
-  matched_deb_files=("${TOP_DIR}/linux_5.10/build/"*.deb)
-  if [ ${#matched_deb_files[@]} -gt 0 ]; then
-    rm -f "${BSP_DEBS}"/*.deb
-  fi
-  shopt -u nullglob
-  cp -f "${TOP_DIR}"/linux_5.10/build/*.deb ${BSP_DEBS}
-
   # copy libsophon debs
   if [[ "${preinstall_sdks}" == *"libsophon"* ]]; then
     build_libsophon || return $?
-    cp -f "${TOP_DIR}"/libsophon/build/sophon-soc-libsophon*.deb ${SDK_DEBS}
   fi
 
   # copy sophon_media debs
   if [[ "${preinstall_sdks}" == *"sophon_media"* ]]; then
-    cp middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp*arm64.deb ${SDK_DEBS}
     if [ -d "${TOP_DIR}"/sophon_media ]; then
-      cp "${TOP_DIR}"/sophon_media/media_release/sophon[_-]media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_1.8.0_arm64.deb ${SDK_DEBS}
+      build_sophon_media
     fi
   fi
 
-  # copy sophliteos debs
-  if [[ "${preinstall_sdks}" == *"sophliteos"* ]]; then
-    cp "${TOP_DIR}"/sophliteos/release/sophliteos_soc_*_sdk.deb "${SDK_DEBS}"
-    cp "${TOP_DIR}"/sophliteos/release/bmssm_soc_*_SDK.deb "${SDK_DEBS}"
-  fi
 
-  # copy customer's debs
-  find "${TOP_DIR}"/ubuntu/bootloader-arm64/distro/debs \
-    -name *.deb -exec cp -f {} "${MOD_DEBS}" \;
 }
 
-function build_bm1688_package(){
+function build_edge_package(){
   cd ${TOP_DIR}
   cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/local_update.sh ${TOP_DIR}/build/scripts
+  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update.sh ${TOP_DIR}/build/scripts
   build_package
-  if [ -d "$OUTPUT_DIR"/package_edge ]; then
-    echo copy sdk files...
-    sudo cp -f "$LIBSOPHON_PATH"/build/libsophon_soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge
-    #if [ -d "${TOP_DIR}"/sophon_media ]; then
-      #sudo cp -f "${TOP_DIR}"/sophon_media/media_release/sophon-media-soc_*_aarch64.tar.gz "$OUTPUT_DIR"/package_edge 2>/dev/null
-    #fi
-  fi
-
 }
 
-function build_bm1688_edge()
-{
+function build_edge_all(){
+  local target=${1:-all}
+
+  build_edge_env || { ret=$?; echo "Error: build_edge_env failed with exit code $ret"; return $ret; }
   build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
   build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
   build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
   build_ramboot || { ret=$?; echo "Error: build_ramboot failed with exit code $ret"; return $ret; }
   build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
-}
-
-function build_bm1688_all(){
-  local target=${1:-all}
-
-  build_bm1688_env || { ret=$?; echo "Error: build_bm1688_env failed with exit code $ret"; return $ret; }
-  build_bm1688_edge || { ret=$?; echo "Error: build_bm1688_edge failed with exit code $ret"; return $ret; }
 
   if [ "${target}" == "regression" ]; then
-    build_bm1688_sdk libsophon || { echo "Error: build_bm1688_sdk libsophon failed with exit code $?"; return $?; }
+    build_libsophon || { echo "Error: build_libsophon failed with exit code $?"; return $?; }
   else
-    #build_bm1688_sdk libsophon sophon_media sophliteos || { echo "Error: build_bm1688_sdk failed with exit code $?"; return $?; }
-    build_bm1688_sdk libsophon || { ret=$?; echo "Error: build_bm1688_sdk libsophon failed with exit code $ret"; return $ret; }
-    build_bm1688_sdk sophon_media || { ret=$?; echo "Error: build_bm1688_sdk sophon_media failed with exit code $ret"; return $ret; }
-    build_bm1688_sdk sophliteos || { ret=$?; echo "Error: build_bm1688_sdk sophliteos failed with exit code $ret"; return $ret; }
+    build_libsophon || { ret=$?; echo "Error: build_libsophon failed with exit code $ret"; return $ret; }
+    build_sophon_media || { ret=$?; echo "Error: build_sophon_media failed with exit code $ret"; return $ret; }
   fi
 
   if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
     pack_rootfs || { ret=$?; echo "Error: pack_rootfs failed with exit code $ret"; return $ret; }
   else
-    build_bm1688_rootfs || { ret=$?; echo "Error: build_bm1688_rootfs failed with exit code $ret"; return $ret; }
+    build_edge_rootfs || { ret=$?; echo "Error: build_edge_rootfs failed with exit code $ret"; return $ret; }
 
-	if [ "${target}" != "regression" ]; then
-        build_bm1688_package || { ret=$?; echo "Error: build_bm1688_package failed with exit code $ret"; return $ret; }
-	fi
+    if [ "${target}" != "regression" ]; then
+        build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
+    fi
   fi
 }
 
-function clean_bm1688_all(){
-  clean_edge_pack
+function clean_edge_all(){
+  clean_uboot
+  clean_kernel
+  clean_osdrv
+  clean_ramdisk
+  clean_v4l2_isp
+  cd ${TOP_DIR}
   clean_libsophon
   clean_sophon_media
+  rm -rf ${TOP_DIR}/ubuntu/install
 
   if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
 	clean_rootfs || return $?
   fi
-  cd ${TOP_DIR}
-  rm -rf ubuntu/install
 }
 
 function build_bmcpu()
@@ -922,7 +1028,7 @@ function build_access_guard_turnkey_app()
     export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
     export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
     export SDK_INSTALL_PATH="$OUTPUT_DIR"
-    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    export KERNEL_INC="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD"/usr/include/
     ln -sf "$SDK_INSTALL_PATH"/tpu_* "$SDK_INSTALL_PATH"/tpu
     pushd "$ACCESSGUARD_PATH"
       source build.sh
@@ -941,7 +1047,7 @@ function clean_access_guard_turnkey_app()
     export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
     export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
     export SDK_INSTALL_PATH="$OUTPUT_DIR"
-    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    export KERNEL_INC="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD"/usr/include/
     pushd "$ACCESSGUARD_PATH"
     source build.sh
     access_guard_clean
@@ -1060,29 +1166,18 @@ function build_update()
 
 	pushd $OUTPUT_DIR/package_edge/$1
 	cp $SCRIPTS_DIR/local_update.sh .
+	cp $SCRIPTS_DIR/ota_update.sh .
 	md5sum * > md5.txt
 	popd
 
 }
 
-
-
-function build_edge_pack()
+function gen_sd_image()
 {
-    build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
-    build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
-    build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
-    build_ramboot || { ret=$?; echo "Error: build_ramboot failed with exit code $ret"; return $ret; }
-    build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
-}
-
-function clean_edge_pack()
-{
-    clean_uboot || return $?
-    clean_kernel || return $?
-    clean_osdrv || return $?
-    clean_ramdisk || return $?
-    clean_v4l2_isp || return $?
+    _build_kernel_env
+    _build_uboot_env
+    echo "Using partition xml: $FLASH_PARTITION_XML"
+    python ${TOP_DIR}/build/tools/common/image_tool/mk_sd_image.py $FLASH_PARTITION_XML $OUTPUT_DIR
 }
 
 function build_package()
@@ -1096,10 +1191,13 @@ function build_package()
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/boot.itb $PACKAGE_OUTPUT_DIR/boot/
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/multi.its $PACKAGE_OUTPUT_DIR/boot/
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/boot/
-    cp -rf $BOOTLOGO_PATH $PACKAGE_OUTPUT_DIR/boot/
+    cp -rf $HDCP_KEY_PATH/hdcp_key.bin $PACKAGE_OUTPUT_DIR/boot/
+    cp -rf $BOOTLOGO_PATH/soph_logo.bmp $PACKAGE_OUTPUT_DIR/boot/
 
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/
     cp -rf $OUTPUT_DIR/ramboot.itb $PACKAGE_OUTPUT_DIR/
+    update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$OUTPUT_DIR/package_edge"
+    update_files_if_newer "sophon-media-soc_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/buildit" "$OUTPUT_DIR/package_edge"
 
     mkimage -A arm64 -O linux -T script -C none -a 0 -e 0 -n "eMMC Boot Script" \
             -d ${TOP_DIR}/build/boot.cmd.emmc ${OUTPUT_DIR}/boot.scr.emmc
@@ -1110,8 +1208,6 @@ function build_package()
     mv ramboot.itb recovery.itb
     tar -zcvf recovery.tgz recovery.itb
 
-    echo "stty cols 160" >> "${EDGE_ROOTFS_DIR}"/home/linaro/.bashrc
-    echo "stty cols 160" >> "${EDGE_ROOTFS_DIR}"/root/.bashrc
     sudo cp -rf  $OUTPUT_DIR/rootfs/mnt/system "${EDGE_ROOTFS_DIR}"/mnt/
 
     mkdir -p rootfs_rw/overlay/home/linaro
@@ -1122,6 +1218,10 @@ function build_package()
     sudo tar -zcf .rootfs_rw.tgz -C rootfs_rw .
     sudo mv .rootfs_rw.tgz rootfs_rw/
     sudo tar -zcf rootfs_rw.tgz -C rootfs_rw .
+
+    mkdir -p $PACKAGE_OUTPUT_DIR/data
+    rsync -av $ROOT_TOP_DIR/bootloader-arm64/distro/data/ $PACKAGE_OUTPUT_DIR/data/
+    tar -zcf data.tgz -C data .
     popd
 
     find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
@@ -1140,7 +1240,7 @@ function build_package()
 
 
 # shellcheck disable=SC2120
-function build_all()
+function build_device_all()
 {(
   build_uboot || return $?
   build_kernel || return $?
@@ -1153,7 +1253,7 @@ function build_all()
     build_cvi_rtsp || return $?
     if [ "$TPU_REL" = 1 ]; then
       build_bm1686_sdk || return $?
-      build_ai_sdk || return $?
+      build_tdl_sdk || return $?
     fi
     build_pqtool_server || return $?
     build_access_guard_turnkey_app || return $?
@@ -1163,11 +1263,12 @@ function build_all()
   pack_rootfs || return $?
   pack_data || return $?
   pack_system || return $?
+  pack_gpt || return $?
   copy_tools || return $?
   pack_upgrade || return $?
 )}
 
-function clean_all()
+function clean_device_all()
 {
   clean_uboot
   clean_opensbi
@@ -1180,7 +1281,7 @@ function clean_all()
   clean_3rd_party
   if [ "$TPU_REL" = 1 ]; then
     clean_bm1686_sdk
-    clean_ai_sdk
+    clean_tdl_sdk
   fi
   clean_access_guard_turnkey_app
   clean_ipc_app
@@ -1285,7 +1386,7 @@ function cvi_setup_env()
   export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH
   export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH LIBSOPHON_PATH BMCPU_PATH
 
-  PROJECT_FULLNAME="$CHIP"_"$BOARD"
+  PROJECT_FULLNAME="$SIDE_TYPE"_"$BOARD"
 
   # output folder path
   INSTALL_PATH="$TOP_DIR"/install
@@ -1320,7 +1421,7 @@ function cvi_setup_env()
   CNV_SDK_PATH="$TOP_DIR"/cnv
   ACCESSGUARD_PATH="$TOP_DIR"/access-guard-turnkey
   IPC_APP_PATH="$TOP_DIR"/framework/applications/ipc
-  AI_SDK_PATH="$TOP_DIR"/tdl_sdk
+  TDL_SDK_PATH="$TOP_DIR"/tdl_sdk
   CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
   CVI_RTSP_PATH="$TOP_DIR"/cvi_rtsp
   OPENSBI_PATH="$TOP_DIR"/opensbi
@@ -1332,7 +1433,8 @@ function cvi_setup_env()
   SCRIPTTOOL_PATH="$COMMON_TOOLS_PATH"/scripts
   ROOTFSTOOL_PATH="$COMMON_TOOLS_PATH"/rootfs_tool
   SPINANDTOOL_PATH="$COMMON_TOOLS_PATH"/spinand_tool
-  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo/soph_logo.bmp
+  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo
+  HDCP_KEY_PATH="$COMMON_TOOLS_PATH"/hdcp_key
 
   # subfolder path for buidling, chosen accroding to .gitignore rules
   UBOOT_OUTPUT_FOLDER=build/"$PROJECT_FULLNAME"
@@ -1345,6 +1447,8 @@ function cvi_setup_env()
   # toolchain
   if [ "$TOOLCHAIN_GLIBC_ARM64_V930" == "y" ]; then
 	export CROSS_COMPILE_64=aarch64-linux-
+  elif [ "$TOOLCHAIN_GLIBC_ARM64_V1131" == "y" ]; then
+	export CROSS_COMPILE_64=aarch64-none-linux-gnu-
   else
 	export CROSS_COMPILE_64=aarch64-linux-gnu-
   fi
@@ -1360,6 +1464,8 @@ function cvi_setup_env()
   # toolchain path
   if [ "$TOOLCHAIN_GLIBC_ARM64_V930" == "y" ]; then
 	CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/gcc-buildroot-9.3.0-aarch64-linux-gnu
+  elif [ "$TOOLCHAIN_GLIBC_ARM64_V1131" == "y" ]; then
+	CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu
   else
 	CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
   fi
@@ -1369,7 +1475,7 @@ function cvi_setup_env()
   CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
   CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
   CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
-  CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
 
   # add toolchain path
   pathprepend "$CROSS_COMPILE_PATH_64"/bin
@@ -1408,6 +1514,8 @@ function cvi_setup_env()
   # sysroot
   if [ "$TOOLCHAIN_GLIBC_ARM64_V930" == "y" ]; then
 	SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-gcc-buildroot-9.3.0-aarch64-linux-gnu
+  elif [ "$TOOLCHAIN_GLIBC_ARM64_V1131" == "y" ]; then
+	SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-gcc-buildroot-11.3.0-aarch64-linux-gnu
   else
 	SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-glibc-linaro-2.23-2017.05-aarch64-linux-gnu
   fi
@@ -1444,7 +1552,7 @@ function cvi_setup_env()
       return 1
     fi
   fi
-  build_bm1688_env
+  build_edge_env
 }
 
 function croot()
@@ -1476,10 +1584,10 @@ function print_usage()
   printf "    (1)\33[94m menuconfig \33[0m- Use menu to configure your board.\n"
   printf "        ex: $ menuconfig\n\n"
   printf "    (2)\33[96m defconfig \$CHIP_ARCH \33[0m- List EVB boards(\$BOARD) by CHIP_ARCH.\n"
-  "${BUILD_PATH}/scripts/boards_scan.py" --list-chip-arch
-  printf "        ex: $ defconfig sophon\n\n"
+  "${BUILD_PATH}/scripts/boards_scan.py" --list-side-arch
+  printf "        ex: $ defconfig edge\n\n"
   printf "    (3)\33[92m defconfig \$BOARD\33[0m - Choose EVB board settings.\n"
-  printf "        ex: $ defconfig cv186ah_wevb_emmc\n"
+  printf "        ex: $ defconfig edge_wevb_emmc\n"
   printf "  -------------------------------------------------------------------------------------------------------\n"
 }
 
@@ -1491,7 +1599,6 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
-export FTP_SERVER_IP=${FTP_SERVER_IP:-10.80.0.5}
 
 # import common functions
 # shellcheck source=./common_functions.sh
@@ -1505,3 +1612,4 @@ source "$TOP_DIR/build/alios_functions.sh"
 # pack backdoor file for PLD env
 source "$TOP_DIR/build/pld_backdoor.sh"
 
+print_usage

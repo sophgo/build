@@ -320,10 +320,6 @@ function create_top_script()
 	script_update "led error off"
 	script_update "setenv light 1"
 	script_update ""
-	script_update "#for SE9BX direct to ubuntu"
-	script_update "cmp.b 0x05207f82 0x05207f83 1"
-	script_update "if test \$? -eq 1; then setenv consoledev ttyS2; setenv DTS_TYPE config-cv186ah_sm9v1_4G; load mmc 0:1 \${scriptaddr} boot.scr.emmc; source \${scriptaddr}; fi;"
-	script_update ""
 	script_update "if test \"\$reset_after\" = \"1\"; then reset; fi;"
 	script_update ""
 	if [ "${UPTYPE}" != usb ]; then
@@ -554,9 +550,13 @@ function make_partition_imgs()
 		gen_partition_img $i ${LABELS[$i]} ${PART_FORMAT[$i]}
 	) done
 
+
 	for i in $(seq 0 $[${#LABELS[@]}-1]); do (
+	    if [ $i -ne 2 ]; then
 		split_and_compress_img $i ${LABELS[$i]}
+	    fi
 	) done
+	split_and_compress_img 2 ${LABELS[2]}
 
 	wait
 }

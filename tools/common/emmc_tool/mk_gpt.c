@@ -85,6 +85,11 @@ static void uuid2guid(struct guid_t *guid, uuid_t uuid)
 static void init_gpt(uint64_t total_size)
 {
 	uint64_t sector = total_size / LBA_SIZE;
+	if (!sector) {
+		sector = 28 * 1024 * 1024 * 2;
+		printf("set defaule size to 28GiB\n");
+	}
+
 	uuid_t uuid;
 	memset(&mbr, 0, sizeof(mbr));
 	memset(&pheader, 0, sizeof(pheader));
@@ -125,7 +130,7 @@ static void init_gpt(uint64_t total_size)
 	pheader.size_of_entry = ENTRY_SIZE;
 	bheader.size_of_entry = ENTRY_SIZE;
 	current_part = 0;
-	current_lba = 8192;
+	current_lba = 8192 * 1024 / LBA_SIZE;
 }
 
 static void write_partition(int fd, xmlNodePtr xml_node)

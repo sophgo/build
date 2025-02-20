@@ -55,8 +55,10 @@ def gen_cvipart_h(output, parser):
         else:
             # If no ENV or U-BOOT ENV has been set in partition.xml, we assume
             # there is no env support
-            of.write("#ifndef CONFIG_ENV_IS_NOWHERE\n#define CONFIG_ENV_IS_NOWHERE\n#endif\n")
-            of.write("#define CONFIG_ENV_SIZE 0x20000\n")
+        #    of.write(
+        #        "#ifndef CONFIG_ENV_IS_NOWHERE\n#define CONFIG_ENV_IS_NOWHERE\n#endif\n"
+        #    )
+            of.write("#define CONFIG_ENV_SIZE 0x80000\n")
             env_exist = False
 
         if env_exist and "ENV_BAK" in parser.parts:
@@ -64,15 +66,19 @@ def gen_cvipart_h(output, parser):
 
         LBA_SIZE = 1
         if parser.getStorage() == "emmc":
+            of.write("#define CONFIG_ENV_IS_IN_MMC\n")
+            of.write("#define CONFIG_ENV_SECT_SIZE  0x40000\n")
             if env_exist:
-                of.write("#define CONFIG_ENV_IS_IN_MMC\n")
-                of.write("#define CONFIG_ENV_SECT_SIZE  0x40000\n")
                 of.write("#define CONFIG_SYS_MMC_ENV_DEV 0\n")
                 of.write("#define CONFIG_SYS_MMC_ENV_PART 0\n")
+            else:
+                of.write("#define CONFIG_SYS_MMC_ENV_DEV 0\n")
+                of.write("#define CONFIG_SYS_MMC_ENV_PART 1\n")
+                of.write("#define CONFIG_ENV_OFFSET 0x200000\n")
 
             # Generintg BLKDEV
             of.write("#define PART_LAYOUT    ")
-            of.write("\"blkdevparts=mmcblk0:")
+            #of.write('"blkdevparts=mmcblk0:')
             for i, p in enumerate(parts):
                 if p["part_size"] != sys.maxsize:
                     part_size = str(int(p["part_size"] / 1024)) + "K"
@@ -82,13 +88,15 @@ def gen_cvipart_h(output, parser):
                     comma = ";"
                 else:
                     comma = ","
-                of.write("%s(%s)%s" % (part_size, p["label"], comma))
-            of.write("mmcblk0boot0:1M(fip),1M(fip_bak);\"")
+                #of.write("%s(%s)%s" % (part_size, p["label"], comma))
+            #of.write('mmcblk0boot0:1M(fip),1M(fip_bak);"')
             of.write("\n")
 
             for i, p in enumerate(parts):
                 if p["label"] == "ROOTFS":
-                    of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i + 1))
+                    #of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i + 1))
+                    # need to ignore gpt partition
+                    of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i))
 
         elif parser.getStorage() == "spinand":
             if env_exist:
@@ -103,7 +111,7 @@ def gen_cvipart_h(output, parser):
                 else:
                     part_size = "-"
                 if part_size == "-" or i == len(parts) - 1:
-                    comma = "\"\n"
+                    comma = '"\n'
                 else:
                     comma = ","
                 of.write("%s(%s)%s" % (part_size, p["label"], comma))
@@ -131,6 +139,22 @@ def gen_cvipart_h(output, parser):
                     of.write('#define ROOTFS_DEV "/dev/mtdblock%d"\n' % i)
                     break
 
+        elif parser.getStorage() == "sd":
+            if env_exist:
+                of.write("#define CONFIG_ENV_IS_IN_MMC\n")
+                of.write("#define CONFIG_ENV_SECT_SIZE  0x40000\n")
+                of.write("#define CONFIG_SYS_MMC_ENV_DEV 0\n")
+                of.write("#define CONFIG_SYS_MMC_ENV_PART 0\n")
+
+            # Generintg BLKDEV
+            of.write("#define PART_LAYOUT    ")
+            of.write('""\n')
+
+            for i, p in enumerate(parts):
+                if p["label"] == "ROOTFS":
+                    of.write('#define ROOTFS_DEV "/dev/mmcblk1p%d"\n' % (i + 1))
+                    break
+
         elif parser.getStorage() == "none":
             of.write('#define PART_LAYOUT ""\n')
             of.write('#define ROOTFS_DEV ""\n')
@@ -138,8 +162,7 @@ def gen_cvipart_h(output, parser):
 
         if env_exist:
             of.write(
-                "#define CONFIG_ENV_OFFSET 0x%X\n"
-                % (parser.parts[label]["offset"])
+                "#define CONFIG_ENV_OFFSET 0x%X\n" % (parser.parts[label]["offset"])
             )
             if env_bak:
                 of.write(
@@ -158,7 +181,10 @@ def gen_cvipart_h(output, parser):
         if parser.getStorage() != "none":
             of.write("#define PARTS_OFFSET \\\n")
             for i, p in enumerate(parts):
-                of.write('"%s_PART_OFFSET=0x%x\\0" \\\n' % (p["label"], int(p["offset"] / LBA_SIZE)))
+                of.write(
+                    '"%s_PART_OFFSET=0x%x\\0" \\\n'
+                    % (p["label"], int(p["offset"] / LBA_SIZE))
+                )
                 if i == len(parts) - 1:
                     of.write(
                         '"%s_PART_SIZE=0x%x\\0"\n'
@@ -180,7 +206,11 @@ def gen_fw_config(output, parser, block_size=128 * 1024):
     part_index = -1
     with open(os.path.join(output, "fw_env.config"), "w") as of:
         for i in range(len(parts)):
-            if parts[i]["label"] == "ENV" or parts[i]["label"] == "U-BOOT ENV" or parts[i]["label"] == "ENV_BAK":
+            if (
+                parts[i]["label"] == "ENV"
+                or parts[i]["label"] == "U-BOOT ENV"
+                or parts[i]["label"] == "ENV_BAK"
+            ):
                 part_index = i
                 if parser.storage == "spinand":
                     of.write(
@@ -190,7 +220,10 @@ def gen_fw_config(output, parser, block_size=128 * 1024):
                 elif parser.storage == "emmc":
                     of.write(
                         "/dev/mmcblk0 0x%x 0x%x\n"
-                        % ((parts[part_index]["offset"]), parts[part_index]["part_size"])
+                        % (
+                            (parts[part_index]["offset"]),
+                            parts[part_index]["part_size"],
+                        )
                     )
                 elif parser.storage == "spinor":
                     of.write(
