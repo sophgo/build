@@ -307,6 +307,7 @@ local OTHER_TOOLS=(
   "cvi_auto_play"
   "cvi_auto_record"
   "cvi_auto_special"
+  "raw_replay_test"
 )
 
   output_path="$board_tools_path"
@@ -322,7 +323,7 @@ local OTHER_TOOLS=(
         -a -name "$bin_tool" -type f -exec cp {} "$output_path"/"$bin_tool"."$SDK_VER" \;
   done
 
-  SAMPLE=$(find ./ \( -path './middleware/*' \) -a -name "sample_*" -type f -perm -111 -exec basename {} \;)
+  SAMPLE=$(find ./ \( -path './middleware/*' \) -a \( -name "sample_*" -o -name "sensor_test" -o -name "ir_auto" \) -a -type f -perm -111 -exec basename {} \;)
   for sample in ${SAMPLE[@]}; do
     find ./ \( -path './middleware/'"$MW_VER"'/*' \) -a -name "$sample" -type f \
         -exec cp {} "$output_path"/sample_bin/"$sample"."$SDK_VER" \;
