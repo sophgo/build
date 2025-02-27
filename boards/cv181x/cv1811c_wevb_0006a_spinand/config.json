@@ -5,5 +5,5 @@
         "ddr3_2133_x16",
 	"ddr_auto_x16"
     ],
-    "board_information": "C906B + SPINAND 256MB + BGA SIP 128MB"
+    "board_information": "C906B + SPINAND 256MB + QFN SIP 128MB"
 }
