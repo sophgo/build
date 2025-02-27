@@ -4,13 +4,25 @@
 
 ALIOS_SOLUTIONS_DIR=${ALIOS_PATH}/solutions/${subst ",,${CONFIG_ALIOS_SOLUTION}}
 PACK_YOC_TOOL=$(COMMON_TOOLS_PATH)/image_tool/alios/PackYocTool/PackYocTool
-IPCM_ALIOS_PATH=${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/cvi_osdrv_ipcm
+ifeq ($(RELEASE_FLAG),0)
+	IPCM_ALIOS_PATH=${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/cvi_osdrv_ipcm
+endif
 define raw2cimg_alios
 	python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg_alios.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML) $(PACK_YOC_TOOL)
 endef
 
 alios-depends:
 	$(call print_target)
+ifeq ($(RELEASE_FLAG),0)
+	${Q}ln -snrf ${OSDRV_PATH}/interdrv/ipcm/core/ ${IPCM_ALIOS_PATH}/src/
+	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/plat/plat_common/ipcm_port_common.c ${IPCM_ALIOS_PATH}/src/
+	${Q}ln -snrf ${OSDRV_PATH}/interdrv/ipcm/test/common  ${IPCM_ALIOS_PATH}/test/
+	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/core/ipcm_common.h ${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/internal_include/
+	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/plat/include/ipcm_port_common.h ${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/internal_include/
+	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/plat/include/ipcm_message.h ${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/internal_include/
+	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/plat/include/ipcm_system.h ${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/internal_include/
+	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/plat/include/ipcm_anonymous.h ${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/internal_include/
+endif
 
 alios-build: $(OUTPUT_DIR)/rawimages
 alios-build: memory-map alios-depends

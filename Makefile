@@ -38,9 +38,6 @@ FTP_SRV := ftp://10.58.65.3
 export CHIP_ARCH_L := $(shell echo $(CHIP_ARCH) | tr A-Z a-z)
 export BORAD_FOLDER_PATH := ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}
 
-export KEYSERVER := 10.18.98.102
-export KEYSERVER_SSHKEY_PATH := ${ATF_PATH}/tools/build_script/service_sign@cvi_keyserver.pem
-
 export RELEASE_BIN_DIR := $(TOP_DIR)/rel_bin
 export RELEASE_BIN_LICENSE_DIR := ${RELEASE_BIN_DIR}/release_bin_license
 export RELEASE_BIN_ATF_DIR     := ${RELEASE_BIN_DIR}/release_bin_atf
@@ -157,6 +154,8 @@ u-boo%: export KBUILD_OUTPUT=${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}
 u-boo%: export RELEASE=${RELEASE_VERSION}
 u-boo%: export CVIBOARD=${BOARD}
 u-boo%: export CONFIG_SKIP_RAMDISK:=${CONFIG_SKIP_RAMDISK}
+u-boo%: export CONFIG_ENABLE_EMMC_HW_RESET_QFN:=${CONFIG_ENABLE_EMMC_HW_RESET_QFN}
+u-boo%: export CONFIG_ENABLE_EMMC_SET_RESET_OTP:=${CONFIG_ENABLE_EMMC_SET_RESET_OTP}
 u-boo%: export CONFIG_USE_DEFAULT_ENV:=${CONFIG_USE_DEFAULT_ENV}
 u-boo%: export CONFIG_BUILD_FOR_DEBUG:=${CONFIG_BUILD_FOR_DEBUG}
 u-boo%: export CONFIG_MMC_SKIP_TUNING:=${CONFIG_MMC_SKIP_TUNING}
@@ -205,7 +204,7 @@ u-boot-clean: export KBUILD_OUTPUT=${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}
 u-boot-clean:
 	$(call print_target)
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} distclean
-	${Q}rm -f ${OUTPUT_DIR}/fip.bin ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin.lzma ${UBOOT_CVIPART_DEP}
+	${Q}rm -f ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin.lzma ${UBOOT_CVIPART_DEP}
 
 ################################################################################
 # kernel targets
@@ -377,6 +376,10 @@ else
 endif
 ifeq (${CONFIG_ROOTFS_FORMAT_OPTIMIZATION},y)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG="SQUASHFS_ZLIB=y"'
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} savedefconfig
+endif
+ifeq (${CONFIG_ENABLE_EMMC_HW_RESET_QFN},y)
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG="ENABLE_EMMC_HW_RESET_QFN=y"'
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} savedefconfig
 endif
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} olddefconfig

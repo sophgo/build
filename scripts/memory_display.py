@@ -1,11 +1,11 @@
+#!/usr/bin/env python3
 # User Guide
-# 1.python memory_display.py
-# 2.Please enter the path to your .py file: ./cv181x/memmap_ddr_64mb.py
+# 1.python memory_display.py memmap.py memmap.txt
 import sys
 import math
 import importlib.util
 import os
-
+import argparse
 
 def import_class_from_path(file_path, class_name):
     if not os.path.isfile(file_path):
@@ -52,16 +52,23 @@ def display_all(memory_map_class):
                 start_address = math.floor(getattr(memory_map_class, attr))
                 size = 0
                 end_address = start_address
+            if size & 0xfffff == 0:
+                size_str = "{}M".format(size >> 20)
+            elif size & 0x3ff == 0:
+                size_str = "{}K".format(size >> 10)
+            else:
+                size_str = "{}B".format(size)
             data.append({
                 "Name": base_name,
                 "Start Address": hex(start_address) if isinstance(start_address, int) else start_address,
                 "End Address": hex(end_address) if isinstance(end_address, int) else end_address,
-                "Size": hex(size) if isinstance(size, int) else size
+                "Size": hex(size) if isinstance(size, int) else size,
+                "Size(M/K/B)": size_str
             })
     return data
 
 
-def sort_and_save_vertical_table(data, stage):
+def sort_and_save_vertical_table(data, stage, output_filename):
     def address_to_int(addr):
         if addr == "-":
             return float('-inf')
@@ -69,15 +76,19 @@ def sort_and_save_vertical_table(data, stage):
 
     data.sort(key=lambda x: address_to_int(x["Start Address"]))
 
-    columns = list(data[0].keys())
+    columns = [key for key in data[0].keys() if key != 'len']
 
     output = ""
+    for item in data:
+        item['len'] = max(10, len(item['Name']))
+
     for column in columns:
-        output += f"| {column: <27} |"
+        output += f"| {column: <13} |"
         for item in data:
-            output += f" {item[column]: <15} |"
-        output += "\n" + "-" * (30 + 18 * len(data)) + "\n"
-    output_filename = "memmap.txt"
+            output += f" {item[column]: <{item['len']}} |"
+        output += "\n"
+
+    output += "-" * (len(output) // 5 - 1) + "\n"
     if stage == 1:
         with open(output_filename, 'w') as file:
             file.write('FBSL stage:\n')
@@ -93,7 +104,7 @@ def sort_and_save_vertical_table(data, stage):
             file.write('kernel stage:\n')
             file.write(output)
             file.write('\n')
-            file.write('PS: When the kernel is booted, it will overwrite the FSBL and uboot memory space')
+            file.write('PS: When the kernel is booted, it will overwrite the FSBL and uboot memory space\n')
 
 
 def filter_first_stage(data):
@@ -103,7 +114,7 @@ def filter_first_stage(data):
 
 
 def filter_second_stage(data):
-    prefixes = ("BOOTLOGO", "CVI_UPDATE", "UIMAG", "MONITOR", "OPENSBI", "FREERTOS", "ALIOS")
+    prefixes = ("BOOTLOGO", "CVI_UPDATE", "UIMAG", "CVI_MMC_SKIP_TUNING", "CONFIG_SYS_INIT_SP", "MONITOR", "OPENSBI", "FREERTOS", "ALIOS")
     second_stage = [item for item in data if item["Name"].startswith(prefixes)]
     return second_stage
 
@@ -114,25 +125,29 @@ def filter_third_stage(data):
     third_stage = [item for item in data if item["Name"].startswith(prefixes)]
     return third_stage
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Display memory map')
+    parser.add_argument('mem_path', type=str, help='The path to the .py file')
+    parser.add_argument('out_path', type=str, help='The path to output file')
+    return parser.parse_args()
 
 def main():
-    file_path = input("Please enter the path to your .py file: ")
-    # class_name = input("Please enter the name of the class to import: ")
-    # file_path = './cv180x/memmap_ddr_64mb.py'
+    args = parse_args()
+
     class_name = 'MemoryMap'
     try:
-        MyClass = import_class_from_path(file_path, class_name)
+        MyClass = import_class_from_path(args.mem_path, class_name)
         my_instance = MyClass()
-        print(f"Successfully created an instance of '{class_name}' from '{file_path}'.")
+        print(f"Successfully created an instance of '{class_name}' from '{args.mem_path}'.")
         data = display_all(my_instance)
         first_stage = filter_first_stage(data)
-        sort_and_save_vertical_table(first_stage, 1)
+        sort_and_save_vertical_table(first_stage, 1, args.out_path)
 
         second_stage = filter_second_stage(data)
-        sort_and_save_vertical_table(second_stage, 2)
+        sort_and_save_vertical_table(second_stage, 2, args.out_path)
 
         third_stage = filter_third_stage(data)
-        sort_and_save_vertical_table(third_stage, 3)
+        sort_and_save_vertical_table(third_stage, 3, args.out_path)
     except Exception as e:
         print(f"An error occurred: {e}")
 

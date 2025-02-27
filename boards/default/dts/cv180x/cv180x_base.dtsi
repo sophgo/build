@@ -33,7 +33,13 @@
 	rst: reset-controller {
 		#reset-cells = <1>;
 		compatible = "cvitek,reset";
-		reg = <0x0 0x03003000 0x0 0x10>, <0x0 0x05025000 0x0 0x1000>;
+		reg = <0x0 0x03003000 0x0 0x10>;
+	};
+
+	rtc_rst: rtc-reset-controller {
+		#reset-cells = <1>;
+		compatible = "cvitek,reset";
+		reg = <0x0 0x05025000 0x0 0x1000>;
 	};
 
 	restart: restart-controller {
@@ -435,10 +441,10 @@
 
 	i2c5: i2c@0502B000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&clk CV180X_CLK_I2C>;
+		clocks = <&clk CV180X_CLK_RTC_25M>;
 		reg = <0x0 0x0502B000 0x0 0x1000>;
 		clock-frequency = <400000>;
-		resets = <&rst RTC_RST_I2C>;
+		resets = <&rtc_rst RTC_RST_I2C>;
 		reset-names = "i2c5";
 	};
 
@@ -896,4 +902,3 @@
 		bootargs = "mtdparts=10000000.cvi-spif:512K(fip),1792K(2nd),3072K(jump),384K(PQ),64K(PARAM),64K(PARAM_BAK),64K(ENV),64K(ENV_BAK),4096K(ROOTFS),4096K(DATA) rootwait ro root=/dev/mtdblock8  rootfstype=squashfs console=ttyS0,115200 earlycon=sbi riscv.fwsz=0x80000 loglevel=0";
 	};
 };
-

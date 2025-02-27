@@ -235,6 +235,7 @@ config FASTBOOT
 	bool "Fast boot"
 	default n
 	depends on !BUILD_FOR_DEBUG
+	select SKIP_UBOOT if FASTBOOT && ARCH=riscv
 	help
 		This enables fast boot features.
 		1. activate linux funtion controlled by __FASTBOOT__
@@ -305,7 +306,7 @@ config ROOTFS_FORMAT_OPTIMIZATION
 
 config SKIP_UBOOT
 	bool "OpenSBI jump to Kernel instead of Uboot jump to Kernel"
-	depends on BOOT_TIME_OPTIMIZATION
+	depends on FASTBOOT && ARCH=riscv
 	default n
 	help
 		OpenSBI jump to Kernel instead of Uboot jump to Kernel
@@ -423,7 +424,7 @@ config OD_CLK_SEL
 
 config VC_CLK_OVERDRIVE
 	bool "Select to build fip.bin with VC clock overdrived setting"
-	depends on CHIP_ARCH_cv181x && !OD_CLK_SEL
+	depends on !OD_CLK_SEL
 	default n
 	help
 	  "y" Select to build fip.bin with VC clock overdrived setting
@@ -494,6 +495,22 @@ config SUP_LARGE_PART_SIZE
 	default n
 	help
 	  This config can make your flash part size large than 4GB
+
+config ENABLE_EMMC_SET_RESET_OTP
+	bool "Enable eMMC set OTP bit for hardware reset"
+	default N
+	depends on STORAGE_TYPE_emmc
+	help
+	  "y": The OTP bit: "RST_n_ENABLE" of this emmc chip will be permanently enabled
+
+config ENABLE_EMMC_HW_RESET_QFN
+	bool "Enable EMMC hardware reset for QFN"
+	default N
+	depends on STORAGE_TYPE_emmc && ENABLE_EMMC_SET_RESET_OTP
+	help
+		"y": Enable EMMC hardware reset for QFN (will use GPIOA_19(JTAG_CPU_TMS) to reset)
+		"n": Enable EMMC hardware reset for BGA (default)
+
 endmenu
 
 source "output/Kconfig.sensors"

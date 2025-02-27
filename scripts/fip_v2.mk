@@ -15,6 +15,8 @@ opensbi: u-boot-build
 opensbi-clean:
 	$(call print_target)
 	${Q}$(MAKE) -C ${OPENSBI_PATH} PLATFORM=generic distclean
+	${Q}rm -f ${OUTPUT_DIR}/fw_payload_uboot.bin
+	${Q}rm -f ${OUTPUT_DIR}/elf/fw_payload_uboot.elf
 
 FSBL_OUTPUT_PATH = ${FSBL_PATH}/build/${PROJECT_FULLNAME}
 ifeq ($(call qstrip,${CONFIG_ARCH}),riscv)
@@ -45,6 +47,7 @@ fsbl%: export IMPROVE_AXI_CLK=${CONFIG_IMPROVE_AXI_CLK}
 fsbl%: export IMPROVE_BL_NOR_SPEED=${CONFIG_IMPROVE_BL_NOR_SPEED}
 fsbl%: export CHIP_CV1811HA=${CONFIG_CHIP_cv1811ha}
 fsbl%: export TPU_PERF_MODE=${CONFIG_CHIP_cv1812cp}
+fsbl%: export CONFIG_ENABLE_EMMC_HW_RESET_QFN:=${CONFIG_ENABLE_EMMC_HW_RESET_QFN}
 ifeq (${CONFIG_BUILD_FOR_DEBUG},y)
 fsbl%: export LOG_LEVEL=4
 else
@@ -83,6 +86,7 @@ fsbl-clean: rtos-clean
 	$(call print_target)
 	${Q}$(MAKE) -C ${FSBL_PATH} clean O=${FSBL_OUTPUT_PATH}
 	${Q}rm -rf ${BL2_CVIPART_DEP}
+	${Q}rm -f ${OUTPUT_DIR}/fip* ${OUTPUT_DIR}/rawimages/fip*
 
 u-boot-dep: fsbl-build ${OUTPUT_DIR}/elf ${OUTPUT_DIR}/rawimages
 	$(call print_target)

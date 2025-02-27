@@ -365,9 +365,6 @@ function build_sdk()
   elif [[ "$1" = ivs ]]; then
     SDK_PATH="$IVS_SDK_PATH"
     SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH"
-  elif [[ "$1" = ai ]]; then
-    SDK_PATH="$AI_SDK_PATH"
-    SDK_INSTALL_PATH="$AI_SDK_INSTALL_PATH"
   elif [[ "$1" = cnv ]]; then
     SDK_PATH="$CNV_SDK_PATH"
     SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH"
@@ -380,7 +377,6 @@ function build_sdk()
   TRACER_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
   TPU_SDK_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
   IVE_SDK_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
-  AI_SDK_INSTALL_PATH="$AI_SDK_INSTALL_PATH" \
   IVS_SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH" \
   CNV_SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH" \
   KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
@@ -403,12 +399,6 @@ function clean_sdk()
   [[ "$1" = ive ]] && rm -rf "$IVE_SDK_INSTALL_PATH"
   [[ "$1" = ivs ]] && rm -rf "$IVS_SDK_INSTALL_PATH"
   [[ "$1" = cnv ]] && rm -rf "$CNV_SDK_INSTALL_PATH"
-  if [[ "$1" = ai ]]; then
-    rm -rf "$AI_SDK_INSTALL_PATH"
-    rm -rf "$AI_SDK_PATH"/tmp/_deps
-  fi
-
-  rm -f "$SYSTEM_OUT_DIR"/lib/libcviai.so*
   rm -f "$SYSTEM_OUT_DIR"/lib/libcvi_"$1"_tpu.so*
   rm -rf "${SYSTEM_OUT_DIR:?}"/usr/bin/"$1"
 }
@@ -441,14 +431,21 @@ function clean_ivs_sdk()
   fi
 }
 
-function build_ai_sdk()
+function build_tdl_sdk()
 {
-  build_sdk ai || return "$?"
+  print_notice "Run ${FUNCNAME[0]}() function"
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh all
+  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
+  popd
 }
 
-function clean_ai_sdk()
+function clean_tdl_sdk()
 {
-    clean_sdk ai
+  print_notice "Run ${FUNCNAME[0]}() function"
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh clean
+  popd
 }
 
 function build_cnv_sdk()
@@ -528,6 +525,7 @@ function build_cvi_rtsp()
 
   cd "$CVI_RTSP_PATH" || return
   BUILD_SERVICE=1 MW_DIR=${MW_PATH} ./build.sh
+  test $? -ne 0 && print_notice "build_cvi_rtsp failed !!" && return 1
   BUILD_SERVICE=1 make install DESTDIR="$(pwd)/install"
   make package DESTDIR="$(pwd)/install" || return "$?"
 
@@ -567,17 +565,19 @@ function clean_pqtool_server()
 function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
- 
-  if [ -d "${OSS_PATH}/oss_release_tarball" ]; then
-    echo "oss prebuilt tarball found!"
-  else
-    echo "Try to download oss_release_tarball.tar tarball ..."
-    #wget ...
-    #tar -xvf ${OSS_PATH}/oss_release_tarball.tar -C ${OSS_PATH}
+
+  if [ "${RELEASE_FLAG}" == 1 ]; then
+    if [ -d "${OSS_PATH}/oss_release_tarball" ]; then
+      echo "oss prebuilt tarball found!"
+    else
+      echo "Try to download oss_release_tarball.tar tarball ..."
+      #wget ...
+      #tar -xvf ${OSS_PATH}/oss_release_tarball.tar -C ${OSS_PATH}
+    fi
+    echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
+    cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
   fi
-  echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
-  cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
- 
+
   local oss_list=(
     "zlib"
     "glog"
@@ -597,14 +597,29 @@ function build_3rd_party()
     "cvi-miniz"
   )
 
-  for name in "${oss_list[@]}"
-  do
+  for name in "${oss_list[@]}"; do
     if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
       echo "$name found"
-      "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+      if [ "${RELEASE_FLAG}" == 1 ]; then
+        "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
         echo "$name successfully downloaded and untared."
+      fi
     else
       echo "$name not found"
+      if [ ${RELEASE_FLAG} == 0 ]; then
+        echo "Try to download $name tarball ..."
+        wget ftp://${FTP_SERVER_NAME}:${FTP_SERVER_PWD}@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/${name}.tar.gz \
+            -T 3 -t 3 -q -P ${OSS_TARBALL_PATH}
+        if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
+          "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+          test "$?" -eq 0 || return 1
+          echo "$name successfully downloaded and untared."
+        else
+          echo "No prebuilt tarball, build oss $name"
+          "$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
+          test "$?" -eq 0 || return 1
+        fi
+      fi
     fi
   done
 }
@@ -622,7 +637,68 @@ function clean_ramdisk()
   rm -rf "$ROOTFS_DIR"
 }
 
+function build_access_guard_turnkey_app()
+{(
+  if [[ -d "$ACCESSGUARD_PATH" ]] && [[ "$BUILD_TURNKEY_ACCESSGUARD" = "y" ]]; then
+    export SDK_PATH=$(pwd)
+    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
+    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
+    export SDK_INSTALL_PATH="$OUTPUT_DIR"
+    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    ln -sf "$SDK_INSTALL_PATH"/tpu_* "$SDK_INSTALL_PATH"/tpu
+    pushd "$ACCESSGUARD_PATH"
+      source build.sh
+      access_guard_build || return 1
+      access_guard_install || return 1
+      mkdir -p "$SYSTEM_OUT_DIR"/data
+      cp -a  ${ACCESSGUARD_PATH}/install "$SYSTEM_OUT_DIR"/data/
+    popd
+  fi
+)}
 
+function clean_access_guard_turnkey_app()
+{(
+  if [[ -d "$ACCESSGUARD_PATH" ]] && [[ "$BUILD_TURNKEY_ACCESSGUARD" = "y" ]]; then
+    export SDK_PATH=$(pwd)
+    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
+    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
+    export SDK_INSTALL_PATH="$OUTPUT_DIR"
+    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    pushd "$ACCESSGUARD_PATH"
+    source build.sh
+    access_guard_clean
+    popd
+  fi
+)}
+
+function build_ipc_app()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  if [[ -d "$IPC_APP_PATH" ]] && [[ "$BUILD_TURNKEY_IPC" = "y" ]]; then
+    pushd "$IPC_APP_PATH"
+        make clean; make; make ipc_install || return $?
+        if [[ -f "$OUTPUT_DIR"/ipc_install.tar.gz ]] ; then
+            rm "$OUTPUT_DIR"/ipc_install.tar.gz
+        fi
+        pushd install
+        tar -czvf "$OUTPUT_DIR"/ipc_install.tar.gz "${IPC_APP_PATH}"/install/ipc_install || return $?
+        popd
+    popd
+  fi
+}
+
+function clean_ipc_app()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  if [[ -d "$IPC_APP_PATH" ]] && [[ "$BUILD_TURNKEY_IPC" = "y" ]]; then
+    pushd "$IPC_APP_PATH"
+        make clean
+        if [[ -f "$OUTPUT_DIR"/ipc_install.tar.gz ]] ; then
+            rm "$OUTPUT_DIR"/ipc_install.tar.gz
+        fi
+    popd
+  fi
+}
 
 # shellcheck disable=SC2120
 function build_all()
@@ -638,14 +714,18 @@ function build_all()
     build_osdrv || return $?
     build_3rd_party || return $?
     build_middleware || return $?
-    # build_cvi_rtsp || return $?
+    build_cvi_rtsp || return $?
     if [ "$TPU_REL" = 1 ]; then
       build_tpu_sdk || return $?
       build_ive_sdk || return $?
       build_ivs_sdk || return $?
-      build_ai_sdk || return $?
+      build_tdl_sdk || return $?
     fi
     build_pqtool_server || return $?
+    if [ "${RELEASE_FLAG}" == 0 ]; then
+      build_access_guard_turnkey_app || return $?
+      build_ipc_app || return $?
+    fi
   fi
   pack_cfg || return $?
   pack_rootfs || return $?
@@ -669,11 +749,17 @@ function clean_all()
     clean_ive_sdk
     clean_ivs_sdk
     clean_tpu_sdk
-    clean_ai_sdk
+    clean_tdl_sdk
     clean_cnv_sdk
+  fi
+  if [ "${RELEASE_FLAG}" == 0 ]; then
+    clean_access_guard_turnkey_app
+    clean_ipc_app
   fi
   clean_middleware
   clean_osdrv
+  clean_cvi_rtsp
+  clean_pqtool_server
   cd "$TOP_DIR" || return
 }
 
@@ -791,11 +877,13 @@ function cvi_setup_env()
   MW_PATH="$TOP_DIR"/cvi_mpi
   PQTOOL_SERVER_PATH="$MW_PATH"/modules/isp/"${CHIP_ARCH,,}"/isp-tool-daemon/isp_daemon_tool
   ISP_TUNING_PATH="$TOP_DIR"/isp_tuning
+  ACCESSGUARD_PATH="$TOP_DIR"/access-guard-turnkey
+  IPC_APP_PATH="$TOP_DIR"/framework/applications/ipc
   TPU_SDK_PATH="$TOP_DIR"/cviruntime
   IVE_SDK_PATH="$TOP_DIR"/ive
   IVS_SDK_PATH="$TOP_DIR"/ivs
   CNV_SDK_PATH="$TOP_DIR"/cnv
-  AI_SDK_PATH="$TOP_DIR"/tdl_sdk
+  TDL_SDK_PATH="$TOP_DIR"/tdl_sdk
   CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
   CVI_RTSP_PATH="$TOP_DIR"/cvi_rtsp
   OPENSBI_PATH="$TOP_DIR"/opensbi
@@ -815,6 +903,13 @@ function cvi_setup_env()
   KERNEL_OUTPUT_FOLDER=build/"$PROJECT_FULLNAME"
   RAMDISK_OUTPUT_FOLDER="$RAMDISK_OUTPUT_BASE"/workspace
 
+  # v4.2.0 release sdk flag  --0: internal --1: release
+  if [ -d "${ALIOS_PATH}/components/cvi_mpi" ] && [ ! -d "${MW_PATH}/mpi_prepare.mk" ]; then
+    export RELEASE_FLAG=1
+  else
+    export RELEASE_FLAG=0
+  fi
+
   # toolchain
   export CROSS_COMPILE_64=aarch64-linux-gnu-
   export CROSS_COMPILE_32=arm-linux-gnueabihf-
@@ -833,7 +928,7 @@ function cvi_setup_env()
   CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
   CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
   CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
-  CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
 
   # add toolchain path
   pathprepend "$CROSS_COMPILE_PATH_64"/bin
@@ -900,7 +995,7 @@ function cvi_setup_env()
     if [[ "$DOUBLESDK" == "y" ]]; then
       FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_doublesdk_"$STORAGE_TYPE".xml
     else
-      if [[ "$SKIP_UBOOT" == y ]]; then
+      if [[ "$FASTBOOT" == y ]]; then
         FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_fastboot_"$STORAGE_TYPE".xml
       else
         FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
@@ -965,9 +1060,17 @@ export TOP_DIR BUILD_PATH
 # import common functions
 # shellcheck source=./common_functions.sh
 source "$TOP_DIR/build/common_functions.sh"
+# shellcheck source=./release_functions.sh
+if [ -f "${TOP_DIR}/build/release_functions.sh" ]; then
+  source "$TOP_DIR/build/release_functions.sh"
+fi
 # shellcheck source=./riscv_functions.sh
 source "$TOP_DIR/build/riscv_functions.sh"
 # shellcheck source=./alios_functions.sh
 source "$TOP_DIR/build/alios_functions.sh"
+# import credential messages
+if [ -f "${TOP_DIR}/build/credential.sh" ]; then
+  source "$TOP_DIR/build/credential.sh"
+fi
 
 print_usage
