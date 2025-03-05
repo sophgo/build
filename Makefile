@@ -665,7 +665,7 @@ define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
 
-ifeq ($(findstring bm1688,$(PROJECT_FULLNAME)),bm1688)
+ifeq ($(findstring edge,$(PROJECT_FULLNAME)),edge)
 BR2_CONFIG_NAME := soph_bm1688_defconfig 
 else
 BR2_CONFIG_NAME := soph_cv186ah_defconfig 
@@ -703,7 +703,8 @@ rootfs_prepare_br2:$(ROOTFS_DIR)/mnt
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/create_automount.py $(FLASH_PARTITION_XML) $(BR2_COMMON_OVERLAY_PATH)/etc/init.d/
 
 	# Copy project data
-	${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_PROJECT_OVERLAY_PATH}/mnt
+	# ${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_PROJECT_OVERLAY_PATH}/mnt
+	${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_COMMON_OVERLAY_PATH}/mnt
 
 
 rootfs-br2-pack:rootfs_prepare_br2 ${BR2_OUTPUT_CONFIG_PATH}
