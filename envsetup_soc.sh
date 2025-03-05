@@ -604,7 +604,7 @@ function build_libsophon()
   popd
 }
 
-function build_edge_rootfs()
+function build_edge_ubuntu
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
@@ -678,6 +678,30 @@ EOT
   pushd "${EDGE_ROOTFS_DIR}"
   sudo chown 1000:1000 -R data
   popd
+}
+
+function build_edge_rootfs()
+{
+  echo "BOARD value is: '${BOARD}'"
+  if [[ "${BOARD}" == "buildroot" ]]; then
+    copy_isp_lib_buildroot || { ret=$?; echo "Error: copy_isp_lib_buildroot failed with exit code $ret"; return $ret; }
+    copy_libsophon_buildroot || { ret=$?; echo "Error: copy_libsophon_buildroot failed with exit code $ret"; return $ret; }
+    copy_sophon-media_buildroot || { ret=$?; echo "Error: copy_sophon-media_buildroot failed with exit code $ret"; return $ret; }
+    pack_cfg || { ret=$?; echo "Error: pack_cfg failed with exit code $ret"; return $ret; }
+    pack_rootfs || { ret=$?; echo "Error: pack_rootfs failed with exit code $ret"; return $ret; }
+    pack_data || { ret=$?; echo "Error: pack_data failed with exit code $ret"; return $ret; }
+    pack_system || { ret=$?; echo "Error: pack_system failed with exit code $ret"; return $ret; }
+    pack_gpt || { ret=$?; echo "Error: pack_gpt failed with exit code $ret"; return $ret; }
+    copy_tools || { ret=$?; echo "Error: copy_tools failed with exit code $ret"; return $ret; }
+    pack_upgrade || { ret=$?; echo "Error: pack_upgrade failed with exit code $ret"; return $ret; }
+  else
+    build_edge_ubuntu || { ret=$?; echo "Error: build_edge_ubuntu failed with exit code $ret"; return $ret; }
+
+    if [ "${target}" != "regression" ]; then
+        build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
+    fi
+  fi
+
 }
 
 function build_sophon_media(){
@@ -829,15 +853,7 @@ function build_edge_all(){
     build_sophon_media || { ret=$?; echo "Error: build_sophon_media failed with exit code $ret"; return $ret; }
   fi
 
-  if grep -q '^CONFIG_ROOTFS_BUILD_FROM_BR2=y' ${TOP_DIR}/build/.config; then
-    pack_rootfs || { ret=$?; echo "Error: pack_rootfs failed with exit code $ret"; return $ret; }
-  else
-    build_edge_rootfs || { ret=$?; echo "Error: build_edge_rootfs failed with exit code $ret"; return $ret; }
-
-    if [ "${target}" != "regression" ]; then
-        build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
-    fi
-  fi
+  build_edge_rootfs || { ret=$?; echo "Error: build_edge_rootfs failed with exit code $ret"; return $ret; }
 }
 
 function clean_edge_all(){
@@ -1259,6 +1275,10 @@ function build_device_all()
     build_access_guard_turnkey_app || return $?
     build_ipc_app || return $?
   fi
+  if [["BOARD" == "buildroot"]]; then
+    copy_libsophon_buildroot
+    copy_sophon-media_buildroot
+  fi
   pack_cfg || return $?
   pack_rootfs || return $?
   pack_data || return $?
@@ -1267,6 +1287,106 @@ function build_device_all()
   copy_tools || return $?
   pack_upgrade || return $?
 )}
+
+function copy_sophon-media_buildroot()
+{
+local SOPHON_MEDIA_PACK_PATH=${TOP_DIR}/sophon_media/buildit/_CPack_Packages/Linux/DEB/sophon-media-soc_1.9.0_aarch64/
+# local BUILDROOT_INSTALL_PATH=${TOP_DIR}/buildroot/output/target/opt/
+local BUILDROOT_INSTALL_PATH=${TOP_DIR}/buildroot/board/sophgo/common/overlay/opt
+find "$SOPHON_MEDIA_PACK_PATH" -maxdepth 1 -type d -name "sophon*" | while read -r sophon_pkg; do
+    src_opt="${sophon_pkg}/opt"
+    if [ -d "$src_opt" ]; then
+        rsync -av --ignore-existing "${src_opt}/" "${BUILDROOT_INSTALL_PATH}/"
+    fi
+done
+pushd ${BUILDROOT_INSTALL_PATH}/sophon
+local TARGET_PROFILE_D_DIR="${BUILDROOT_INSTALL_PATH}/../etc/profile.d"
+local PROFILE_SCRIPT="${TARGET_PROFILE_D_DIR}/sophon-media-libs.sh"
+mkdir -p "$TARGET_PROFILE_D_DIR"
+touch "$PROFILE_SCRIPT"
+sh -c "> '$PROFILE_SCRIPT'"
+
+mkdir -p "$TARGET_PROFILE_D_DIR"
+for dir in sophon-*_*; do
+    if [[ -d "$dir" ]]; then
+        prefix="${dir%_*}"
+        version="${dir#*_}"
+        latest_dir=$(ls -dv ${prefix}_* | sort -Vr | head -n 1)
+        ln -sfn "/opt/sophon/$latest_dir" "${prefix}-latest"
+        if [[ -d "$dir/lib" && -d "$dir/data" ]]; then
+            if find "$dir/data" -maxdepth 1 -type f -name '*.conf' | grep -q .; then
+                echo "export LD_LIBRARY_PATH=/opt/sophon/${prefix}-latest/lib:\$LD_LIBRARY_PATH" >> "$PROFILE_SCRIPT"
+            fi
+            find "$dir/data" -maxdepth 1 -type f -name '*.sh' -print0 | while IFS= read -r -d '' sh_file; do
+                cp -v "$sh_file" "$TARGET_PROFILE_D_DIR"
+                chmod 644 "$TARGET_PROFILE_D_DIR/$(basename "$sh_file")"
+            done
+        fi
+    fi
+done
+chmod 644 "$PROFILE_SCRIPT"
+popd
+}
+
+function copy_isp_lib_buildroot() {
+
+    local ISP_PACK_PATH="${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp_1.0.0/opt/sophon"
+    local BUILDROOT_INSTALL_PATH="${TOP_DIR}/buildroot/board/sophgo/common/overlay/opt/sophon"
+    local src_opt="${ISP_PACK_PATH}"
+
+    if [[ -d "$src_opt" ]]; then
+        mkdir -p $BUILDROOT_INSTALL_PATH
+        rsync -av --ignore-existing "${src_opt}/" "${BUILDROOT_INSTALL_PATH}/"
+    fi
+    pushd "${BUILDROOT_INSTALL_PATH}" || return 1
+    local TARGET_PROFILE_D_DIR="${BUILDROOT_INSTALL_PATH}/../../etc/profile.d"
+    local PROFILE_SCRIPT="${TARGET_PROFILE_D_DIR}/libisp-libs.sh"
+    mkdir -p "$TARGET_PROFILE_D_DIR"
+    touch "$PROFILE_SCRIPT"
+    sh -c "> '$PROFILE_SCRIPT'"
+    local latest_ver=$(find . -maxdepth 1 -type d -regex ".*/libsophon-[0-9]+\.[0-9]+\.[0-9]+" -printf "%f\n" \
+        | sort -t '.' -k1,1nr -k2,2nr -k3,3nr   | head -n1
+    )
+        echo "export LD_LIBRARY_PATH=/opt/sophon/sophon-soc-libisp_1.0.0/lib:\$LD_LIBRARY_PATH" >> "$PROFILE_SCRIPT"
+        find "${latest_ver}/data/" -maxdepth 1 -name "*.sh" -print0 | \
+            while IFS= read -r -d $'\0' file; do
+                cp -v "$file" "$TARGET_PROFILE_D_DIR"
+                chmod 644 "${TARGET_PROFILE_D_DIR}/$(basename "$file")"
+            done
+    [[ -f "$PROFILE_SCRIPT" ]] && chmod 644 "$PROFILE_SCRIPT"
+    popd || return 1
+}
+
+
+function copy_libsophon_buildroot() {
+
+    local LIBSOPHON_PACK_PATH="${TOP_DIR}/libsophon/install"
+    local BUILDROOT_INSTALL_PATH="${TOP_DIR}/buildroot/board/sophgo/common/overlay/opt/sophon"
+    local src_opt="${LIBSOPHON_PACK_PATH}/"
+
+    if [[ -d "$src_opt" ]]; then
+	mkdir -p $BUILDROOT_INSTALL_PATH
+        rsync -av --ignore-existing "${src_opt}/" "${BUILDROOT_INSTALL_PATH}/"
+    fi
+    pushd "${BUILDROOT_INSTALL_PATH}" || return 1
+    local TARGET_PROFILE_D_DIR="${BUILDROOT_INSTALL_PATH}/../../etc/profile.d"
+    local PROFILE_SCRIPT="${TARGET_PROFILE_D_DIR}/libsophon-libs.sh"
+    mkdir -p "$TARGET_PROFILE_D_DIR"
+    touch "$PROFILE_SCRIPT"
+    sh -c "> '$PROFILE_SCRIPT'"
+    local latest_ver=$(find . -maxdepth 1 -type d -regex ".*/libsophon-[0-9]+\.[0-9]+\.[0-9]+" -printf "%f\n" \
+        | sort -t '.' -k1,1nr -k2,2nr -k3,3nr   | head -n1
+    )
+        ln -sfn "/opt/sophon/$latest_ver" "libsophon-current"
+        echo "export LD_LIBRARY_PATH=/opt/sophon/libsophon-current/lib:\$LD_LIBRARY_PATH" >> "$PROFILE_SCRIPT"
+        find "${latest_ver}/data/" -maxdepth 1 -name "*.sh" -print0 | \
+            while IFS= read -r -d $'\0' file; do
+                cp -v "$file" "$TARGET_PROFILE_D_DIR"
+                chmod 644 "${TARGET_PROFILE_D_DIR}/$(basename "$file")"
+            done
+    [[ -f "$PROFILE_SCRIPT" ]] && chmod 644 "$PROFILE_SCRIPT"
+    popd || return 1
+}
 
 function clean_device_all()
 {
