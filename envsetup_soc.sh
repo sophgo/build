@@ -587,6 +587,7 @@ function build_libsophon()
     cp -af "${_install_prefix}"/libsophon-* "$TPU_SDK_INSTALL_PATH" || return
     cp -af "$LIBSOPHON_PATH"/build/driver/sg_aarch64_soc_device/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
     LIBSOPHON_VERSION=$(grep "CMAKE_PROJECT_VERSION:STATIC" < "${LIBSOPHON_PATH}"/build/CMakeCache.txt | awk -F '=' '{print $2}') || { echo "Failed to get version"; return; }
+    rsync -av --ignore-existing "${lib_dir}/lib/" "${_install_prefix}/libsophon-${LIBSOPHON_VERSION}/lib/"
     if [ ! -d "$LIBSOPHON_PATH"/install/libsophon-${LIBSOPHON_VERSION} ]; then
       mkdir -p "$LIBSOPHON_PATH"/install #some modules use it
       cp -af "${_install_prefix}"/libsophon-* "$LIBSOPHON_PATH"/install || return
