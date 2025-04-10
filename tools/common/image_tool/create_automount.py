@@ -52,8 +52,14 @@ def genCase(case, out, parts, storage):
                 #    )
                 #    out.write("fi\n")
                 out.write("e2fsck -y %s\n" % source)
+                if p["label"] == "DATA":
+                    out.write("echo -e \"OK\\nFix\\n%s\\n100\\n\" | parted "
+                              "---pretend-input-tty %s unit %% "
+                              "resizepart %s 100\n"
+                              % (source[-1], source[:-2], source[-1]))
+                    out.write("resize2fs %s\n" % (source))
                 out.write(
-                    "mount -t %s -o sync %s %s\n"
+                    "mount -t %s -o rw %s %s\n"
                     % (p["type"], source, p["mountpoint"])
                 )
                 out.write("if [ $? != 0  ]; then\n")
@@ -63,12 +69,13 @@ def genCase(case, out, parts, storage):
                 )
                 out.write("mke2fs -T %s %s\n" % (p["type"], source))
                 out.write(
-                    "mount -t %s -o sync %s %s\n"
+                    "mount -t %s -o rw %s %s\n"
                     % (p["type"], source, p["mountpoint"])
                 )
                 out.write("resize2fs %s\n" % (source))
                 out.write(
-                    "elif [ $DL_FLAG'h' == '0x50524F47''h' ] || [ -z $ENV_DLFLAG ] || [ $ENV_DLFLAG == 'prog' ]; then\n"
+                    "elif [ $DL_FLAG'h' == '0x50524F47''h' ] || "
+                    "[ -z $ENV_DLFLAG ] || [ $ENV_DLFLAG == 'prog' ]; then\n"
                 )
                 out.write("resize2fs %s\n" % (source))
                 out.write("fi\n")
@@ -89,7 +96,7 @@ def genCase(case, out, parts, storage):
                 out.write("mdev -s\n")
                 out.write("fi\n")
                 out.write(
-                    "mount -t ubifs -o sync %s %s\n"
+                    "mount -t ubifs -o rw %s %s\n"
                     % (source, p["mountpoint"])
                 )
                 out.write("if [ $? != 0  ]; then\n")
@@ -101,7 +108,7 @@ def genCase(case, out, parts, storage):
                     "ubimkvol /dev/ubi%d -N %s -m\n" % (ubi_cnt, p["label"])
                 )
                 out.write(
-                    "mount -t ubifs -o sync %s %s\n"
+                    "mount -t ubifs -o rw %s %s\n"
                     % (source, p["mountpoint"])
                 )
                 out.write("fi\n")

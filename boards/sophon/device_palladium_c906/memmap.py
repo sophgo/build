@@ -10,7 +10,7 @@ class MemoryMap:
     ]
 
     DRAM_BASE = 0#//0x100000000
-    DRAM_SIZE = 256 * SIZE_1M
+    DRAM_SIZE = 128 * SIZE_1M
 
     # Bootlogo
     BOOTLOGO_ADDR = DRAM_BASE + 24 * SIZE_1M

@@ -137,13 +137,13 @@ function _build_uboot_env()
   _build_atf_env
   _build_fsbl_env
   export UBOOT_OUTPUT_FOLDER IMGTOOL_PATH FLASH_PARTITION_XML FIP_BIN_PATH
-  export UBOOT_VBOOT RELEASE_VERSION ENABLE_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT
+  export UBOOT_VBOOT RELEASE_VERSION ENABLE_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT KERNEL_BOOT_TYPE
   export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
 }
 
 function _build_br2_env()
 {
-  export BUILDROOT_PATH BR2_OVERLAY_PATH
+  export BUILDROOT_PATH
 }
 
 function build_fip_pre()
@@ -176,22 +176,9 @@ function menuconfig_uboot()
   make u-boot-menuconfig || return "$?"
 )}
 
-function _prepare_buildroot_()
-{(
-  if [ ! -d "${BUILDROOT_PATH}" ]; then
-    echo "buildroot directory does not exist. Exit..."
-    # echo "buildroot directory does not exist. Cloning from GitHub..."
-    # git clone -b 2023.11.x --single-branch https://github.com/buildroot/buildroot.git ${BUILDROOT_PATH}
-  else
-    echo "buildroot directory already exists."
-  fi
-)}
-export -f _prepare_buildroot_
-
 function menuconfig_buildroot()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
-  _prepare_buildroot_
   _build_br2_env
   cd "$BUILD_PATH" || return
   make menuconfig-br2 || return "$?"
@@ -200,7 +187,6 @@ function menuconfig_buildroot()
 function savedefconfig_br2()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
-  _prepare_buildroot_
   _build_br2_env
   cd "$BUILD_PATH" || return
   make savedefconfig-br2 || return "$?"
@@ -208,16 +194,10 @@ function savedefconfig_br2()
 
 function build_br2_package()
 {(
-  if [ -z "$1" ];then
-	echo "Usage: ${FUNCNAME[0]} package_name"
-	exit 1
-  fi
   print_notice "Run ${FUNCNAME[0]}() function"
-  _prepare_buildroot_
   _build_br2_env
-  pushd "$BUILDROOT_PATH" || return
-  make $1 || return "$?"
-  popd
+  cd "$BUILD_PATH" || return
+  make build_package-br2 || return "$?"
 )}
 
 function _link_uboot_logo()
@@ -348,7 +328,11 @@ function clean_middleware()
 
 function build_v4l2_isp()
 {
-	source ${TOP_DIR}/middleware/${MW_VER}/modules/isp/cv186x/v4l2_adapter/build_v4l2_isp.sh
+  source ${TOP_DIR}/middleware/${MW_VER}/modules/isp/cv186x/v4l2_adapter/build_v4l2_isp.sh
+  if [ -d "$TOP_DIR/buildroot" ]; then
+    mkdir -p "$TOP_DIR/buildroot/dl/sglib"
+    update_files_if_newer "sophon-soc-libisp_*_arm64.tar.gz" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "$TOP_DIR/buildroot/dl/sglib"
+  fi
 }
 
 function clean_v4l2_isp()
@@ -573,35 +557,60 @@ function build_libsophon()
   cmake --build build --parallel "$(nproc)"
   cmake --build build --target driver
 
-  if grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config || grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
-    cmake --build build --target package --parallel "$(nproc)"
-    if [ "${BUILD_DOC}" == "1" ]; then
-      cmake --build build --target doc
-      cmake --build build --target rtdoc
-      pushd libsophav/bmcv || return
-      CHIP=bm1688 make doc
-      popd
-    fi
-  else
-    cmake --build build --target install --parallel "$(nproc)"
-    cp -af "${_install_prefix}"/libsophon-* "$TPU_SDK_INSTALL_PATH" || return
-    cp -af "$LIBSOPHON_PATH"/build/driver/sg_aarch64_soc_device/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
-    LIBSOPHON_VERSION=$(grep "CMAKE_PROJECT_VERSION:STATIC" < "${LIBSOPHON_PATH}"/build/CMakeCache.txt | awk -F '=' '{print $2}') || { echo "Failed to get version"; return; }
-    rsync -av --ignore-existing "${lib_dir}/lib/" "${_install_prefix}/libsophon-${LIBSOPHON_VERSION}/lib/"
-    if [ ! -d "$LIBSOPHON_PATH"/install/libsophon-${LIBSOPHON_VERSION} ]; then
-      mkdir -p "$LIBSOPHON_PATH"/install #some modules use it
-      cp -af "${_install_prefix}"/libsophon-* "$LIBSOPHON_PATH"/install || return
-    fi
-    if [ ! -d "$LIBSOPHON_PATH"/install/libsophon-0.4.9 ]; then
-      ln -sf libsophon-${LIBSOPHON_VERSION} "$LIBSOPHON_PATH"/install/libsophon-0.4.9
-    fi
-    if [ ! -d "${_install_prefix}"/libsophon-0.4.9 ]; then
-      ln -sf libsophon-${LIBSOPHON_VERSION} "${_install_prefix}"/libsophon-0.4.9
-    fi
-    if [ ! -d "$TPU_SDK_INSTALL_PATH"/libsophon-0.4.9 ]; then
-      ln -sf libsophon-${LIBSOPHON_VERSION} "$TPU_SDK_INSTALL_PATH"/libsophon-0.4.9
-    fi
+  cmake --build build --target package install --parallel "$(nproc)"
+  if [ "${BUILD_DOC}" == "1" ]; then
+    cmake --build build --target doc
+    cmake --build build --target rtdoc
+    pushd libsophav/bmcv || return
+    CHIP=bm1688 make doc
+    popd
   fi
+
+  if [ -d "$TOP_DIR/buildroot" ]; then
+     mkdir -p "$TOP_DIR/buildroot/dl/sglib"
+     update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$TOP_DIR/buildroot/dl/sglib"
+  fi
+ 
+  [ "$SIDE_TYPE" = edge ] && return
+
+  cp -af "${_install_prefix}"/libsophon-* "$TPU_SDK_INSTALL_PATH" || return
+  cp -af "$LIBSOPHON_PATH"/build/driver/sg_aarch64_soc_device/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
+  LIBSOPHON_VERSION=$(grep "CMAKE_PROJECT_VERSION:STATIC" < "${LIBSOPHON_PATH}"/build/CMakeCache.txt | awk -F '=' '{print $2}') || { echo "Failed to get version"; return; }
+  rsync -av --ignore-existing "${lib_dir}/lib/" "${_install_prefix}/libsophon-${LIBSOPHON_VERSION}/lib/"
+  if [ ! -d "$LIBSOPHON_PATH"/install/libsophon-${LIBSOPHON_VERSION} ]; then
+    mkdir -p "$LIBSOPHON_PATH"/install #some modules use it
+    cp -af "${_install_prefix}"/libsophon-* "$LIBSOPHON_PATH"/install || return
+  fi
+  if [ ! -d "$LIBSOPHON_PATH"/install/libsophon-0.4.9 ]; then
+    ln -sf libsophon-${LIBSOPHON_VERSION} "$LIBSOPHON_PATH"/install/libsophon-0.4.9
+  fi
+  if [ ! -d "${_install_prefix}"/libsophon-0.4.9 ]; then
+    ln -sf libsophon-${LIBSOPHON_VERSION} "${_install_prefix}"/libsophon-0.4.9
+  fi
+  if [ ! -d "$TPU_SDK_INSTALL_PATH"/libsophon-0.4.9 ]; then
+    ln -sf libsophon-${LIBSOPHON_VERSION} "$TPU_SDK_INSTALL_PATH"/libsophon-0.4.9
+  fi
+  popd
+
+}
+
+function build_nvr_edge
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  local _nvr_edge_path="${TOP_DIR}/frameworks/nvr_edge"
+  local toolchain_file="$_nvr_edge_path"/toolchain-aarch64-linux-1131.cmake
+  pushd ${_nvr_edge_path} || return 1
+
+  cmake \
+    -B build \
+    -DTARGET_ARCH=soc \
+    -DCMAKE_TOOLCHAIN_FILE="$toolchain_file" \
+    -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
+
+  cmake --build build --parallel "$(nproc || echo 1)" || { popd; return 1; }
+
+  release_nvr_tgz
+  release_nvr_deb
   popd
 }
 
@@ -618,6 +627,8 @@ function build_edge_ubuntu
   mkdir -p ${BSP_DEBS}
   mkdir -p ${SDK_DEBS}
   mkdir -p ${MOD_DEBS}
+  rm -rf "${BSP_DEBS}"/linux*.deb
+  rm -rf "${SDK_DEBS}"/linux-image*.deb
 
   shopt -s nullglob
   update_files_if_newer "linux*.deb" "${TOP_DIR}/linux_5.10/build" "${BSP_DEBS}"
@@ -685,9 +696,6 @@ function build_edge_rootfs()
 {
   echo "BOARD value is: '${BOARD}'"
   if [[ "${BOARD}" == "buildroot" ]]; then
-    copy_isp_lib_buildroot || { ret=$?; echo "Error: copy_isp_lib_buildroot failed with exit code $ret"; return $ret; }
-    copy_libsophon_buildroot || { ret=$?; echo "Error: copy_libsophon_buildroot failed with exit code $ret"; return $ret; }
-    copy_sophon-media_buildroot || { ret=$?; echo "Error: copy_sophon-media_buildroot failed with exit code $ret"; return $ret; }
     pack_cfg || { ret=$?; echo "Error: pack_cfg failed with exit code $ret"; return $ret; }
     pack_rootfs || { ret=$?; echo "Error: pack_rootfs failed with exit code $ret"; return $ret; }
     pack_data || { ret=$?; echo "Error: pack_data failed with exit code $ret"; return $ret; }
@@ -727,21 +735,89 @@ function build_sophon_media(){
     #source build/build_cmake.sh 1131
     GCC_V="1131"
   fi
-  cmake -DPLATFORM=soc -DGCC_VERSION=$GCC_V -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -DDEBUG=$MEDIA_DEBUG -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
+  cmake -DPLATFORM=soc -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
+	-DCMAKE_INSTALL_PREFIX=../install \
+	-DDEBUG=$MEDIA_DEBUG \
+        -DCMAKE_BINARY_DIR=${TOP_DIR}/sophon_media/buildit \
+	-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
+  cmake --build . --target all -- -j`nproc`
+  cmake --build . --target sophon_sample
+  cmake --build . --target package
+  popd
+
+  if [ -d "$TOP_DIR/buildroot" ]; then
+     mkdir -p "$TOP_DIR/buildroot/dl/sglib"
+     update_files_if_newer "sophon-media-soc_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/buildit" "$TOP_DIR/buildroot/dl/sglib"
+  fi
+}
+
+function build_pcie_arm64_sophon_media(){
+  print_notice "Run ${FUNCNAME[0]}() function"
+  MEDIA_DEBUG="off"
+  if [ "$MEDIA_DEBUG" = "on" ]; then
+    CMAKE_BUILD_TYPE="Debug"
+  else
+    CMAKE_BUILD_TYPE="Release"
+  fi
+  mkdir -p ${TOP_DIR}/sophon_media/pcie_arm64_buildit
+  pushd ${TOP_DIR}/sophon_media/pcie_arm64_buildit
+  GCC_V="1131"
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    #source build/build_cmake.sh 930
+    GCC_V="930"
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    #source build/build_cmake.sh 1131
+    GCC_V="1131"
+  fi
+  cmake -DPLATFORM=pcie_arm64 -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
+        -DCMAKE_INSTALL_PREFIX=../pcie_arm64_install \
+        -DDEBUG=$MEDIA_DEBUG \
+        -DCMAKE_BINARY_DIR=${TOP_DIR}/sophon_media/pcie_amr64_buildit \
+        -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
   cmake --build . --target all -- -j`nproc`
   cmake --build . --target sophon_sample
   cmake --build . --target package
   popd
 }
 
-function clean_sophon_media(){ 
+function build_pcie_amd64_sophon_media(){
+  print_notice "Run ${FUNCNAME[0]}() function"
+  MEDIA_DEBUG="off"
+  if [ "$MEDIA_DEBUG" = "on" ]; then
+    CMAKE_BUILD_TYPE="Debug"
+  else
+    CMAKE_BUILD_TYPE="Release"
+  fi
+  #mkdir -p ${TOP_DIR}/sophon_media/amd64_pcie_buildit
+  #pushd ${TOP_DIR}/sophon_media/amd64_pcie_buildit
+  mkdir -p ${TOP_DIR}/sophon_media/pcie_amd64_buildit
+  pushd ${TOP_DIR}/sophon_media/pcie_amd64_buildit
+  GCC_V="1131"
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
+    GCC_V="930"
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    GCC_V="1131"
+  fi
+  cmake -DPLATFORM=pcie -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
+        -DCMAKE_INSTALL_PREFIX=../pcie_amd64_install \
+        -DDEBUG=$MEDIA_DEBUG \
+        -DCMAKE_BINARY_DIR=${TOP_DIR}/sophon_media/pcie_amd64_buildit \
+        -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
+  cmake --build . --target all -- -j`nproc`
+  cmake --build . --target sophon_sample
+  cmake --build . --target package
+  popd
+}
+
+
+function clean_sophon_media(){
   print_notice "Run ${FUNCNAME[0]}() function"
   if [ ! -d "${TOP_DIR}/sophon_media" ]; then
     return 0
   fi
 
   pushd ${TOP_DIR}/sophon_media
-  rm -rf buildit install
+  rm -rf *buildit *install
   popd
 }
 
@@ -750,6 +826,18 @@ function clean_distro() {
     find "${TOP_DIR}/ubuntu/distro" \
       -name "distro_*.tgz" -delete
   fi
+}
+
+function clean_nvr_edge(){
+  print_notice "Run ${FUNCNAME[0]}() function"
+  if [ ! -d "${TOP_DIR}/frameworks/nvr_edge" ]; then
+    return 0
+  fi
+
+  pushd ${TOP_DIR}/frameworks/nvr_edge
+  rm -rf build
+  rm -rf nvr_edge_*
+  popd
 }
 
 function build_edge_env() {
@@ -808,37 +896,6 @@ function build_edge_overlay() {
 
 function build_edge_sdk() {
   print_notice "Run ${FUNCNAME[0]}() function"
-  local preinstall_sdks="$*"
-
-  for _dir in "${BSP_DEBS}" "${SDK_DEBS}"; do
-    mkdir -p "${_dir}"
-  done
-  mkdir -p ${MOD_DEBS}
-
-  # copy libsophon debs
-  if [[ "${preinstall_sdks}" == *"libsophon"* ]]; then
-    build_libsophon || return $?
-  fi
-
-  # copy sophon_media debs
-  if [[ "${preinstall_sdks}" == *"sophon_media"* ]]; then
-    if [ -d "${TOP_DIR}"/sophon_media ]; then
-      build_sophon_media
-    fi
-  fi
-
-
-}
-
-function build_edge_package(){
-  cd ${TOP_DIR}
-  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/local_update.sh ${TOP_DIR}/build/scripts
-  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update.sh ${TOP_DIR}/build/scripts
-  build_package
-}
-
-function build_edge_all(){
-  local target=${1:-all}
 
   build_edge_env || { ret=$?; echo "Error: build_edge_env failed with exit code $ret"; return $ret; }
   build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
@@ -852,8 +909,25 @@ function build_edge_all(){
   else
     build_libsophon || { ret=$?; echo "Error: build_libsophon failed with exit code $ret"; return $ret; }
     build_sophon_media || { ret=$?; echo "Error: build_sophon_media failed with exit code $ret"; return $ret; }
+    ## build pcie deb
+    build_bmsophon || { ret=$?; echo "Error: build_bmsophon failed with exit code $ret"; return $ret; }
+    build_amd64_bmsophon || { ret=$?; echo "Error: build_amd64_bmsophon failed with exit code $ret"; return $ret; }
+    build_pcie_arm64_sophon_media || { ret=$?; echo "Error: build_pcie_arm64_sophon_media failed with exit code $ret"; return $ret; }
+    build_pcie_amd64_sophon_media || { ret=$?; echo "Error: build_pcie_amd64_sophon_media failed with exit code $ret"; return $ret; }
   fi
+}
 
+function build_edge_package(){
+  cd ${TOP_DIR}
+  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/local_update.sh ${TOP_DIR}/build/scripts
+  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update.sh ${TOP_DIR}/build/scripts
+  build_package
+}
+
+function build_edge_all(){
+  local target=${1:-all}
+
+  build_edge_sdk || { ret=$?; echo "Error: build_edge_sdk failed with exit code $ret"; return $ret; }
   build_edge_rootfs || { ret=$?; echo "Error: build_edge_rootfs failed with exit code $ret"; return $ret; }
 }
 
@@ -865,6 +939,8 @@ function clean_edge_all(){
   clean_v4l2_isp
   cd ${TOP_DIR}
   clean_libsophon
+  clean_bmsophon
+  clean_amd64_bmsophon
   clean_sophon_media
   rm -rf ${TOP_DIR}/ubuntu/install
 
@@ -969,6 +1045,8 @@ function build_pqtool_server()
   if [[ "$FLASH_SIZE_SHRINK" != "y" ]]; then
     make install DESTDIR="$SYSTEM_OUT_DIR"
   fi
+  cd "$PQTOOL_SERVER_V2_PATH" || return
+  ./build.sh || { print_notice "build_pqtool_server v2 failed !!"; return 1; }
 )}
 
 function clean_pqtool_server()
@@ -977,6 +1055,8 @@ function clean_pqtool_server()
   cd "$PQTOOL_SERVER_PATH" || return
   make clean
   make uninstall DESTDIR="$SYSTEM_OUT_DIR"
+  cd "$PQTOOL_SERVER_V2_PATH" || return
+  make clean
 )}
 
 function build_3rd_party()
@@ -1200,10 +1280,14 @@ function gen_sd_image()
 function build_package()
 {
     sudo rm -rf $PACKAGE_OUTPUT_DIR
-    mkdir $PACKAGE_OUTPUT_DIR
-    mkdir $PACKAGE_OUTPUT_DIR/boot
-    mkdir $PACKAGE_OUTPUT_DIR/rootfs_rw
-    mkdir $PACKAGE_OUTPUT_DIR/bsp-debs
+    mkdir -p $PACKAGE_OUTPUT_DIR
+    mkdir -p $PACKAGE_OUTPUT_DIR/boot
+    mkdir -p $PACKAGE_OUTPUT_DIR/rootfs_rw
+    mkdir -p $PACKAGE_OUTPUT_DIR/bsp-debs
+    mkdir -p $PACKAGE_OUTPUT_DIR/pcie
+    mkdir -p $PACKAGE_OUTPUT_DIR/pcie/arm64
+    mkdir -p $PACKAGE_OUTPUT_DIR/pcie/x86
+    mkdir -p $PACKAGE_OUTPUT_DIR/nvr_release
 
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/boot.itb $PACKAGE_OUTPUT_DIR/boot/
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/multi.its $PACKAGE_OUTPUT_DIR/boot/
@@ -1213,12 +1297,29 @@ function build_package()
 
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/
     cp -rf $OUTPUT_DIR/ramboot.itb $PACKAGE_OUTPUT_DIR/
-    update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$OUTPUT_DIR/package_edge"
-    update_files_if_newer "sophon-media-soc_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/buildit" "$OUTPUT_DIR/package_edge"
+    update_files_if_newer "libsophon_0.4.*_aarch64.tar.gz" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
+    update_files_if_newer "sophon-driver_*_arm64.deb" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
+    update_files_if_newer "sophon-libsophon_*_arm64.deb" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
+    update_files_if_newer "sophon-libsophon-dev_*_arm64.deb" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
 
-    mkimage -A arm64 -O linux -T script -C none -a 0 -e 0 -n "eMMC Boot Script" \
-            -d ${TOP_DIR}/build/boot.cmd.emmc ${OUTPUT_DIR}/boot.scr.emmc
-    cp -rf ${OUTPUT_DIR}/boot.scr.emmc $PACKAGE_OUTPUT_DIR/boot/
+    update_files_if_newer "sophon-media_1.9.0_aarch64.tar.gz" "${TOP_DIR}/sophon_media/pcie_arm64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
+    update_files_if_newer "sophon-media-sophon*_arm64.deb" "${TOP_DIR}/sophon_media/pcie_arm64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
+
+    update_files_if_newer "libsophon_*_x86_64.tar.gz" "$LIBSOPHON_PATH/amd64_build" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+    update_files_if_newer "sophon-driver_*_amd64.deb" "$LIBSOPHON_PATH/amd64_build" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+    update_files_if_newer "sophon-libsophon_*_amd64.deb" "$LIBSOPHON_PATH/amd64_build" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+    update_files_if_newer "sophon-libsophon-dev_*_amd64.deb" "$LIBSOPHON_PATH/amd64_build" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+
+    update_files_if_newer "sophon-media_1.9.0_x86_64.tar.gz" "${TOP_DIR}/sophon_media/pcie_amd64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+    update_files_if_newer "sophon-media-sophon*_amd64.deb" "${TOP_DIR}/sophon_media/pcie_amd64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+
+    update_files_if_newer "sophon-media-soc_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/buildit" "$OUTPUT_DIR/package_edge"
+    update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$OUTPUT_DIR/package_edge"
+    update_files_if_newer "sophon-soc-libisp_*_arm64.tar.gz" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "$OUTPUT_DIR/package_edge"
+
+    mkimage -A arm64 -O linux -T script -C none -a 0 -e 0 -n "${KERNEL_BOOT_TYPE} Boot Script" \
+            -d ${TOP_DIR}/build/boot.cmd.${KERNEL_BOOT_TYPE} ${OUTPUT_DIR}/boot.scr.${KERNEL_BOOT_TYPE}
+    cp -rf ${OUTPUT_DIR}/boot.scr.${KERNEL_BOOT_TYPE} $PACKAGE_OUTPUT_DIR/boot/
     pushd $PACKAGE_OUTPUT_DIR
 
     tar -zcvf boot.tgz -C boot .
@@ -1276,10 +1377,6 @@ function build_device_all()
     build_access_guard_turnkey_app || return $?
     build_ipc_app || return $?
   fi
-  if [["BOARD" == "buildroot"]]; then
-    copy_libsophon_buildroot
-    copy_sophon-media_buildroot
-  fi
   pack_cfg || return $?
   pack_rootfs || return $?
   pack_data || return $?
@@ -1289,104 +1386,202 @@ function build_device_all()
   pack_upgrade || return $?
 )}
 
-function copy_sophon-media_buildroot()
+function release_nvr_deb()
 {
-local SOPHON_MEDIA_PACK_PATH=${TOP_DIR}/sophon_media/buildit/_CPack_Packages/Linux/DEB/sophon-media-soc_1.9.0_aarch64/
-# local BUILDROOT_INSTALL_PATH=${TOP_DIR}/buildroot/output/target/opt/
-local BUILDROOT_INSTALL_PATH=${TOP_DIR}/buildroot/board/sophgo/common/overlay/opt
-find "$SOPHON_MEDIA_PACK_PATH" -maxdepth 1 -type d -name "sophon*" | while read -r sophon_pkg; do
-    src_opt="${sophon_pkg}/opt"
-    if [ -d "$src_opt" ]; then
-        rsync -av --ignore-existing "${src_opt}/" "${BUILDROOT_INSTALL_PATH}/"
-    fi
-done
-pushd ${BUILDROOT_INSTALL_PATH}/sophon
-local TARGET_PROFILE_D_DIR="${BUILDROOT_INSTALL_PATH}/../etc/profile.d"
-local PROFILE_SCRIPT="${TARGET_PROFILE_D_DIR}/sophon-media-libs.sh"
-mkdir -p "$TARGET_PROFILE_D_DIR"
-touch "$PROFILE_SCRIPT"
-sh -c "> '$PROFILE_SCRIPT'"
+  top_level_dir_name="nvr_edge"
 
-mkdir -p "$TARGET_PROFILE_D_DIR"
-for dir in sophon-*_*; do
-    if [[ -d "$dir" ]]; then
-        prefix="${dir%_*}"
-        version="${dir#*_}"
-        latest_dir=$(ls -dv ${prefix}_* | sort -Vr | head -n 1)
-        ln -sfn "/opt/sophon/$latest_dir" "${prefix}-latest"
-        if [[ -d "$dir/lib" && -d "$dir/data" ]]; then
-            if find "$dir/data" -maxdepth 1 -type f -name '*.conf' | grep -q .; then
-                echo "export LD_LIBRARY_PATH=/opt/sophon/${prefix}-latest/lib:\$LD_LIBRARY_PATH" >> "$PROFILE_SCRIPT"
-            fi
-            find "$dir/data" -maxdepth 1 -type f -name '*.sh' -print0 | while IFS= read -r -d '' sh_file; do
-                cp -v "$sh_file" "$TARGET_PROFILE_D_DIR"
-                chmod 644 "$TARGET_PROFILE_D_DIR/$(basename "$sh_file")"
-            done
-        fi
-    fi
-done
-chmod 644 "$PROFILE_SCRIPT"
-popd
+  current_dir=${PWD}
+  top_level_path=""
+  while [ "$current_dir" != "/" ]; do
+      if [ -d "$current_dir/$top_level_dir_name" ]; then
+          top_level_path="$current_dir/$top_level_dir_name"
+          break
+      fi
+      current_dir="$(dirname "$current_dir")"
+  done
+
+
+  if [ -z "$top_level_path" ]; then
+      echo "Error: Directory '$top_level_dir_name' not found."
+      return 1
+  fi
+
+  release_nvr_tgz nvr_edge 1
+
+  version_file="$top_level_path/VERSION"
+  if [ -f "$version_file" ]; then
+      version=$(tr -d '\n' < "$version_file")
+  else
+      version="0.1.0"
+  fi
+
+  package_name="nvr_edge"
+  architecture="arm64"
+  maintainer="yihu.wang <yihu.wang@sophgo.com>"
+  description="1688 NVR Application Package"
+
+  temp_dir=$(mktemp -d)
+  deb_dir="$temp_dir/${package_name}-${version}"
+  mkdir -p "$deb_dir/DEBIAN"
+
+  mkdir -p "$deb_dir/opt/sophon/${package_name}_${version}/lib"
+  mkdir -p "$deb_dir/opt/sophon/${package_name}_${version}/bin"
+  mkdir -p "$deb_dir/opt/sophon/${package_name}_${version}/assets"
+  mkdir -p "$deb_dir/opt/sophon/${package_name}_${version}/yolov11"
+
+  release_name="nvr_edge_release_$version"
+  release_dir="$top_level_path/$release_name"
+
+  if [ ! -d "$release_dir" ]; then
+      echo "Error: Release directory '$release_dir' not found."
+      echo "Please run build.sh and release.sh first."
+      return 1
+  fi
+
+  cp -r "$release_dir/lib/"*       "$deb_dir/opt/sophon/${package_name}_${version}/lib"
+  cp -r "$release_dir/bin/"*       "$deb_dir/opt/sophon/${package_name}_${version}/bin"
+  cp -r "$release_dir/assets/"*    "$deb_dir/opt/sophon/${package_name}_${version}/assets"
+  cp -r "$release_dir/yolov11/"*   "$deb_dir/opt/sophon/${package_name}_${version}/yolov11"
+  cp "$release_dir/srs.tar.gz"  "$deb_dir/opt/sophon/${package_name}_${version}/srs.tar.gz"
+
+  cat > "$deb_dir/opt/sophon/${package_name}_${version}/bin/nvr" <<EOF
+#!/bin/bash
+
+cd /opt/sophon/${package_name}_${version}/bin
+
+case "\$1" in
+    --stop)
+        ./stop.sh
+        ;;
+    --start)
+        ./start.sh
+        ;;
+    --check)
+        ./check_status.sh
+        ;;
+    --help)
+        echo "Usage: nvr [OPTION]"
+        echo "Options:"
+        echo "  --stop    Stop the service"
+        echo "  --start   Start the service"
+        echo "  --check   Check the service status"
+        echo "  --help    Display this help message"
+        ;;
+    *)
+        echo "Invalid option: \$1"
+        echo "Use --help for usage information."
+        ;;
+esac
+EOF
+
+  chmod +x "$deb_dir/opt/sophon/${package_name}_${version}/bin/nvr"
+
+  control_file="$deb_dir/DEBIAN/control"
+  cat > "$control_file" <<EOF
+Package: nvr-edge
+Version: $version
+Architecture: $architecture
+Maintainer: $maintainer
+Description: $description
+EOF
+
+  postinst_file="$deb_dir/DEBIAN/postinst"
+  cat > "$postinst_file" <<EOF
+#!/bin/bash
+chmod 755 /opt/sophon/${package_name}_${version}/bin/*
+ln -sf /opt/sophon/${package_name}_${version}/bin/nvr /usr/local/bin/nvr_edge
+ln -sf /opt/sophon/${package_name}_${version}/bin/conf /etc/nvr_edge
+EOF
+  chmod 755 "$postinst_file"
+
+  prerm_file="$deb_dir/DEBIAN/prerm"
+  cat > "$prerm_file" <<EOF
+#!/bin/bash
+
+/usr/local/bin/nvr_edge --stop
+EOF
+  chmod 755 "$prerm_file"
+
+  postrm_file="$deb_dir/DEBIAN/postrm"
+  cat > "$postrm_file" <<EOF
+#!/bin/bash
+set -e
+
+if [ "\$1" = "purge" ] || [ "\$1" = "remove" ]; then
+    rm -f /usr/local/bin/nvr_edge
+    rm -rf /opt/sophon/${package_name}_${version}
+    rm -f /etc/nvr_edge
+fi
+
+EOF
+  chmod 755 "$postrm_file"
+
+  dpkg-deb --build "$deb_dir" "$top_level_path/${package_name}_${version}_${architecture}.deb"
+
+  rm -rf "$temp_dir"
+
+  echo "Debian package created: $top_level_path/${package_name}_${version}_${architecture}.deb"
 }
 
-function copy_isp_lib_buildroot() {
+function release_nvr_tgz()
+{
+  top_level_dir_name="$1"
+  if [ -z "$1" ]; then
+      top_level_dir_name="nvr_edge"
+  fi
 
-    local ISP_PACK_PATH="${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter/sophon-soc-libisp_1.0.0/opt/sophon"
-    local BUILDROOT_INSTALL_PATH="${TOP_DIR}/buildroot/board/sophgo/common/overlay/opt/sophon"
-    local src_opt="${ISP_PACK_PATH}"
+  current_dir=${PWD}
+  top_level_path=""
+  while [ "$current_dir" != "/" ]; do
+      if [ -d "$current_dir/$top_level_dir_name" ]; then
+          top_level_path="$current_dir/$top_level_dir_name"
+          break
+      fi
+      current_dir="$(dirname "$current_dir")"
+  done
 
-    if [[ -d "$src_opt" ]]; then
-        mkdir -p $BUILDROOT_INSTALL_PATH
-        rsync -av --ignore-existing "${src_opt}/" "${BUILDROOT_INSTALL_PATH}/"
-    fi
-    pushd "${BUILDROOT_INSTALL_PATH}" || return 1
-    local TARGET_PROFILE_D_DIR="${BUILDROOT_INSTALL_PATH}/../../etc/profile.d"
-    local PROFILE_SCRIPT="${TARGET_PROFILE_D_DIR}/libisp-libs.sh"
-    mkdir -p "$TARGET_PROFILE_D_DIR"
-    touch "$PROFILE_SCRIPT"
-    sh -c "> '$PROFILE_SCRIPT'"
-    local latest_ver=$(find . -maxdepth 1 -type d -regex ".*/libsophon-[0-9]+\.[0-9]+\.[0-9]+" -printf "%f\n" \
-        | sort -t '.' -k1,1nr -k2,2nr -k3,3nr   | head -n1
-    )
-        echo "export LD_LIBRARY_PATH=/opt/sophon/sophon-soc-libisp_1.0.0/lib:\$LD_LIBRARY_PATH" >> "$PROFILE_SCRIPT"
-        find "${latest_ver}/data/" -maxdepth 1 -name "*.sh" -print0 | \
-            while IFS= read -r -d $'\0' file; do
-                cp -v "$file" "$TARGET_PROFILE_D_DIR"
-                chmod 644 "${TARGET_PROFILE_D_DIR}/$(basename "$file")"
-            done
-    [[ -f "$PROFILE_SCRIPT" ]] && chmod 644 "$PROFILE_SCRIPT"
-    popd || return 1
-}
+  if [ -z "$top_level_path" ]; then
+      echo "Error: Directory '$top_level_dir_name' not found."
+      return 1
+  fi
+  echo "$top_level_path"
+  version_file="$top_level_path/VERSION"
+  if [ -f "$version_file" ]; then
+      version=$(cat "$version_file" | tr -d '\n')
+      release_name="nvr_edge_release_$version"
+  else
+      version="nvr_edge_release"
+      release_name="nvr_edge_release"
+  fi
+
+  release_dir="$top_level_path/$release_name"
+  if [ -d "$release_dir" ]; then
+      echo "Warning: Directory '$release_dir' already exists. Deleting it."
+      rm -rf "$release_dir"
+  fi
+  mkdir -p "$release_dir/lib"
+  mkdir -p "$release_dir/assets"
+  mkdir -p "$release_dir/bin"
+
+  cp -r $top_level_path/build/lib/* "$release_dir/lib"
+  cp "$top_level_path/3rdparty/bm_reactor/lib/libbm_reactor.so" "$release_dir/lib"
+  cp "$top_level_path/nvr_gui/awtk/lib/libawtk.so" "$release_dir/lib"
+  cp -r $top_level_path/samples/assets/* "$release_dir/assets"
+  cp -r $top_level_path/samples/build/* "$release_dir/bin"
+  cp -r "$top_level_path/conf" "$release_dir/bin"
+  cp -r $top_level_path/samples/yolov11 "$release_dir/"
+  cp -r $top_level_path/scripts/start.sh "$release_dir/bin/start.sh"
+  cp -r $top_level_path/scripts/stop.sh "$release_dir/bin/stop.sh"
+  cp -r $top_level_path/scripts/check_status.sh "$release_dir/bin/check_status.sh"
+  cp -r $top_level_path/srs.tar.gz "$release_dir/srs.tar.gz"
 
 
-function copy_libsophon_buildroot() {
+  if [ -z "$2" ]; then
+    echo "Release operating..."
+    tar -czf "${release_name}.tar.gz" "$release_name"
+    echo "Release package created: $top_level_path/${release_name}.tar.gz"
+  fi
 
-    local LIBSOPHON_PACK_PATH="${TOP_DIR}/libsophon/install"
-    local BUILDROOT_INSTALL_PATH="${TOP_DIR}/buildroot/board/sophgo/common/overlay/opt/sophon"
-    local src_opt="${LIBSOPHON_PACK_PATH}/"
-
-    if [[ -d "$src_opt" ]]; then
-	mkdir -p $BUILDROOT_INSTALL_PATH
-        rsync -av --ignore-existing "${src_opt}/" "${BUILDROOT_INSTALL_PATH}/"
-    fi
-    pushd "${BUILDROOT_INSTALL_PATH}" || return 1
-    local TARGET_PROFILE_D_DIR="${BUILDROOT_INSTALL_PATH}/../../etc/profile.d"
-    local PROFILE_SCRIPT="${TARGET_PROFILE_D_DIR}/libsophon-libs.sh"
-    mkdir -p "$TARGET_PROFILE_D_DIR"
-    touch "$PROFILE_SCRIPT"
-    sh -c "> '$PROFILE_SCRIPT'"
-    local latest_ver=$(find . -maxdepth 1 -type d -regex ".*/libsophon-[0-9]+\.[0-9]+\.[0-9]+" -printf "%f\n" \
-        | sort -t '.' -k1,1nr -k2,2nr -k3,3nr   | head -n1
-    )
-        ln -sfn "/opt/sophon/$latest_ver" "libsophon-current"
-        echo "export LD_LIBRARY_PATH=/opt/sophon/libsophon-current/lib:\$LD_LIBRARY_PATH" >> "$PROFILE_SCRIPT"
-        find "${latest_ver}/data/" -maxdepth 1 -name "*.sh" -print0 | \
-            while IFS= read -r -d $'\0' file; do
-                cp -v "$file" "$TARGET_PROFILE_D_DIR"
-                chmod 644 "${TARGET_PROFILE_D_DIR}/$(basename "$file")"
-            done
-    [[ -f "$PROFILE_SCRIPT" ]] && chmod 644 "$PROFILE_SCRIPT"
-    popd || return 1
 }
 
 function clean_device_all()
@@ -1529,7 +1724,6 @@ function cvi_setup_env()
   BMCPU_PATH="$TOP_DIR"/bmcpu
   RAMDISK_PATH="$TOP_DIR"/ramdisk
   BUILDROOT_PATH="$TOP_DIR"/buildroot
-  BR2_OVERLAY_PATH="$BUILDROOT_PATH"/board/sophgo/
   BM_BLD_PATH="$TOP_DIR"/bm_bld
   TOOLCHAIN_PATH="$TOP_DIR"/host-tools
   OSS_PATH="$TOP_DIR"/oss
@@ -1537,6 +1731,7 @@ function cvi_setup_env()
   APPS_PATH="$TOP_DIR"/apps
   MW_PATH="$TOP_DIR"/middleware/"$MW_VER"
   PQTOOL_SERVER_PATH="$MW_PATH"/modules/isp/cv186x/isp-tool-daemon/isp_daemon_tool #TODO change "sophon" to "${CHIP_ARCH,,}"
+  PQTOOL_SERVER_V2_PATH="$TOP_DIR"/isp-tool-daemon
   ISP_TUNING_PATH="$TOP_DIR"/isp_tuning
   TPU_SDK_PATH="$TOP_DIR"/tpu-kernel
   CNV_SDK_PATH="$TOP_DIR"/cnv

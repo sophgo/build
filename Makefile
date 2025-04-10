@@ -199,6 +199,11 @@ u-boot-build: ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER} ${UBOOT_CVIPART_DEP} ${UBOOT_
 ifeq ($(STORAGE_TYPE),sd)
 	${Q}sed -i "s/.*CONFIG_SD_BOOT is not set/CONFIG_SD_BOOT=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 endif
+
+ifeq ($(KERNEL_BOOT_TYPE), nvme)
+	${Q}sed -i "s/.*CONFIG_NVME_BOOT is not set/CONFIG_NVME_BOOT=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endif
+
 ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
 	${Q}sed -i "s/CONFIG_ROOTFS_UBUNTU=n/CONFIG_ROOTFS_UBUNTU=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
@@ -349,6 +354,7 @@ kernel: $(OUTPUT_DIR)/rootfs
 kernel: kernel-build
 	$(call print_target)
 ifneq ($(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)),)
+	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../linux*.deb
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
 
 	# Add postinst for linux-headers
@@ -359,7 +365,7 @@ ifneq ($(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)),)
 	${Q}find ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../ -name 'linux-headers*.deb' -exec dpkg -b ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/ {} \;
 	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/
 endif
-	
+
 	$(call copy_Image_action)
 	$(call copy_ko_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/modules)
 	$(call copy_header_action, ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/$(ARCH)/usr/include)
@@ -446,7 +452,15 @@ ifneq (,$(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)))
 ifeq ($(STORAGE_TYPE),sd)
 	$(call gen_cpio,sdboot_fixed_files.txt)
 else
+
+ifeq ($(KERNEL_BOOT_TYPE),nvme)
+	$(call gen_cpio,nvmeboot_fixed_files.txt)
+else ifeq ($(KERNEL_BOOT_TYPE),sata)
+	$(call gen_cpio,sataboot_fixed_files.txt)
+else
 	$(call gen_cpio,boot_fixed_files.txt)
+endif
+
 endif #STORAGE_TYPE!=sd
 else
 ifeq ($(CONFIG_ROOTFS_OVERLAYFS),y)
@@ -665,54 +679,17 @@ define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
 
-ifeq ($(findstring edge,$(PROJECT_FULLNAME)),edge)
-BR2_CONFIG_NAME := soph_bm1688_defconfig 
-else
-BR2_CONFIG_NAME := soph_cv186ah_defconfig 
-endif
-
-BR2_OUTPUT_CONFIG_PATH := ${BUILDROOT_PATH}/.config
-BR2_DEFAULT_CONFIG_PATH := ${BUILD_PATH}/boards/default/buildroot/${BR2_CONFIG_NAME}
-BR2_COMMON_OVERLAY_PATH := ${BR2_OVERLAY_PATH}/common/overlay
-BR2_PROJECT_OVERLAY_PATH := ${BR2_OVERLAY_PATH}/${PROJECT_FULLNAME}/overlay
-
-${BR2_OUTPUT_CONFIG_PATH}: ${BR2_DEFAULT_CONFIG_PATH} ${BUILD_PATH}/.config
-	$(call print_target)
-	${Q}mkdir -p $(dir ${BR2_OUTPUT_CONFIG_PATH})
-	${Q}cmp -s ${BR2_DEFAULT_CONFIG_PATH} ${BR2_OUTPUT_CONFIG_PATH} || \
-		${Q}cp -vb ${BR2_DEFAULT_CONFIG_PATH} ${BR2_OUTPUT_CONFIG_PATH}
-
-menuconfig-br2: ${BR2_OUTPUT_CONFIG_PATH}
+menuconfig-br2:
 	${Q}$(MAKE) -C ${BUILDROOT_PATH} menuconfig
 
-savedefconfig-br2: ${BR2_OUTPUT_CONFIG_PATH}
+savedefconfig-br2:
 	${Q}$(MAKE) -C ${BUILDROOT_PATH} savedefconfig
 
-$(ROOTFS_DIR)/mnt: 
+$(ROOTFS_DIR)/mnt:
 	${Q}mkdir -p $@
 
-rootfs_prepare_br2:$(ROOTFS_DIR)/mnt
-	# # Copy common files
-	${Q}cp $(RAMDISK_PATH)/rootfs/$(ROOTFS_BASE)/etc/profile ${BR2_COMMON_OVERLAY_PATH}/etc
-	${Q}cp  $(RAMDISK_PATH)/rootfs/$(ROOTFS_BASE)/sbin/fw_* ${BR2_COMMON_OVERLAY_PATH}/usr/sbin
-	${Q}cp  $(CHIP_FOLDER_PATH)/bin/* ${BR2_COMMON_OVERLAY_PATH}/usr/sbin
-	# Generate /etc/fw_env.config
-	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkcvipart.py $(FLASH_PARTITION_XML) $(BR2_COMMON_OVERLAY_PATH)/etc/ --fw_env
-
-	# Generate S10_automount
-	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/create_automount.py $(FLASH_PARTITION_XML) $(BR2_COMMON_OVERLAY_PATH)/etc/init.d/
-
-	# Copy project data
-	# ${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_PROJECT_OVERLAY_PATH}/mnt
-	${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_COMMON_OVERLAY_PATH}/mnt
-
-
-rootfs-br2-pack:rootfs_prepare_br2 ${BR2_OUTPUT_CONFIG_PATH}
-	# buildroot would do strip
-	${Q}find ${BR2_OVERLAY_PATH}/* -name "*.ko" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-unneeded {} \;
-	${Q}find ${BR2_OVERLAY_PATH}/* -name "*.so*" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} \;
-	${Q}find ${BR2_OVERLAY_PATH}/* -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
-	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} olddefconfig
+rootfs-br2-pack:
+	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} soph_bm1688_defconfig
 	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH}
 	${Q}cp ${BUILDROOT_PATH}/output/images/rootfs.squashfs $(OUTPUT_DIR)/rawimages/rootfs.${STORAGE_TYPE}
 
@@ -742,10 +719,9 @@ endif
 rootfs-clean:
 	$(call print_target)
 	$(Q)rm -rf $(OUTPUT_DIR)/rootfs/
-	$(Q)rm $(OUTPUT_DIR)/rootfs.$(STORAGE_TYPE)
+	$(Q)rm -rf $(OUTPUT_DIR)/rootfs.$(STORAGE_TYPE)
 ifeq ($(CONFIG_ROOTFS_BUILD_FROM_BR2),y)
 	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} clean
-	${Q}rm -rf ${BR2_PROJECT_OVERLAY_PATH}/mnt/*
 endif
 
 $(OUTPUT_DIR)/system:

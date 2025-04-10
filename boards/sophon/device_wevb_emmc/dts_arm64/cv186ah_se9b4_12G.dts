@@ -43,7 +43,7 @@
 			alignment = <0x0 0x100000>; // 1MB
 			linux,cma-default;
 		};
-		
+
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
 			reg = <0x3 0x00000000 0x1 0x00000000>; // 4G, for TPU
@@ -55,7 +55,7 @@
 		pipe-mode = <0x2>; //b'00 x2&&x2; b'10 sata&&x2
 		reset-gpio = <&porte 2 GPIO_ACTIVE_HIGH>; //gpio 130
 	};
-	
+
 	/delete-node/ cv-sd1;
 	sd:cv-sd@29310000 {
 		pwr-gpios = <&portg 6 GPIO_ACTIVE_HIGH>;
@@ -118,8 +118,8 @@
 		/delete-node/ cpu@102;
 		/delete-node/ cpu@103;
 	};
-	
-	bsl_leds: bsl_leds { 
+
+	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
 			label = "disk-blue";
@@ -149,7 +149,7 @@
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 	};
-		
+
 	vcc5v0_sys: vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
@@ -159,7 +159,7 @@
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc12v_dc>;
 	};
-	
+
 	vcc3v3_sys: vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
@@ -168,7 +168,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc12v_dc>;
-	};	
+	};
 
 	vcc5v0_hub: vcc5v0-hub {
 		compatible = "regulator-fixed";
@@ -181,7 +181,7 @@
 		gpios = <&portb 19 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
-	
+
 	vcc5v0_host: vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
@@ -241,7 +241,7 @@
 		gpios = <&portg 5 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_sys>;
 	};
-				
+
 	i2c11: i2c@11 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&porte 3 GPIO_ACTIVE_HIGH>;
@@ -258,7 +258,7 @@
 			reg = <0x50>;
 		};
 	};
-	
+
 	i2c12: i2c@12 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&portg 8 GPIO_ACTIVE_HIGH>;
@@ -273,7 +273,7 @@
 			compatible = "BasisLink,SM9Pro";
 			reg = <0x60>;
 		};
-	};		
+	};
 };
 
 &uart0 {
@@ -282,7 +282,18 @@
 };
 
 &hdmi {
-	label = "SE9";
+	phy-table =
+			<0  0x0007 0x0120 0x8d88>,
+			<1  0x0007 0x0120 0x8d88>,
+			<2  0x0007 0x0120 0x8d88>,
+			<3  0x0007 0x0120 0x8d88>,
+			<4  0x0007 0x0120 0x8d88>,
+			<5  0x0007 0x0120 0x8d88>,
+			<6  0x0000 0x0120 0x83F8>,
+			<7  0x0000 0x0120 0x83F8>,
+			<8  0x0000 0x0120 0x83F8>,
+			<9  0x0000 0x0080 0x8FF4>,
+			<10 0x0000 0x0080 0x8FF4>;
 };
 
 
@@ -293,12 +304,12 @@
 };
 
 
-&i2c6 {	
+&i2c6 {
 	rtc@51 {
 		compatible = "Haoyu,hym8563";
 		init_date = "2024/01/01";
 		reg = <0x51>;
-	};	
+	};
 };
 
 &gpio_leds {
