@@ -22,7 +22,14 @@ OUT_ADDR="\${unzip_addr}"
 
 RECOVERY_DIR=recovery_files
 PARTITION_FILE=partition32G.xml
-BOOTCMD_SCRIPT=boot_emmc
+
+if [ "${KERNEL_BOOT_TYPE}" == "nvme" ]; then
+	BOOTCMD_SCRIPT=boot_nvme
+elif [ "${KERNEL_BOOT_TYPE}" == "sata" ]; then
+	BOOTCMD_SCRIPT=boot_sata
+else
+	BOOTCMD_SCRIPT=boot_emmc
+fi
 SPIFCMD_SCRIPT=boot_spif
 FIPCMD_SCRIPT=boot_fip
 TOP_SCRIPT=boot
@@ -240,11 +247,17 @@ function compress_and_update_partition_script()
 	fi
 	script_update "echo"
 	script_update ""
-	script_update "mmc write ${OUT_ADDR} ${hex_disk_offset} ${hex_size}"
+	if [ "${KERNEL_BOOT_TYPE}" == "nvme" ]; then
+		script_update "nvme write ${OUT_ADDR} ${hex_disk_offset} ${hex_size}"
+	elif [ "${KERNEL_BOOT_TYPE}" == "sata" ]; then
+		script_update "scsi write ${OUT_ADDR} ${hex_disk_offset} ${hex_size}"
+	else
+		script_update "mmc write ${OUT_ADDR} ${hex_disk_offset} ${hex_size}"
+	fi
 	script_update "if test \$? -ne 0; then"
 	script_update "led status off"
 	script_update "led error off"
-	script_update "while true; do; echo \"ERROR: eMMC write failed\"; sleep 0.5; done; fi;"
+	script_update "while true; do; echo \"ERROR: ${KERNEL_BOOT_TYPE} write failed\"; sleep 0.5; done; fi;"
 	script_update "echo"
 	script_update ""
 }
@@ -266,9 +279,11 @@ function create_partition_script()
 	CURRENT_SCRIPT=${sub_script}
 	cp /dev/null ${CURRENT_SCRIPT}
 	script_update "# ${description}"
-	if [ "$savelog" != "gpt" ]; then
-		if [ $savelog -gt 2 ]; then
-			script_update "bm_savelog mmc 0:1 ${savelog}.log"
+	if [ "${KERNEL_BOOT_TYPE}" == "emmc" ]; then
+		if [ "$savelog" != "gpt" ]; then
+			if [ $savelog -gt 2 ]; then
+				script_update "bm_savelog mmc 0:1 ${savelog}.log"
+			fi
 		fi
 	fi
 	script_update ""
@@ -310,7 +325,7 @@ function create_top_script()
 	fi
 	script_update "source ${SCRIPT_ADDR}"
 	script_update ""
-	script_update "echo update eMMC"
+	script_update "echo update ${KERNEL_BOOT_TYPE}"
 	script_update "${LOAD_COMMAND} ${SCRIPT_ADDR} ${OTA_PATH}$(basename ${BOOTCMD_SCRIPT} .cmd).scr"
 	script_update "source ${SCRIPT_ADDR}"
 	script_update ""
@@ -384,14 +399,25 @@ function create_fip_script()
 		script_update "${LOAD_COMMAND} ${IN_ADDR} ${OTA_PATH}fip.bin"
 		script_update "if test \$? -eq 0; then"
 		script_update ""
-		script_update "mmc dev 0 1"
-		script_update "if test \$? -ne 0; then"
-		script_update "led status off"
-		script_update "led error off"
-		script_update "while true; do; echo \"ERROR: switch to mmc0(part1) fail\"; sleep 0.5; done; fi;"
-		script_update ""
-		script_update "mmc write ${IN_ADDR} 0x0 0x800"
-		script_update "mmc write ${IN_ADDR} 0x800 0x800"
+		if [ "${STORAGE_TYPE}" == "emmc" ]; then
+			script_update "mmc dev 0"
+			script_update "mmc dev 0 1"
+			script_update "if test \$? -ne 0; then"
+			script_update "led status off"
+			script_update "led error off"
+			script_update "while true; do; echo \"ERROR: switch to mmc0(part1) fail\"; sleep 0.5; done; fi;"
+			script_update ""
+			script_update "mmc write ${IN_ADDR} 0x0 0x800"
+			script_update "mmc write ${IN_ADDR} 0x800 0x800"
+		elif [ "${STORAGE_TYPE}" == "spinor" ]; then
+			script_update "sf probe"
+			script_update "if test \$? -ne 0; then"
+			script_update "led status off"
+			script_update "led error off"
+			script_update "while true; do; echo \"ERROR: probe spinor fail\"; sleep 0.5; done; fi;"
+			script_update ""
+			script_update "sf update ${IN_ADDR} 0x0 0x100000"
+		fi
 		script_update ""
 		script_update "else"
 		script_update ""
@@ -399,12 +425,12 @@ function create_fip_script()
 		script_update "fi"
 		script_update ""
 		script_update "echo Program fip.bin done"
-		script_update "mmc dev 0"
-
+		if [ "${KERNEL_BOOT_TYPE}" == "emmc" ]; then
+			script_update "mmc dev 0"
+		fi
 	fi
 
 	compile_script $(basename ${CURRENT_SCRIPT} .cmd)
-
 }
 
 
@@ -426,6 +452,37 @@ function create_emmc_script()
 		script_update "mmc erase 0# $(echo "obase=16;${END_OFFSET}" | bc)"
 		script_update ""
 	fi
+}
+
+function create_nvme_script()
+{
+	CURRENT_SCRIPT=${RECOVERY_DIR}/${BOOTCMD_SCRIPT}.cmd
+	cp /dev/null ${CURRENT_SCRIPT}
+
+	script_update "# nvme image"
+	script_update ""
+	script_update "pci e"
+	script_update "nvme scan"
+	script_update "if test \$? -ne 0; then"
+	script_update "led status off"
+	script_update "led error off"
+	script_update "while true; do; echo \"ERROR: nvme not exist\"; sleep 0.5; done; fi;"
+	script_update ""
+}
+
+function create_sata_script()
+{
+	CURRENT_SCRIPT=${RECOVERY_DIR}/${BOOTCMD_SCRIPT}.cmd
+	cp /dev/null ${CURRENT_SCRIPT}
+
+	script_update "# sata image"
+	script_update ""
+	script_update "scsi scan"
+	script_update "if test \$? -ne 0; then"
+	script_update "led status off"
+	script_update "led error off"
+	script_update "while true; do; echo \"ERROR: sata not exist\"; sleep 0.5; done; fi;"
+	script_update ""
 }
 
 function split_and_compress_img()
@@ -566,7 +623,7 @@ function make_gpt_img()
 
 	local disk_offset=0
 	local filename=${RECOVERY_DIR}/gpt
-	local desc="mmc gpt file"
+	local desc="${KERNEL_BOOT_TYPE} gpt file"
 
 	./mk_gpt -p ${PARTITION_FILE} -d ${filename} 1 >/dev/null || true
 
@@ -576,12 +633,17 @@ function make_gpt_img()
 	create_partition_script_done
 }
 
-function emmc_done()
+function storage_upgrade_done()
 {
 
-
-	script_update "echo eMMC update done"
-	script_update "bm_savelog mmc 0:1 end.log"
+	script_update "echo ${KERNEL_BOOT_TYPE} update done"
+	if [ "${KERNEL_BOOT_TYPE}" == "emmc" ]; then
+		script_update "bm_savelog mmc 0:1 end.log"
+	elif [ "${KERNEL_BOOT_TYPE}" == "nvme" ]; then
+		script_update "bm_savelog nvme 0:1 end.log"
+	elif [ "${KERNEL_BOOT_TYPE}" == "sata" ]; then
+		script_update "bm_savelog scsi 0:1 end.log"
+	fi
 	script_update "if test \"\$update_all\" != \"1\" -a \"\$reset_after\" = \"1\"; then reset; fi;"
 	script_update "if test \"\$update_all\" != \"1\"; then while true; do; echo \"Please remove the installation medium, then reboot\"; sleep 0.5; done; fi;"
 	compile_script $(basename ${CURRENT_SCRIPT} .cmd)
@@ -589,12 +651,12 @@ function emmc_done()
 	#move boot partition to final update for tftp upgrade.
 	if [ "${LOAD_COMMAND}" = tftp ]; then
 
-		BOOTCMD="${RECOVERY_DIR}/boot_emmc.cmd"
-		BOOTSCR="${RECOVERY_DIR}/boot_emmc.scr"
+		BOOTCMD="${RECOVERY_DIR}/boot_${KERNEL_BOOT_TYPE}.cmd"
+		BOOTSCR="${RECOVERY_DIR}/boot_${KERNEL_BOOT_TYPE}.scr"
 
 
 		row_no=$(grep -n "Partition 0" $BOOTCMD | awk -F '[\\: \\,]' '{print $1}')
-		replace_no=$(grep -n "echo eMMC update done" $BOOTCMD | awk -F '[\\: \\,]' '{print $1}')
+		replace_no=$(grep -n "echo ${KERNEL_BOOT_TYPE} update done" $BOOTCMD | awk -F '[\\: \\,]' '{print $1}')
 
 		str1=$(awk "NR==${row_no}{print}" $BOOTCMD)
 		sed -i "$replace_no"'i\'"${str1}" $BOOTCMD
@@ -639,7 +701,13 @@ function init()
 	parse_partition_xml
 	create_top_script
 	create_fip_script
-	create_emmc_script
+	if [ "${KERNEL_BOOT_TYPE}" == "emmc" ]; then
+		create_emmc_script
+	elif [ "${KERNEL_BOOT_TYPE}" == "nvme" ]; then
+		create_nvme_script
+	elif [ "${KERNEL_BOOT_TYPE}" == "sata" ]; then
+		create_sata_script
+	fi
 }
 
 parseargs "$@"
@@ -650,4 +718,4 @@ init
 # continue to add more command to emmc script
 make_gpt_img
 make_partition_imgs
-emmc_done
+storage_upgrade_done

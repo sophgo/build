@@ -1,0 +1,10 @@
+<physical_partition type="sd">
+	<partition label="BOOT" size_in_kb="131072" file="" />
+	<partition label="RECOVERY" size_in_kb="131072" file="" />
+	<partition label="ENV" size_in_kb="1024" file="" />
+	<partition label="MISC" size_in_kb="10240" file="" />
+	<partition label="ROOTFS" size_in_kb="3145728" file="" />
+	<partition label="ROOTFS_RW" size_in_kb="3145728" file="" />
+	<partition label="DATA" size_in_kb="3145728" file="" />
+</physical_partition>
+

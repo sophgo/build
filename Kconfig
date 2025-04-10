@@ -375,6 +375,25 @@ config STORAGE_TYPE
 	default "spinor" if STORAGE_TYPE_spinor
 	default "sd" if STORAGE_TYPE_sd
 
+choice
+	prompt "Select kernel boot type"
+	config KERNEL_BOOT_TYPE_none
+		bool "none"
+	config KERNEL_BOOT_TYPE_emmc
+		bool "emmc"
+	config KERNEL_BOOT_TYPE_nvme
+		bool "nvme"
+	config KERNEL_BOOT_TYPE_sata
+		bool "sata"
+endchoice
+
+config KERNEL_BOOT_TYPE
+	string
+	default "" if KERNEL_BOOT_TYPE_none
+	default "emmc" if KERNEL_BOOT_TYPE_emmc
+	default "nvme" if KERNEL_BOOT_TYPE_nvme
+	default "sata" if KERNEL_BOOT_TYPE_sata
+
 config NANDFLASH_BLOCKSIZE
 	int "Nand flash block size"
 	default 131072
@@ -394,10 +413,10 @@ source "output/Kconfig.panels"
 menu "uboot options"
 
 config USE_DEFAULT_ENV
-	bool "use defaule environment setting"
+	bool "use default environment setting"
 	default y
 	help
-	 use defaule environment setting, if you want to set environment
+	 use default environment setting, if you want to set environment
 	 please disable this option.
 
 choice

@@ -189,7 +189,7 @@
 		reg-names = "spif";
 		sck-div = <3>;
 		sck_mhz = <300>;
-		spi-max-frequency = <75000000>;
+		spi-max-frequency = <35000000>;
 		spiflash {
 			compatible = "jedec,spi-nor";
 			spi-rx-bus-width = <4>;
@@ -726,7 +726,7 @@
 
 		sata0: sata-port@0 {
 			reg = <0>;
-		       };
+		};
 
 		sata1: sata-port@1 {
 			reg = <1>;
