@@ -688,7 +688,13 @@ savedefconfig-br2:
 $(ROOTFS_DIR)/mnt:
 	${Q}mkdir -p $@
 
-rootfs-br2-pack:
+BR2_COMMON_OVERLAY_PATH := ${BR2_OVERLAY_PATH}/common/overlay
+
+rootfs_prepare_br2:$(ROOTFS_DIR)/mnt
+	# Copy project data
+	${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_COMMON_OVERLAY_PATH}/mnt
+
+rootfs-br2-pack:rootfs_prepare_br2
 	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} soph_bm1688_defconfig
 	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH}
 	${Q}cp ${BUILDROOT_PATH}/output/images/rootfs.squashfs $(OUTPUT_DIR)/rawimages/rootfs.${STORAGE_TYPE}

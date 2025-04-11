@@ -532,6 +532,7 @@ function cvi_setup_env()
   KERNEL_PATH="$TOP_DIR"/"$KERNEL_SRC"
   RAMDISK_PATH="$TOP_DIR"/ramdisk
   BUILDROOT_PATH="$TOP_DIR"/buildroot
+  BR2_OVERLAY_PATH="$TOP_DIR"/buildroot/board/sophgo/
   BM_BLD_PATH="$TOP_DIR"/bm_bld
   TOOLCHAIN_PATH="$TOP_DIR"/host-tools
   OSS_PATH="$TOP_DIR"/oss
