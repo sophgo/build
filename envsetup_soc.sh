@@ -570,7 +570,7 @@ function build_libsophon()
      mkdir -p "$TOP_DIR/buildroot/dl/sglib"
      update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$TOP_DIR/buildroot/dl/sglib"
   fi
- 
+
   [ "$SIDE_TYPE" = edge ] && return
 
   cp -af "${_install_prefix}"/libsophon-* "$TPU_SDK_INSTALL_PATH" || return
@@ -1724,6 +1724,7 @@ function cvi_setup_env()
   BMCPU_PATH="$TOP_DIR"/bmcpu
   RAMDISK_PATH="$TOP_DIR"/ramdisk
   BUILDROOT_PATH="$TOP_DIR"/buildroot
+  BR2_OVERLAY_PATH="$TOP_DIR"/buildroot/board/sophgo/
   BM_BLD_PATH="$TOP_DIR"/bm_bld
   TOOLCHAIN_PATH="$TOP_DIR"/host-tools
   OSS_PATH="$TOP_DIR"/oss
