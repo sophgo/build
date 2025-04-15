@@ -457,13 +457,6 @@ function build_bmsophon()
 
   local lib_dir="$LIBSOPHON_PATH"/3rdparty/soc/
   local toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux.cmake
-  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
-    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib930/
-    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-930.cmake
-  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
-    lib_dir="$LIBSOPHON_PATH"/3rdparty/lib1131/
-    toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-1131.cmake
-  fi
 
   pushd "$LIBSOPHON_PATH" || return
 
@@ -473,7 +466,7 @@ function build_bmsophon()
     -DPLATFORM=pcie_arm64 \
     -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD" \
     -DLIB_DIR="${lib_dir}" \
-    -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
+    -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64_631" \
     -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
     -DBUILD_STATIC_LIB="${_static_lib}" \
     -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
@@ -729,11 +722,14 @@ function build_sophon_media(){
   pushd ${TOP_DIR}/sophon_media/buildit
   GCC_V="1131"
   if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
-    #source build/build_cmake.sh 930
+    #source build/build_cmake.sh 930 soc
     GCC_V="930"
   elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
-    #source build/build_cmake.sh 1131
+    #source build/build_cmake.sh 1131 soc
     GCC_V="1131"
+  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64=y' ${TOP_DIR}/build/.config; then
+    #source build/build_cmake.sh 630 soc
+    GCC_V="630"
   fi
   cmake -DPLATFORM=soc -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
 	-DCMAKE_INSTALL_PREFIX=../install \
@@ -761,14 +757,7 @@ function build_pcie_arm64_sophon_media(){
   fi
   mkdir -p ${TOP_DIR}/sophon_media/pcie_arm64_buildit
   pushd ${TOP_DIR}/sophon_media/pcie_arm64_buildit
-  GCC_V="1131"
-  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
-    #source build/build_cmake.sh 930
-    GCC_V="930"
-  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
-    #source build/build_cmake.sh 1131
-    GCC_V="1131"
-  fi
+  GCC_V="630"
   cmake -DPLATFORM=pcie_arm64 -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
         -DCMAKE_INSTALL_PREFIX=../pcie_arm64_install \
         -DDEBUG=$MEDIA_DEBUG \
@@ -788,17 +777,9 @@ function build_pcie_amd64_sophon_media(){
   else
     CMAKE_BUILD_TYPE="Release"
   fi
-  #mkdir -p ${TOP_DIR}/sophon_media/amd64_pcie_buildit
-  #pushd ${TOP_DIR}/sophon_media/amd64_pcie_buildit
   mkdir -p ${TOP_DIR}/sophon_media/pcie_amd64_buildit
   pushd ${TOP_DIR}/sophon_media/pcie_amd64_buildit
-  GCC_V="1131"
-  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
-    GCC_V="930"
-  elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
-    GCC_V="1131"
-  fi
-  cmake -DPLATFORM=pcie -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
+  cmake -DPLATFORM=pcie -DSUBTYPE=asic \
         -DCMAKE_INSTALL_PREFIX=../pcie_amd64_install \
         -DDEBUG=$MEDIA_DEBUG \
         -DCMAKE_BINARY_DIR=${TOP_DIR}/sophon_media/pcie_amd64_buildit \
@@ -1769,6 +1750,7 @@ function cvi_setup_env()
   else
 	export CROSS_COMPILE_64=aarch64-linux-gnu-
   fi
+  export CROSS_COMPILE_64_631=aarch64-linux-gnu-
 
   export CROSS_COMPILE_32=arm-linux-gnueabihf-
   export CROSS_COMPILE_UCLIBC=arm-cvitek-linux-uclibcgnueabihf-
@@ -1786,6 +1768,7 @@ function cvi_setup_env()
   else
 	CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
   fi
+  CROSS_COMPILE_PATH_64_631="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
   CROSS_COMPILE_PATH_32="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf
   CROSS_COMPILE_PATH_UCLIBC="$TOOLCHAIN_PATH"/gcc/arm-cvitek-linux-uclibcgnueabihf
   CROSS_COMPILE_PATH_64_NONOS="$TOOLCHAIN_PATH"/gcc/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-elf
@@ -1796,6 +1779,7 @@ function cvi_setup_env()
 
   # add toolchain path
   pathprepend "$CROSS_COMPILE_PATH_64"/bin
+  pathprepend "$CROSS_COMPILE_PATH_64_631"/bin
   pathprepend "$CROSS_COMPILE_PATH_32"/bin
   pathprepend "$CROSS_COMPILE_PATH_64_NONOS"/bin
   pathprepend "$CROSS_COMPILE_PATH_64_NONOS_RISCV64"/bin
@@ -1837,6 +1821,7 @@ function cvi_setup_env()
 	SYSROOT_PATH_64="$RAMDISK_PATH"/sysroot/sysroot-glibc-linaro-2.23-2017.05-aarch64-linux-gnu
   fi
   SYSROOT_PATH_32="$RAMDISK_PATH"/sysroot/sysroot-glibc-linaro-2.23-2017.05-arm-linux-gnueabihf
+  SYSROOT_PATH_64_631="$RAMDISK_PATH"/sysroot/sysroot-glibc-linaro-2.23-2017.05-aarch64-linux-gnu
   SYSROOT_PATH_UCLIBC="$RAMDISK_PATH"/sysroot/sysroot-uclibc
   SYSROOT_PATH_GLIBC_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-glibc-riscv64
   SYSROOT_PATH_MUSL_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-musl-riscv64
