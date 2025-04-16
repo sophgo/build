@@ -51,12 +51,13 @@ def genCase(case, out, parts, storage):
                 #        % (i + 1)
                 #    )
                 #    out.write("fi\n")
-                out.write("e2fsck -y %s\n" % source)
                 if p["label"] == "DATA":
                     out.write("echo -e \"OK\\nFix\\n%s\\n100\\n\" | parted "
                               "---pretend-input-tty %s unit %% "
                               "resizepart %s 100\n"
                               % (source[-1], source[:-2], source[-1]))
+                out.write("e2fsck -y %s\n" % source)
+                if p["label"] == "DATA":
                     out.write("resize2fs %s\n" % (source))
                 out.write(
                     "mount -t %s -o rw %s %s\n"
