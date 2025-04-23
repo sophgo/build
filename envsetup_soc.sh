@@ -1326,6 +1326,7 @@ function build_package()
     find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
     find "${SDK_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
     find "${MOD_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
+    update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}-dev_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${PACKAGE_OUTPUT_DIR}/bsp-debs"
 
     pushd $PACKAGE_OUTPUT_DIR
     build_update sdcard
