@@ -729,12 +729,18 @@ function clean_distro() {
 
 function build_edge_env() {
   #export DISTRO=${DISTRO:-focal}
-  export DISTRO=jammy
+  #export DISTRO=jammy
   export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
   export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
   export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
   export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
-  export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    export DISTRO=jammy
+    export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
+  else
+    export DISTRO=focal
+    export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
+  fi
 
   export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
   export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
