@@ -823,12 +823,18 @@ function clean_nvr_edge(){
 
 function build_edge_env() {
   #export DISTRO=${DISTRO:-focal}
-  export DISTRO=jammy
+  #export DISTRO=jammy
   export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
   export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
   export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
   export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
-  export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    export DISTRO=jammy
+    export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
+  else
+    export DISTRO=focal
+    export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
+  fi
 
   export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
   export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
@@ -859,7 +865,7 @@ function build_edge_overlay() {
         if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
             echo "update distro_${DISTRO}.tgz ..."
             rm -f "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz"
-			cd ${TOP_DIR}/ubuntu/distro
+	    cd ${TOP_DIR}/ubuntu/distro
             python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
 	    mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
         fi
@@ -1313,9 +1319,11 @@ function build_package()
     cp -rf "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs rootfs_rw/overlay/home/linaro
     sudo chown 1000:1000 -R rootfs_rw/overlay/home/linaro
 
-    sudo tar -zcf rootfs.tgz --exclude=home/linaro/bsp-debs -C "${EDGE_ROOTFS_DIR}" .
+    sudo mkdir -p rootfs_rw/overlay/opt
+    sudo mv "${EDGE_ROOTFS_DIR}"/opt/sophon rootfs_rw/overlay/opt/
     sudo tar -zcf .rootfs_rw.tgz -C rootfs_rw .
-    sudo mv .rootfs_rw.tgz rootfs_rw/
+    sudo mv .rootfs_rw.tgz "${EDGE_ROOTFS_DIR}"/root/
+    sudo tar -zcf rootfs.tgz --exclude=home/linaro/bsp-debs -C "${EDGE_ROOTFS_DIR}" .
     sudo tar -zcf rootfs_rw.tgz -C rootfs_rw .
 
     mkdir -p $PACKAGE_OUTPUT_DIR/data
