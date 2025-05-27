@@ -131,7 +131,11 @@ UBOOT_CVIPART_DEP := ${UBOOT_PATH}/include/imgs.h ${UBOOT_PATH}/include/cvipart.
 
 ${UBOOT_CVIPART_DEP}: ${FLASH_PARTITION_XML} ${BUILD_PATH}/.config
 	$(call print_target)
+ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+	${Q}python3 ${IMGTOOL_PATH}/mkcvipart_edge.py ${FLASH_PARTITION_XML} ${UBOOT_PATH}/include
+else
 	${Q}python3 ${IMGTOOL_PATH}/mkcvipart.py ${FLASH_PARTITION_XML} ${UBOOT_PATH}/include
+endif
 	${Q}python3 ${IMGTOOL_PATH}/mk_imgHeader.py ${FLASH_PARTITION_XML} ${UBOOT_PATH}/include
 
 ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}:
@@ -226,6 +230,7 @@ u-boot-clean:
 	$(call print_target)
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} distclean
 	${Q}rm -f ${OUTPUT_DIR}/fip.bin ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin.lzma
+	${Q}rm -f ${UBOOT_PATH}/include/imgs.h ${UBOOT_PATH}/include/cvipart.h
 
 
 ################################################################################
