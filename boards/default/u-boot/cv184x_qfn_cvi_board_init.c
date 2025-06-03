@@ -1,0 +1,14 @@
+int cvi_board_init(void)
+{
+#if 0 /* pinmux set in alios */
+        PINMUX_CONFIG(IIC0_SCL, CV_SCL0__CR_4WTDI);
+        PINMUX_CONFIG(IIC0_SDA, CV_SDA0__CR_4WTDO);
+
+        PINMUX_CONFIG(PAD_MIPI_TXP1, IIC2_SCL);
+        PINMUX_CONFIG(PAD_MIPI_TXM1, IIC2_SDA);
+        PINMUX_CONFIG(PAD_MIPI_TXP0, XGPIOC_13);
+        PINMUX_CONFIG(PAD_MIPI_TXM0, CAM_MCLK1);
+
+#endif
+	return 0;
+}

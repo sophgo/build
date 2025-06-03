@@ -1,0 +1,656 @@
+menu "Partition Configuration"
+
+config PARTITION_COUNT
+    int "Number of partitions"
+    range 1 15
+    default 6
+    help
+        Set the number of partitions. The range is 1 to 15.
+
+config PARTITION_1
+    bool "Enable Partition 1"
+	depends on !STORAGE_TYPE_emmc && PARTITION_COUNT >= 1
+    default y if PARTITION_COUNT >= 1
+    help
+        eMMC do not need this Partition
+
+config PARTITION_1_LABEL
+    string "Partition 1 Label"
+    default "fip"
+    depends on PARTITION_1 && !STORAGE_TYPE_emmc
+
+config PARTITION_1_SIZE
+    int "Partition 1 Size (in KB), multiple of 64KB"
+    default 2048 if STORAGE_TYPE_spinor
+	default 2560 if STORAGE_TYPE_spinand
+    depends on PARTITION_1 && !STORAGE_TYPE_emmc
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_1_READONLY
+    bool "Partition 1 Readonly"
+    default false
+    depends on PARTITION_1 && !STORAGE_TYPE_emmc
+
+config PARTITION_1_FILE
+    string "Partition 1 File"
+    default "fip_spl.bin"
+    depends on PARTITION_1 && !STORAGE_TYPE_emmc
+
+config PARTITION_1_MOUNTPOINT
+    string "Partition 1 Mount Point"
+    default ""
+    depends on PARTITION_1 && !STORAGE_TYPE_emmc
+
+config PARTITION_1_TYPE
+    string "Partition 1 Type"
+    default ""
+    depends on PARTITION_1 && !STORAGE_TYPE_emmc
+
+# Repeat for Partition 2
+config PARTITION_2
+    bool "Enable Partition 2"
+    depends on PARTITION_COUNT >= 2
+    default y if PARTITION_COUNT >= 2
+
+config PARTITION_2_LABEL
+    string "Partition 2 Label"
+    default "2nd"
+    depends on PARTITION_2
+
+config PARTITION_2_SIZE
+    int "Partition 2 Size (in KB), multiple of 64KB"
+    default 3072
+    depends on PARTITION_2
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_2_READONLY
+    bool "Partition 2 Readonly"
+    default false
+    depends on PARTITION_2
+
+config PARTITION_2_FILE
+    string "Partition 2 File"
+    default "yoc.bin"
+    depends on PARTITION_2
+
+config PARTITION_2_MOUNTPOINT
+    string "Partition 2 Mount Point"
+    default ""
+    depends on PARTITION_2
+
+config PARTITION_2_TYPE
+    string "Partition 2 Type"
+    default ""
+    depends on PARTITION_2
+
+
+# Repeat for Partition 3
+config PARTITION_3
+    bool "Enable Partition 3"
+    depends on PARTITION_COUNT >= 3
+    default y if PARTITION_COUNT >= 3
+
+config PARTITION_3_LABEL
+    string "Partition 3 Label"
+    default "BOOT"
+    depends on PARTITION_3
+
+config PARTITION_3_SIZE
+    int "Partition 3 Size (in KB), multiple of 64KB"
+    default 5120 if STORAGE_TYPE_spinor
+	default 8192 if STORAGE_TYPE_spinand
+	default 8192 if STORAGE_TYPE_emmc
+    depends on PARTITION_3
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_3_READONLY
+    bool "Partition 3 Readonly"
+    default false
+    depends on PARTITION_3
+
+config PARTITION_3_FILE
+    string "Partition 3 File"
+    default "boot.spinor" if STORAGE_TYPE_spinor
+	default "boot.spinand" if STORAGE_TYPE_spinand
+	default "boot.emmc" if STORAGE_TYPE_emmc
+    depends on PARTITION_3
+
+config PARTITION_3_MOUNTPOINT
+    string "Partition 3 Mount Point"
+    default ""
+    depends on PARTITION_3
+
+config PARTITION_3_TYPE
+    string "Partition 3 Type"
+    default ""
+    depends on PARTITION_3
+
+# Repeat for Partition 4
+config PARTITION_4
+    bool "Enable Partition 4"
+    depends on PARTITION_COUNT >= 4
+    default y if PARTITION_COUNT >= 4
+
+config PARTITION_4_LABEL
+    string "Partition 4 Label"
+    default "ROOTFS"
+    depends on PARTITION_4
+
+config PARTITION_4_SIZE
+    int "Partition 4 Size (in KB), multiple of 64KB"
+    default 3072 if STORAGE_TYPE_spinor
+    default 71680 if STORAGE_TYPE_spinand
+    default 71680 if STORAGE_TYPE_emmc
+    depends on PARTITION_4
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_4_READONLY
+    bool "Partition 4 Readonly"
+    default true
+    depends on PARTITION_4
+
+config PARTITION_4_FILE
+    string "Partition 4 File"
+    default "rootfs.spinor" if STORAGE_TYPE_spinor
+    default "rootfs.spinand" if STORAGE_TYPE_spinand
+    default "rootfs.emmc" if STORAGE_TYPE_emmc
+    depends on PARTITION_4
+
+config PARTITION_4_MOUNTPOINT
+    string "Partition 4 Mount Point"
+    default ""
+    depends on PARTITION_4
+
+config PARTITION_4_TYPE
+    string "Partition 4 Type"
+    default ""
+    depends on PARTITION_4
+
+# Repeat for Partition 5
+config PARTITION_5
+    bool "Enable Partition 5"
+    depends on PARTITION_COUNT >= 5
+    default y if PARTITION_COUNT >= 5
+
+config PARTITION_5_LABEL
+    string "Partition 5 Label"
+    default "ENV"
+    depends on PARTITION_5
+
+config PARTITION_5_SIZE
+    int "Partition 5 Size (in KB), multiple of 64KB"
+    default 64 if STORAGE_TYPE_spinor
+	default 128 if STORAGE_TYPE_spinand
+	default 128 if STORAGE_TYPE_emmc
+    depends on PARTITION_5
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_5_READONLY
+    bool "Partition 5 Readonly"
+    default true
+    depends on PARTITION_5
+
+config PARTITION_5_FILE
+    string "Partition 5 File"
+    default ""
+    depends on PARTITION_5
+
+config PARTITION_5_MOUNTPOINT
+    string "Partition 5 Mount Point"
+    default ""
+    depends on PARTITION_5
+
+config PARTITION_5_TYPE
+    string "Partition 5 Type"
+    default ""
+    depends on PARTITION_5
+
+# Repeat for Partition 6
+config PARTITION_6
+    bool "Enable Partition 6"
+    depends on PARTITION_COUNT >= 6
+    default y if PARTITION_COUNT >= 6
+
+config PARTITION_6_LABEL
+    string "Partition 6 Label"
+    default "DATA"
+    depends on PARTITION_6
+
+config PARTITION_6_SIZE
+    int "Partition 6 Size (in KB), multiple of 64KB"
+    default 1024 if STORAGE_TYPE_spinor
+	default 16384 if STORAGE_TYPE_spinand
+	default 3145728 if STORAGE_TYPE_emmc
+    depends on PARTITION_6
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_6_READONLY
+    bool "Partition 6 Readonly"
+    default true
+    depends on PARTITION_6
+
+config PARTITION_6_FILE
+    string "Partition 6 File"
+    default "data.spinor" if STORAGE_TYPE_spinor
+	default "data.spinand" if STORAGE_TYPE_spinand
+	default "data.emmc" if STORAGE_TYPE_emmc
+    depends on PARTITION_6
+
+config PARTITION_6_MOUNTPOINT
+    string "Partition 6 Mount Point"
+    default "/mnt/data"
+    depends on PARTITION_6
+
+config PARTITION_6_TYPE
+    string "Partition 6 Type"
+    default "jffs2" if STORAGE_TYPE_spinor
+	default "ubifs" if STORAGE_TYPE_spinand
+	default "ext4" if STORAGE_TYPE_emmc
+    depends on PARTITION_6
+
+# Repeat for Partition 7
+config PARTITION_7
+    bool "Enable Partition 7"
+    depends on PARTITION_COUNT >= 7
+    default y if PARTITION_COUNT >= 7
+
+config PARTITION_7_LABEL
+    string "Partition 7 Label"
+    default "SYSTEM"
+    depends on PARTITION_7
+
+config PARTITION_7_SIZE
+    int "Partition 7 Size (in KB), multiple of 64KB"
+    default 128 if STORAGE_TYPE_spinor
+	default 20480 if STORAGE_TYPE_spinand
+	default 40960 if STORAGE_TYPE_emmc
+    depends on PARTITION_7
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_7_READONLY
+    bool "Partition 7 Readonly"
+    default true
+    depends on PARTITION_7
+
+config PARTITION_7_FILE
+    string "Partition 7 File"
+    default "" if STORAGE_TYPE_spinor
+	default "system.spinand" if STORAGE_TYPE_spinand
+	default "system.emmc" if STORAGE_TYPE_emmc
+    depends on PARTITION_7
+
+config PARTITION_7_MOUNTPOINT
+    string "Partition 7 Mount Point"
+    default "/mnt/system"
+    depends on PARTITION_7
+
+config PARTITION_7_TYPE
+    string "Partition 7 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "ubifs" if STORAGE_TYPE_spinand
+	default "ext4" if STORAGE_TYPE_emmc
+    depends on PARTITION_7
+
+
+# Repeat for Partition 8
+config PARTITION_8
+    bool "Enable Partition 8"
+    depends on PARTITION_COUNT >= 8
+    default y if PARTITION_COUNT >= 8
+
+config PARTITION_8_LABEL
+    string "Partition 8 Label"
+    default "CFG"
+    depends on PARTITION_8
+
+config PARTITION_8_SIZE
+    int "Partition 8 Size (in KB), multiple of 64KB"
+    default 128 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_8
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_8_READONLY
+    bool "Partition 8 Readonly"
+    default true
+    depends on PARTITION_8
+
+config PARTITION_8_FILE
+    string "Partition 8 File"
+    default "" if STORAGE_TYPE_spinor
+	default "cfg.spinand" if STORAGE_TYPE_spinand
+	default "cfg.emmc" if STORAGE_TYPE_emmc
+    depends on PARTITION_8
+
+config PARTITION_8_MOUNTPOINT
+    string "Partition 8 Mount Point"
+    default "mnt/cfg"
+    depends on PARTITION_8
+
+config PARTITION_8_TYPE
+    string "Partition 8 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "ubifs" if STORAGE_TYPE_spinand
+	default "ext4" if STORAGE_TYPE_emmc
+    depends on PARTITION_8
+
+# Repeat for Partition 9
+config PARTITION_9
+    bool "Enable Partition 9"
+    depends on PARTITION_COUNT >= 9
+    default y if PARTITION_COUNT >= 9
+
+config PARTITION_9_LABEL
+    string "Partition 9 Label"
+    default "DATA"
+    depends on PARTITION_9
+
+config PARTITION_9_SIZE
+    int "Partition 9 Size (in KB), multiple of 64KB"
+    default 128 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_9
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_9_READONLY
+    bool "Partition 9 Readonly"
+    default true
+    depends on PARTITION_9
+
+config PARTITION_9_FILE
+    string "Partition 9 File"
+    default "" if STORAGE_TYPE_spinor
+	default "data.spinand" if STORAGE_TYPE_spinand
+	default "data.emmc" if STORAGE_TYPE_emmc
+    depends on PARTITION_9
+
+config PARTITION_9_MOUNTPOINT
+    string "Partition 9 Mount Point"
+    default ""
+    depends on PARTITION_9
+
+config PARTITION_9_TYPE
+    string "Partition 9 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "ubifs" if STORAGE_TYPE_spinand
+	default "ext4" if STORAGE_TYPE_emmc
+    depends on PARTITION_9
+
+# Repeat for Partition 10
+config PARTITION_10
+    bool "Enable Partition 10"
+    depends on PARTITION_COUNT >= 10
+    default y if PARTITION_COUNT >= 10
+
+config PARTITION_10_LABEL
+    string "Partition 10 Label"
+    default ""
+    depends on PARTITION_10
+
+config PARTITION_10_SIZE
+    int "Partition 10 Size (in KB), multiple of 64KB"
+    default 128 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_10
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_10_READONLY
+    bool "Partition 10 Readonly"
+    default true
+    depends on PARTITION_10
+
+config PARTITION_10_FILE
+    string "Partition 10 File"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_10
+
+config PARTITION_10_MOUNTPOINT
+    string "Partition 10 Mount Point"
+    default ""
+    depends on PARTITION_10
+
+config PARTITION_10_TYPE
+    string "Partition 10 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_10
+
+# Repeat for Partition 11
+config PARTITION_11
+    bool "Enable Partition 11"
+    depends on PARTITION_COUNT >= 11
+    default y if PARTITION_COUNT >= 11
+
+config PARTITION_11_LABEL
+    string "Partition 11 Label"
+    default ""
+    depends on PARTITION_11
+
+config PARTITION_11_SIZE
+    int "Partition 11 Size (in KB), multiple of 64KB"
+    default 128 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_11
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_11_READONLY
+    bool "Partition 11 Readonly"
+    default true
+    depends on PARTITION_11
+
+config PARTITION_11_FILE
+    string "Partition 11 File"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_11
+
+config PARTITION_11_MOUNTPOINT
+    string "Partition 11 Mount Point"
+    default ""
+    depends on PARTITION_11
+
+config PARTITION_11_TYPE
+    string "Partition 11 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_11
+
+# Repeat for Partition 12
+config PARTITION_12
+    bool "Enable Partition 12"
+    depends on PARTITION_COUNT >= 12
+    default y if PARTITION_COUNT >= 12
+
+config PARTITION_12_LABEL
+    string "Partition 12 Label"
+    default ""
+    depends on PARTITION_12
+
+config PARTITION_12_SIZE
+    int "Partition 12 Size (in KB), multiple of 64KB"
+    default 128 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_12
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_12_READONLY
+    bool "Partition 12 Readonly"
+    default true
+    depends on PARTITION_12
+
+config PARTITION_12_FILE
+    string "Partition 12 File"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_12
+
+config PARTITION_12_MOUNTPOINT
+    string "Partition 12 Mount Point"
+    default ""
+    depends on PARTITION_12
+
+config PARTITION_12_TYPE
+    string "Partition 12 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_12
+
+# Repeat for Partition 13
+config PARTITION_13
+    bool "Enable Partition 13"
+    depends on PARTITION_COUNT >= 13
+    default y if PARTITION_COUNT >= 13
+
+config PARTITION_13_LABEL
+    string "Partition 13 Label"
+    default ""
+    depends on PARTITION_13
+
+config PARTITION_13_SIZE
+    int "Partition 13 Size (in KB), multiple of 64KB"
+    default 138 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_13
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_13_READONLY
+    bool "Partition 13 Readonly"
+    default true
+    depends on PARTITION_13
+
+config PARTITION_13_FILE
+    string "Partition 13 File"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_13
+
+config PARTITION_13_MOUNTPOINT
+    string "Partition 13 Mount Point"
+    default ""
+    depends on PARTITION_13
+
+config PARTITION_13_TYPE
+    string "Partition 13 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_13
+
+# Repeat for Partition 14
+config PARTITION_14
+    bool "Enable Partition 14"
+    depends on PARTITION_COUNT >= 14
+    default y if PARTITION_COUNT >= 14
+
+config PARTITION_14_LABEL
+    string "Partition 14 Label"
+    default ""
+    depends on PARTITION_14
+
+config PARTITION_14_SIZE
+    int "Partition 14 Size (in KB), multiple of 64KB"
+    default 148 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_14
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_14_READONLY
+    bool "Partition 14 Readonly"
+    default true
+    depends on PARTITION_14
+
+config PARTITION_14_FILE
+    string "Partition 14 File"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_14
+
+config PARTITION_14_MOUNTPOINT
+    string "Partition 14 Mount Point"
+    default ""
+    depends on PARTITION_14
+
+config PARTITION_14_TYPE
+    string "Partition 14 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_14
+
+# Repeat for Partition 15
+config PARTITION_15
+    bool "Enable Partition 15"
+    depends on PARTITION_COUNT >= 15
+    default y if PARTITION_COUNT >= 15
+
+config PARTITION_15_LABEL
+    string "Partition 15 Label"
+    default ""
+    depends on PARTITION_15
+
+config PARTITION_15_SIZE
+    int "Partition 15 Size (in KB), multiple of 64KB"
+    default 158 if STORAGE_TYPE_spinor
+	default 4096 if STORAGE_TYPE_spinand
+	default 15360 if STORAGE_TYPE_emmc
+    depends on PARTITION_15
+	help
+		The size must be a multiple of 64KB
+
+config PARTITION_15_READONLY
+    bool "Partition 15 Readonly"
+    default true
+    depends on PARTITION_15
+
+config PARTITION_15_FILE
+    string "Partition 15 File"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_15
+
+config PARTITION_15_MOUNTPOINT
+    string "Partition 15 Mount Point"
+    default ""
+    depends on PARTITION_15
+
+config PARTITION_15_TYPE
+    string "Partition 15 Type"
+    default "" if STORAGE_TYPE_spinor
+	default "" if STORAGE_TYPE_spinand
+	default "" if STORAGE_TYPE_emmc
+    depends on PARTITION_15
+
+# Repeat for more partitions as needed...
+
+endmenu

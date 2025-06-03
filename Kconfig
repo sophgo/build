@@ -1,0 +1,861 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+mainmenu "CViTek MediaSDK Configuration"
+
+config CUSTOMER
+	string "Customer define"
+	default "generic"
+	help
+	  Customer define.
+
+source "output/Kconfig"
+
+config ARCH
+	string "Arch define"
+	default "arm64"
+	help
+	  Arch define.
+
+menu "Compile-time checks and compiler options"
+
+config CROSS_COMPILE
+	string "Cross-compiler tool prefix for fip/uboot"
+	default "aarch64-none-linux-gnu-"
+	help
+	  Same as running 'make CROSS_COMPILE=prefix-' but stored for
+	  default make runs in this application build directory.  You don't
+	  need to set this unless you want the configured application build
+	  directory to select the cross-compiler automatically.
+
+config CROSS_COMPILE_KERNEL
+	string "Cross-compiler tool prefix for kernel"
+	default "aarch64-none-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
+	default "arm-none-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
+        default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
+	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
+	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
+	help
+	  Cross compile toolchain prefix for linux kernel.
+	  You don't need to set this unless you want the configured kernel build
+	  directory.
+
+choice
+	prompt "Compiler optimization level"
+	default CC_OPTIMIZE_FOR_PERFORMANCE
+
+config CC_OPTIMIZE_FOR_PERFORMANCE
+	bool "Optimize for performance"
+	help
+	  This is the default optimization level for the kernel, building
+	  with the "-O2" compiler flag for best performance and most
+	  helpful compile-time warnings.
+
+config CC_OPTIMIZE_FOR_SIZE
+	bool "Optimize for size"
+	help
+	  Enabling this option will pass "-Os" instead of "-O2" to
+	  your compiler resulting in a smaller kernel.
+
+	  If unsure, say N.
+endchoice
+
+config KERNEL_ENTRY_HACK
+	bool "Set kernel entry in boot image"
+	default n
+	help
+	  Set kernel entry in boot image.
+	  Don't select this if you don't know what you are doning.
+
+config KERNEL_ENTRY_HACK_ADDR
+	hex
+	depends on KERNEL_ENTRY_HACK
+	default 0x80108000 if !(DUAL_OS && CHIP_ARCH_cv184x)
+	default 0x80708000 if DUAL_OS && CHIP_ARCH_cv184x
+	help
+	  This option allows you to set the kernel entry address in the boot image.
+	  The default address will change based on the configuration of dual OS and chip architecture.
+
+config DEBUG_INFO
+	bool "Compile the application with debug info"
+	help
+	  If you say Y here the resulting application binary will include
+	  debugging info resulting in a larger application binary.
+	  This adds debug symbols to the application (gcc -g), and
+	  is needed if you want to debug your application with gdb.
+	  Say Y here only if you plan to debug the application.
+
+	  If unsure, say N.
+
+config DEBUG_INFO_REDUCED
+	bool "Reduce debugging information"
+	depends on DEBUG_INFO
+	help
+	  If you say Y here gcc is instructed to generate less debugging
+	  information for structure types. This means that tools that
+	  need full debugging information (like gdb or systemtap) won't
+	  be happy. But if you merely need debugging information to
+	  resolve line numbers there is no loss. Advantage is that
+	  build directory object sizes shrink dramatically over a full
+	  DEBUG_INFO build and compile times are reduced too.
+	  Only works with newer gcc versions.
+
+config DEBUG_INFO_SPLIT
+	bool "Produce split debuginfo in .dwo files"
+	depends on DEBUG_INFO
+	help
+	  Generate debug info into separate .dwo files. This significantly
+	  reduces the build directory size for builds with DEBUG_INFO,
+	  because it stores the information only once on disk in .dwo
+	  files instead of multiple times in object files and executables.
+	  In addition the debug information is also compressed.
+
+	  Requires recent gcc (4.7+) and recent gdb/binutils.
+	  Any tool that packages or reads debug information would need
+	  to know about the .dwo files and include them.
+	  Incompatible with older versions of ccache.
+
+config DEBUG_INFO_DWARF4
+	bool "Generate dwarf4 debuginfo"
+	depends on DEBUG_INFO
+	help
+	  Generate dwarf4 debug info. This requires recent versions
+	  of gcc and gdb. It makes the debug information larger.
+	  But it significantly improves the success of resolving
+	  variables in gdb on optimized code.
+
+config USE_CCACHE
+	bool "Use ccache to acceralate build time"
+	help
+	  Use ccache to acceralate build time
+
+config MTRACE
+	bool "mtrace test"
+	default n
+	help
+	  mtrace test enable
+endmenu
+
+menu "SDK options"
+
+choice
+	prompt "C library"
+	default TOOLCHAIN_GLIBC_ARM64
+
+config TOOLCHAIN_GLIBC_ARM64
+	bool "glibc library for user mode application on arm64"
+	help
+	  glibc library for arm64(AARCH64).
+
+config TOOLCHAIN_GLIBC_ARM
+	bool "glibc library for user mode application on arm"
+	help
+	  glibc library for arm(AARCH32).
+
+config TOOLCHAIN_MUSL_ARM
+	bool "musl library for user mode application on arm"
+	help
+	  musl library for arm(AARCH32).
+
+config TOOLCHAIN_GLIBC_RISCV64
+	bool "glibc library for user mode application on riscv64"
+	help
+	  glibc library for riscv64(RISCV64).
+
+config TOOLCHAIN_MUSL_RISCV64
+	bool "musl library for user mode application on riscv64"
+	help
+	  musl library for riscv64(RISCV64).
+	  select on compiler option through menuconfig
+	  default value is false.
+
+endchoice
+
+config CROSS_COMPILE_SDK
+	string
+	default "aarch64-none-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
+	default "arm-none-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
+	default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
+	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
+	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
+	help
+	  Cross compile toolchain prefix for middleware.
+	  This will modify by TOOLCHAN_XLIBC
+
+config SDK_VER
+	string
+	default "64bit" if TOOLCHAIN_GLIBC_ARM64
+	default "32bit" if TOOLCHAIN_GLIBC_ARM
+	default "musl" if TOOLCHAIN_MUSL_ARM
+	default "glibc_riscv64" if TOOLCHAIN_GLIBC_RISCV64
+	default "musl_riscv64" if TOOLCHAIN_MUSL_RISCV64
+	help
+	  Set sdk version.
+
+config STATIC
+	bool "Build static binary (no shared libs)"
+	default n
+	help
+	  If you want to build a static binary, which does not use
+	  or require any shared libraries, enable this option.
+	  Static binaries are larger, but do not require functioning
+	  dynamic libraries to be present, which is important if used
+	  as a system rescue tool.
+
+config BUILD_FOR_DEBUG
+	bool "Build SDK with debug config"
+	default y
+	help
+	  This configuration is only valid for uboot and kernel.
+	  If you want to build SDK for release,please set BUILD_FOR_DEBUG=n.
+	  "y":build kernel with DEBUG config(such as CONFIG_DEBUG_FS,CONFIG_DEBUG_INFO)
+	      build uboot with commands(such as 'ping','echo','tftp').
+	  "n":build kernel with release config(disable CONFIG_DEBUG_FS and so on)
+	      build uboot without commands.
+
+config FASTBOOT_GENERAL
+	bool "Build SDK with general fastboot options"
+	default n
+	depends on !BUILD_FOR_DEBUG
+	select FASTBOOT if FASTBOOT_GENERAL
+	select UBOOT_SPL_CUSTOM if FASTBOOT_GENERAL
+	select BOOT_TIME_OPTIMIZATION if FASTBOOT_GENERAL
+	select OSDRV_BUILD_IN if FASTBOOT_GENERAL
+	select RTOS_ANNON_MSG if FASTBOOT_GENERAL
+	help
+		This enables general features for fastboot. If you don't know how to customize 
+		your fastboot SDK, this option give you some common fastboot choices here.
+		But, if you know how to customize your fastboot configuration, please set n.
+
+config FASTBOOT
+	bool "Fast boot"
+	default n
+	depends on !BUILD_FOR_DEBUG
+	help
+		This enables fast boot features.
+		1. activate linux funtion controlled by __FASTBOOT__
+		2. store *.ko in data folder to shrink rootfs
+		3. use shrink rootfs
+		4. defer init linux components
+		5. use simplipied busybox
+
+config H264_FW
+	bool "h264 vcode firmware"
+	default y
+	help
+		If use h264 encode/decode must set it
+		"y":use h264 encode/decode
+		"n":not use h264 encode/decode
+		default CONFIG_H264_FW=y
+
+config H265_FW
+	bool "h265 vcode firmware"
+	default y
+	help
+		If use h265 encode must set it
+		"y":use h265 encode/decode
+		"n":not use h265 encode/decode
+		default CONFIG_H265_FW=y
+
+config ENABLE_SDK_ASAN
+	bool "Enable SDK sanitizer"
+	default n
+	help
+	  Enabling this option will add extra flag -fsanitize=address to
+	  sdk which can help to debug.
+
+	  If unsure, say N.
+
+config FLASH_SIZE_SHRINK
+	bool "Do not install sample and self test application"
+	default n
+
+config CP_EXT_WIRELESS
+	bool "Install the osdrv/extdrv/wireless/*.ko"
+	depends on FLASH_SIZE_SHRINK
+	default n
+	help
+		Install the osdrv/extdrv/wireless/*.ko no matter
+		FLASH_SIZE_SHRINK is set or not.
+
+config NO_FB
+	bool "Do not compile frame buffer drivers"
+	depends on FLASH_SIZE_SHRINK
+	default n
+
+config NO_TP
+	bool "Select CONFIG_NO_TP to build osdrv without Touchscreen driver(extdrv/tp)"
+	depends on FLASH_SIZE_SHRINK
+	default n
+	help
+		TP: Touchscreen driver(extdrv/tp)
+		Do not compile Touchscreen driver(extdrv/tp) if CONFIG_NO_TP is selected.
+		"n": build osdrv with extdrv/tp driver.
+		"y": build osdrv without extdrv/tp driver.
+
+config BOOT_TIME_OPTIMIZATION
+	bool "Boot Time Optimization"
+	default n
+	help
+		Boot Time Optimization
+		It depends on STORAGE_TYPE_spinor.
+		"y": Boot Time Optimization
+		"n": not Boot Time Optimization
+
+config ROOTFS_FORMAT_OPTIMIZATION
+	bool "Optimization of File System Compression Format"
+	depends on BOOT_TIME_OPTIMIZATION
+	default n
+	help
+		Changing the file system compression format from xz to gzip
+		Increase rootfs size
+		It depends on BOOT_TIME_OPTIMIZATION.
+
+
+config SKIP_UBOOT
+	bool "OpenSBI jump to Kernel instead of Uboot jump to Kernel"
+	depends on BOOT_TIME_OPTIMIZATION
+	default n
+	help
+		OpenSBI jump to Kernel instead of Uboot jump to Kernel
+		It depends on BOOT_TIME_OPTIMIZATION.
+		"y": OpenSBI jump to Kernel instead of Uboot jump to Kernel
+		"n": OpenSBI jump to Kernel instead of Uboot not jump to Kernel
+
+config SKIP_UBOOT_DEBUG
+	bool "Open kernel log while openSBI jump to Kernel"
+	depends on SKIP_UBOOT
+	default n
+	help
+		Open kernel log while openSBI jump to Kernel
+
+config MEDIA_DRV_IN_LINUX
+    bool "Media Driver in Linux"
+    default n
+    help
+        If set to "y", some media modules will be compiled into Linux.
+        If set to "n", some media modules will not be compiled into Linux.
+
+config OSDRV_BUILD_IN
+	bool "osdrv build-in instead of modules"
+	depends on BOOT_TIME_OPTIMIZATION
+	default n
+	help
+		Increase kernel Image size
+		Reduce file system size
+
+config USB_OSDRV_CVITEK_GADGET
+	bool "Select CONFIG_USB_OSDRV_CVITEK_GADGET to build osdrv with usb gadget cvg"
+	default n
+	help
+	  Say 'Y' or 'M' here to enable device controller functionality
+	  of the Cvitek driver.
+	  "y": build osdrv with interdrv/v2/usb driver.
+	  "n": build osdrv without interdrv/v2/usb driver.
+
+config BOOT_IMAGE_SINGLE_DTB
+	bool "Make the boot image only have one dtb"
+	default n
+
+config C906L_DMA_ENABLE
+	bool "enable the C906L DMA functions"
+	default y
+	help
+	  Say "y/n" here to enable/disable C906L DMA functions
+	  of the Cvitek driver.
+
+config AUD_DRV_SEL
+	bool "enable the audio drv to alios"
+	depends on C906L_DMA_ENABLE
+	default y
+	help
+	  Say "y/n" here to enable/disable audio drv position.
+
+config AUD_3A_SEL
+	bool "enable 3a in alios"
+	depends on ENABLE_ALIOS
+	default n
+	help
+	  Say "y/n" here to enable/disable 3a in alios.
+endmenu
+
+menu "FIP setting"
+config FSBL_SECURE_BOOT_SUPPORT
+	bool "Add secure boot support to FSBL"
+	default n
+	help
+	  "y" only build FSBL with authentication and decryption function.
+	  Still need to program eFuse to enable authentication or decryption.
+
+choice
+  prompt "Select Encryption Key of ATF"
+  config ATF_KEY_SEL_default
+    bool "default"
+  config ATF_KEY_SEL_clear
+    bool "clear"
+  config ATF_KEY_SEL_key1
+    bool "key1"
+  config ATF_KEY_SEL_key0
+    bool "key0"
+endchoice
+
+config ATF_KEY_SEL
+	string
+	default "default" if ATF_KEY_SEL_default
+	default "clear" if ATF_KEY_SEL_clear
+	default "key1" if ATF_KEY_SEL_key1
+	default "key0" if ATF_KEY_SEL_key0
+
+config ATF_SRC
+	bool "Select to build fip_pre.bin from ATF/BLD source"
+	default n
+	help
+	  "y" Select to build fip_pre.bin from ATF/BLD source
+
+config MULTI_FIP
+	bool "Enable multi FIP binary support"
+	default n
+	help
+	  "y" Enable multi FIP binary support
+
+config OD_CLK_SEL
+	bool "Select to build fip.bin with OD(overdrive) clock setting"
+	depends on CHIP_ARCH_cv184x || CHIP_ARCH_cv181x || CHIP_ARCH_cv180x
+	default n
+	help
+	  "y" Select to build fip.bin with OD(overdrive) clock setting
+
+config VC_CLK_OVERDRIVE
+	bool "Select to build fip.bin with VC clock overdrived setting"
+	depends on !OD_CLK_SEL
+	default n
+	help
+	  "y" Select to build fip.bin with VC clock overdrived setting
+
+config IMPROVE_AXI_CLK
+	bool "Improve aix clock while load image"
+	default n
+	help
+		Improve aix clock while load image, imporve boottime
+
+endmenu
+
+menu "Storage settings"
+
+choice
+  prompt "Select storage type"
+  config STORAGE_TYPE_none
+    bool "none"
+  config STORAGE_TYPE_emmc
+    bool "emmc"
+  select TARGET_PACKAGE_E2FSPROGS
+  config STORAGE_TYPE_spinand
+    bool "spinand"
+  select TARGET_PACKAGE_MTD-UTILS
+  config STORAGE_TYPE_spinor
+    bool "spinor"
+  config STORAGE_TYPE_sd
+    bool "sd"
+endchoice
+
+config STORAGE_TYPE
+	string
+	default "" if STORAGE_TYPE_none
+	default "emmc" if STORAGE_TYPE_emmc
+	default "spinand" if STORAGE_TYPE_spinand
+	default "spinor" if STORAGE_TYPE_spinor
+	default "sd" if STORAGE_TYPE_sd
+
+config IMPROVE_BL_NOR_SPEED
+	bool "imporve bootloader spi nor speed"
+	depends on STORAGE_TYPE_spinor
+	default n
+	help
+		imporve bootloader spi nor speed by fip param
+		Enhance the speed of the bootloader SPI NOR by adjusting FIP parameters,
+		optimizing the boot process for faster system startup and responsiveness.
+		It depends STORAGE_TYPE_spinor=y
+
+config MMC_SKIP_TUNING
+	bool "Skip EMMC Tuning"
+	depends on STORAGE_TYPE_emmc
+	default n
+	help
+		Skip EMMC Tuning
+		Opt for skipping the EMMC tuning process to streamline
+		system initialization, potentially improving boot times
+		and overall performance.
+		It depends and STORAGE_TYPE_emmc=y
+
+config NANDFLASH_BLOCKSIZE
+	int "Nand flash block size"
+	default 131072
+	depends on STORAGE_TYPE_spinand
+	help
+	  The block size of nand flash
+
+config NANDFLASH_PAGESIZE
+	int "Nand flash page size"
+	default 2048
+	depends on STORAGE_TYPE_spinand
+	help
+	  The page size of nand flash
+
+source "Kconfig.partitions"
+endmenu
+
+source "output/Kconfig.sensors"
+source "output/Kconfig.panels"
+
+menu "uboot options"
+
+config USE_DEFAULT_ENV
+	bool "use defaule environment setting"
+	default y
+	help
+	 use defaule environment setting, if you want to set environment
+	 please disable this option.
+
+choice
+	prompt "U-Boot source selection"
+	default UBOOT_2017_07
+
+	config UBOOT_2017_07
+		bool "u-boot-2017.07"
+	config UBOOT_2021_10
+		bool "u-boot-2021.10"
+endchoice
+
+config UBOOT_SRC
+	string
+	default "u-boot" if UBOOT_2017_07
+	default "u-boot-2021.10" if UBOOT_2021_10
+
+config UBOOT_SPL_CUSTOM
+	bool "Generate the fip_spl.bin contain u-boot-spl"
+	default n
+	depends on UBOOT_2021_10
+	help
+	  Set fip_spl.bin contain u-boot-spl or u-boot.
+
+endmenu
+
+menu "Kernel options"
+choice
+	prompt "Kernel source selection"
+	config KERNEL_SRC_4_19
+		bool "linux 4.19.164"
+	config KERNEL_SRC_4_9
+		bool "linux 4.9.38"
+	config KERNEL_SRC_5.10
+		bool "linux 5.10"
+endchoice
+
+config KERNEL_SRC
+	string
+	default "linux-linaro-stable" if KERNEL_SRC_4_9
+	default "linux" if KERNEL_SRC_4_19
+	default "linux_5.10" if KERNEL_SRC_5.10
+	help
+	  Set kernel source code.
+
+choice
+	prompt "Kernel Image compress algorithm"
+	default KERNEL_GZIP
+
+config KERNEL_GZIP
+	bool "Gzip"
+	help
+	  The old and tried gzip compression. It provides a good balance
+	  between compression ratio and decompression speed.
+
+config KERNEL_LZMA
+	bool "LZMA"
+	help
+	  This compression algorithm's ratio is best.  Decompression speed
+	  is between gzip and bzip2.  Compression is slowest.
+	  The kernel size is about 33% smaller with LZMA in comparison to gzip.
+
+config KERNEL_LZ4
+	bool "LZ4"
+	help
+	  LZ4 is an LZ77-type compressor with a fixed, byte-oriented encoding.
+	  A preliminary version of LZ4 de/compression tool is available at
+	  <https://code.google.com/p/lz4/>.
+
+	  Its compression ratio is worse than LZO. The size of the kernel
+	  is about 8% bigger than LZO. But the decompression speed is
+	  faster than LZO.
+
+config KERNEL_UNCOMPRESSED
+	bool "None"
+	help
+	  Produce uncompressed kernel image. This option is usually not what
+	  you want. It is useful for debugging the kernel in slow simulation
+	  environments, where decompressing and moving the kernel is awfully
+	  slow. This option allows early boot code to skip the decompressor
+	  and jump right at uncompressed kernel image.
+endchoice
+
+config KERNEL_COMPRESS
+	string
+	default "gzip" if KERNEL_GZIP
+	default "lzma" if KERNEL_LZMA
+	default "lz4" if KERNEL_LZ4
+	default "none" if KERNEL_UNCOMPRESSED
+	help
+	  Set kernel source code.
+endmenu
+
+menu "ROOTFS options"
+
+config SKIP_RAMDISK
+    bool "Skiping mounting initramfs"
+    default n
+    help
+      Skiping mountpoint initramfs can decrease boot time and
+      boot image size.
+
+      If unsure say N.
+
+config ROOTFS_OVERLAYFS
+	bool "Enable rootfs with overlayfs"
+	default y
+	help
+	  Enable rootfs with overlayfs.
+
+config USE_4K_ERASE_SIZE_FOR_JFFS2
+	bool "Use 4K erase size for jffs2 filesystem"
+	default n
+	help
+	  Enable use 4K erase size for jffs2 filesystem, it's only for nor flash
+
+endmenu
+
+menu "Turnkey options"
+
+config BUILD_TURNKEY_ACCESSGUARD
+	bool "Enable Access Guard Turnkey"
+	default n
+	help
+	  Add turnkey Access Guard to SDK release.
+
+config BUILD_TURNKEY_IPC
+	bool "Enable IP Camera Turnkey"
+	default n
+	help
+	  Add turnkey IPC to SDK release.
+
+endmenu
+
+menu "RTOS options"
+
+config DUAL_OS
+	bool "Build double OS"
+	default n
+	help
+	  build double os, default "linux + alios"
+
+config ENABLE_FREERTOS
+	bool "Enable FREERTOS"
+	depends on CHIP_ARCH_cv181x || CHIP_ARCH_cv180x
+	default n
+        depends on DUAL_OS
+	help
+	  Enable freertos.
+
+config ENABLE_RTOS_DUMP_PRINT
+	bool "Enable FREE RTOS DUMP PRINT MSG"
+	depends on ENABLE_FREERTOS
+	default n
+	help
+	  Enable freertos dump print msg.
+
+config DUMP_PRINT_SZ_IDX
+	int "Select dump print size idx"
+	depends on ENABLE_FREERTOS
+	default 13
+	help
+		dump print size will be 1 << IDX.
+
+config FAST_IMAGE_TYPE
+	int "Select fast image type"
+	depends on ENABLE_FREERTOS
+	default 0
+	help
+		default fast image type is 0.
+		E_FAST_NONE : 0
+		E_FAST_JEPG : 1
+		E_FAST_H264 : 2
+		E_FAST_H265 : 3
+
+config ENABLE_ALIOS
+	bool "Enable ALIOS"
+	default n
+	depends on DUAL_OS
+	help
+	  Enable alios.
+
+config CHIP_BIG_ARM
+	bool
+	default y if ARCH = "arm"
+    depends on ENABLE_ALIOS
+
+choice
+    prompt "Solution in AliOS"
+    default NORM_SOLUTION
+    depends on ENABLE_ALIOS
+    help
+        Don't change this option, if you don't know how it work.
+        NORM_SOLUTION - The default option for general use.
+        FAST_SOLUTION - Designed for fast boot of media in special scenarios,
+                        such as the fastboot test.
+
+config NORM_SOLUTION
+    bool "Norm Solution"
+    depends on ENABLE_ALIOS
+    help
+        The default option for general use.
+
+config FAST_SOLUTION
+    bool "Fast Solution"
+    depends on ENABLE_ALIOS
+    help
+        Designed for fast boot of media in special scenarios, such as the fastboot test.
+
+endchoice
+
+config ALIOS_SOLUTION
+    string # "Solution in AliOS"
+    default "normboot" if NORM_SOLUTION
+    default "fastboot" if FAST_SOLUTION
+    depends on ENABLE_ALIOS
+    help
+        Don't change this value, if you don't know how to run it.
+        "normboot" - The default value for general use.
+        "fastboot" - Designed for fast boot of media in special scenarios, such as the fastboot test.
+
+config MEDIA_SUPPORT_PROC
+    bool "Media Proc Support"
+    default y
+    depends on ENABLE_ALIOS
+    help
+        If set to "y", some media modules' proc commands will be enabled in AliOS.
+        If set to "n", some media modules' proc commands will be disabled in AliOS.
+
+config RTOS_INIT_MEDIA
+    bool "Automatically Initialize Media in RTOS"
+    default n
+    depends on ENABLE_ALIOS
+    help
+        If set to "y", the media will be automatically initialized by RTOS.
+        If set to "n", the media should be initialized in applications on Linux.
+
+config RTOS_PARSE_PARAM
+    bool "Parse Params in RTOS"
+    default n
+    depends on ENABLE_ALIOS && RTOS_INIT_MEDIA
+    help
+        If set to "y", the RTOS will parse parameters from the param.bin file.
+        If set to "n", the RTOS will use the default parameters.
+
+config RTOS_ANNON_MSG
+    bool "Support Anonymous IPCM in RTOS"
+    default n
+    depends on ENABLE_ALIOS
+    help
+        If set to "y", anonymous IPCM will be supported for applications within the RTOS.
+        If set to "n", anonymous IPCM will not be supported within the RTOS.
+
+choice
+    prompt "Alios uart in dualos"
+    default DW_UART
+
+config DW_UART
+        bool "Enable dw uart"
+        depends on ENABLE_ALIOS
+        help
+          set enable dw uart in Dualos.
+
+config VIRTUAL_UART
+        bool "Enable virtual uart"
+        depends on ENABLE_ALIOS
+        help
+          set enable virtual uart in Dualos.
+
+endchoice
+
+config MIRROR_2ND_PACK_HEAD
+        bool "Update second mirror image with 128 byte headers"
+        default n
+        depends on ENABLE_ALIOS
+        help
+          set alios with 128 byte headers update to storage.
+
+config RTOS_BUILD_IN_FIP
+        bool "RTOS image build in to fip.bin"
+        default y
+        help
+          select the rtos imgae build in to fip.bin or not.
+          default is "y"
+          If set to "y", the rtos image is build in to fip.bin.
+          If set to "n", the rtos image is not build in to fip.bin.
+		  If it's not set, it is same as "n"
+
+choice
+	prompt "Rtos Image Compression Type"
+	default RTOS_COMPRESS_LZMA
+
+	config RTOS_COMPRESS_ORIG
+	bool "orig"
+	config RTOS_COMPRESS_LZMA
+	bool "lzma"
+	config RTOS_COMPRESS_LZ4
+	bool "lz4"
+endchoice
+
+config RTOS_COMPRESS_TYPE
+	string
+	default "orig" if RTOS_COMPRESS_ORIG
+	default "lzma" if RTOS_COMPRESS_LZMA
+	default "lz4" if RTOS_COMPRESS_LZ4
+	help
+		Select the RTOS image compress type
+		default compress type is "lzma"
+		The choices of compress type are "lz4" and "lzma" or "orig"
+
+choice
+    prompt "Alios customization pipeline"
+	default CV180ZB_GC2053 if CHIP_ARCH_cv180x
+	default CV1811C_CV2003_1l_TRIPLE if (CHIP_ARCH_cv181x || CHIP_ARCH_cv184x)
+	depends on ENABLE_ALIOS
+
+config CV180ZB_SC2003_SC2003_1l_SWITCH
+        bool "CV180ZB_SC2003_SC2003_1l_SWITCH pipeline"
+        help
+          Select pipeline for CV180ZB_SC2003_SC2003_1l_SWITCH project.
+
+config CV180ZB_SC2331_SC2331_1l_SWITCH
+        bool "CV180ZB_SC2331_SC2331_1l_SWITCH pipeline"
+        help
+          Select pipeline for CV180ZB_SC2331_SC2331_1l_SWITCH project.
+
+config CV1811C_CV2003_1l_TRIPLE
+        bool "CV1811C_CV2003_1l_TRIPLE pipeline"
+        help
+          Select pipeline for CV1811C_CV2003_1l_TRIPLE project.
+
+config CV180ZB_GC2053
+        bool "CV180ZB_GC2053 pipeline"
+        help
+          Select pipeline for CV180ZB_GC2053 project.
+endchoice
+
+endmenu
+
+menu "Rootfs packages"
+osource "../ramdisk/rootfs/public/Kconfig"
+endmenu
+
+source "Kconfig.memmap"

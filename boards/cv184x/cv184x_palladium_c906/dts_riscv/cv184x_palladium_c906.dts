@@ -1,0 +1,112 @@
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/reset/cv184x-resets.h>
+#include <dt-bindings/clock/cv184x-clock.h>
+#include <dt-bindings/dma/cv184x-dmamap.h>
+#include "cvi_board_memmap.h"
+
+/dts-v1/;
+
+/*
+ * OpenSBI will add below subnode into reserved memory automatically
+ * mmode_resv0@80000000 {
+ *     reg = <0x00 0x80000000 0x00 0x20000>;
+ *     phandle = <0x0d>;
+ * };
+ * Skip below to avoid lmb region reseved conflict in uboot.
+ *
+ */
+#ifndef __UBOOT__
+/memreserve/	CVIMMAP_MONITOR_ADDR CVIMMAP_OPENSBI_SIZE; // OpenSBI
+#endif
+
+/ {
+	model = "Cvitek. Mars ASIC. C906.";
+
+	#size-cells = <0x2>;
+	#address-cells = <0x2>;
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <25000000>;
+		u-boot,dm-spl;
+		cpu-map {
+			u-boot,dm-spl;
+			cluster0 {
+
+				core0 {
+					cpu = <0x01>;
+				};
+			};
+		};
+
+		cpu0:cpu@0 {
+			u-boot,dm-spl;
+			device_type = "cpu";
+			reg = <0x00>;
+			status = "okay";
+			compatible = "riscv";
+			riscv,isa = "rv64imafdvcsu";
+			mmu-type = "riscv,sv39";
+			clock-frequency = <25000000>;
+
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+			};
+		};
+	};
+
+	uart0: serial@04140000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x0 0x04140000 0x0 0x1000>;
+		clock-frequency = <153600>;
+		current-speed = <9600>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		interrupts = <30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&plic0>;
+		status = "okay";
+	};
+
+	soc {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "simple-bus";
+		ranges;
+
+		plic0: interrupt-controller@70000000 {
+			riscv,ndev = <101>;
+			riscv,max-priority = <0x07>;
+			reg-names = "control";
+			reg = <0x00 0x70000000 0x00 0x4000000>;
+			interrupts-extended = <&cpu0_intc 0xffffffff &cpu0_intc 0x09>;
+			interrupt-controller;
+			compatible = "riscv,plic0";
+			#interrupt-cells = <0x02>;
+			#address-cells = <0x00>;
+		};
+
+		clint@74000000 {
+			interrupts-extended = <&cpu0_intc 0x03 &cpu0_intc 0x07>;
+			reg = <0x00 0x74000000 0x00 0x10000>;
+			compatible = "riscv,clint0";
+			clint,has-no-64bit-mmio;
+		};
+
+	};
+
+	chosen {
+		opensbi-domain{
+			compatible = "opensbi,dimain,config";
+
+			tdomain: trusted-domain {
+				compatible = "opensbi,domain,instance";
+				possible-harts = <&cpu0>;
+				system-suspend-allowed;
+			};
+		};
+	};	
+};

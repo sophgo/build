@@ -1,0 +1,35 @@
+menu "Memory Map Configuration"
+config DRAM_SIZE
+    hex "DRAM size"
+    default 0x20000000
+
+config ALIOS_SIZE
+    hex "ALIOS size"
+    default 0x00600000 if ENABLE_ALIOS
+    depends on ENABLE_ALIOS
+
+config ALIOS_SYS_SIZE
+    hex "ALIOS SYS size"
+    default 0x00400000 if ENABLE_ALIOS
+    depends on ENABLE_ALIOS
+
+config ALIOS_RESV_SIZE
+    hex "ALIOS RESV size"
+    default 0x06000000 if ENABLE_ALIOS
+    depends on ENABLE_ALIOS
+
+config ION_SIZE
+    hex "ION size"
+    default 0x00600000
+
+config UIMAG_SIZE
+    hex "UIMAG size"
+    default 0x00600000
+
+config UIMAG_ADDR
+    hex "UIMAG address"
+    default 0x81800000
+
+
+
+endmenu

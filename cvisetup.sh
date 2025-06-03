@@ -1,0 +1,1081 @@
+#!/bin/bash
+function _build_default_env()
+{
+  # Please keep these default value!!!
+  BRAND=${BRAND:-cvitek}
+  DEBUG=${DEBUG:-0}
+  RELEASE_VERSION=${RELEASE_VERSION:-0}
+  BUILD_VERBOSE=${BUILD_VERBOSE:-1}
+  ATF_BL32=${ATF_BL32:-1}
+  UBOOT_VBOOT=${UBOOT_VBOOT:-0}
+  COMPRESSOR=${COMPRESSOR:-xz}
+  COMPRESSOR_UBOOT=${COMPRESSOR_UBOOT:-lzma} # or none to disable
+  MULTI_PROCESS_SUPPORT=${MULTI_PROCESS_SUPPORT:-0}
+  ENABLE_BOOTLOGO=${ENABLE_BOOTLOGO:-0}
+  TPU_REL=${TPU_REL:-0} # TPU release build
+  SENSOR=${SENSOR:-sony_imx327}
+  SCENES=${SCENES:-0} # scenes for dualos 0:normal  1:fastboot  2:low power
+}
+
+function gettop()
+{
+  local TOPFILE=build/cvisetup.sh
+  if [ -n "$TOP" -a -f "$TOP/$TOPFILE" ] ; then
+    # The following circumlocution ensures we remove symlinks from TOP.
+    (cd "$TOP"; PWD= /bin/pwd)
+  else
+    if [ -f $TOPFILE ] ; then
+      # The following circumlocution (repeated below as well) ensures
+      # that we record the true directory name and not one that is
+      # faked up with symlink names.
+      PWD= /bin/pwd
+    else
+      local HERE=$PWD
+      T=
+      while [ \( ! \( -f $TOPFILE \) \) -a \( $PWD != "/" \) ]; do
+        \cd ..
+        T=$(PWD= /bin/pwd -P)
+      done
+      \cd "$HERE"
+      if [ -f "$T/$TOPFILE" ]; then
+        echo "$T"
+      fi
+    fi
+  fi
+}
+
+function _build_fsbl_env()
+{
+  export FSBL_PATH IMGTOOL_PATH FLASH_PARTITION_XML
+}
+
+function build_fsbl()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
+  _build_opensbi_env
+  cd "$BUILD_PATH" || return
+  make fsbl-build || return "$?"
+)}
+
+function clean_fsbl()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
+  cd "$BUILD_PATH" || return
+  make fsbl-clean
+)}
+
+function build_bl2()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_fsbl_env
+  cd "$BUILD_PATH" || return
+  make bl2-build || return "$?"
+)}
+
+function clean_bl2()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_fsbl_env
+  cd "$BUILD_PATH" || return
+  make bl2-clean
+)}
+
+function _build_atf_env()
+{
+  export ATF_BL32 FAKE_BL31_32
+}
+
+function build_atf()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_atf_env
+  cd "$BUILD_PATH" || return
+  make arm-trusted-firmware || return "$?"
+)}
+
+function clean_atf()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_atf_env
+  cd "$BUILD_PATH" || return
+  make arm-trusted-firmware-clean
+)}
+
+function _build_uboot_env()
+{
+  _build_atf_env
+  _build_fsbl_env
+  export UBOOT_OUTPUT_FOLDER IMGTOOL_PATH FLASH_PARTITION_XML FIP_BIN_PATH
+  export UBOOT_VBOOT RELEASE_VERSION ENABLE_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT
+  export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
+}
+
+function _build_busybox_env()
+{
+  export BUSYBOX_PATH
+}
+
+function _build_kernel_opensbi_env()
+{
+  _build_kernel_env
+  _build_opensbi_env
+  export IMGTOOL_PATH FLASH_PARTITION_XML
+}
+
+function build_fip_pre()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
+  cd "$BUILD_PATH" || return
+  make fip-pre-merge || return "$?"
+)}
+
+function build_rtos()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$BUILD_PATH" || return
+  make rtos || return "$?"
+)}
+
+function clean_rtos()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$BUILD_PATH" || return
+  make rtos-clean
+)}
+
+function menuconfig_uboot()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
+  cd "$BUILD_PATH" || return
+  make u-boot-menuconfig || return "$?"
+)}
+
+function menuconfig_busybox()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_busybox_env
+  cd "$BUILD_PATH" || return
+  make busybox-menuconfig || return "$?"
+)}
+
+function build_busybox()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_busybox_env
+  cd "$BUILD_PATH" || return
+  make busybox || return "$?"
+)}
+
+function _link_uboot_logo()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$BUILD_PATH" || return
+  if [[ x"${PANEL_TUNING_PARAM}" = x"I80_panel_st7789v" ]]; then
+    ln -sf "$COMMON_TOOLS_PATH"/bootlogo/logo_320x240.BMP "$COMMON_TOOLS_PATH"/bootlogo/logo.jpg
+  fi
+)}
+
+function build_uboot()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
+  _build_opensbi_env
+  _link_uboot_logo
+  cd "$BUILD_PATH" || return
+  make u-boot || return "$?"
+)}
+
+function build_uboot_env_tools()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
+  cd "$BUILD_PATH" || return
+  make u-boot-env-tools || return "$?"
+)}
+
+function clean_uboot()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
+  cd "$BUILD_PATH" || return
+  make u-boot-clean
+)}
+
+function _build_kernel_env()
+{
+  export KERNEL_OUTPUT_FOLDER RAMDISK_OUTPUT_FOLDER SYSTEM_OUT_DIR
+}
+
+function menuconfig_kernel()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_kernel_env
+  cd "$BUILD_PATH" || return
+  make kernel-menuconfig || return "$?"
+)}
+
+function setconfig_kernel()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_kernel_env
+  cd "$BUILD_PATH" || return
+  make kernel-setconfig "SCRIPT_ARG=$1" || return "$?"
+)}
+
+# shellcheck disable=SC2120
+function build_kernel()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_kernel_env
+  cd "$BUILD_PATH" || return
+  make kernel || return "$?"
+
+  # generate boot.itb image.
+  if [[ ${1} != noitb ]]; then
+    pack_boot || return "$?"
+  fi
+)}
+
+function clean_kernel()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_kernel_env
+  cd "$BUILD_PATH" || return
+  make kernel-clean
+)}
+
+function build_bld()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$BUILD_PATH" || return
+  make bld || return "$?"
+)}
+
+function clean_bld()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$BUILD_PATH" || return
+  make bld-clean
+)}
+
+function _build_middleware_env()
+{
+  export MULTI_PROCESS_SUPPORT BUILD_PATH
+}
+
+function build_middleware()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_middleware_env
+  cd "$BUILD_PATH" || return
+
+  make "$ROOTFS_DIR" || return "$?"
+
+  pushd "$MW_PATH"
+  make all -j$(nproc)
+  test $? -ne 0 && print_notice "build middleware failed !!" && popd && return 1
+  make install DESTDIR="$SYSTEM_OUT_DIR" || return "$?"
+  popd
+
+  # add sdk version
+  echo "SDK_VERSION=${SDK_VER}" > "$SYSTEM_OUT_DIR"/sdk-release
+)}
+
+function clean_middleware()
+{
+  pushd "$MW_PATH"
+  make clean
+  make uninstall
+  popd
+}
+
+function clean_middleware_all()
+{
+  pushd "$MW_PATH"
+  make clean_all
+  popd
+}
+
+function build_sdk()
+{
+  if [[ -z $1 ]]; then
+    echo "Please enter sdk type !"
+    return 1;
+  fi
+
+  print_notice "Run ${FUNCNAME[0]}() $1 function"
+
+  if [ ! -e "$TPU_SDK_INSTALL_PATH" ]; then
+    echo "$TPU_SDK_INSTALL_PATH not present, run build_tpu_sdk first"
+    return 1
+  fi
+
+  if [ "$SDK_VER" = 64bit ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_64"
+  elif [ "$SDK_VER" = 32bit ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_32"
+  elif [ "$SDK_VER" = musl ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL"
+  elif [ "$SDK_VER" = glibc_riscv64 ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
+  elif [ "$SDK_VER" = musl_riscv64 ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL_RISCV64"
+  else
+    echo "Unknown SDK_VER=$SDK_VER"
+    return 1
+  fi
+  local SDK_PATH=
+  local SDK_INSTALL_PATH=
+  if [[ "$1" = ive ]]; then
+    SDK_PATH="$IVE_SDK_PATH"
+    SDK_INSTALL_PATH="$IVE_SDK_INSTALL_PATH"
+  elif [[ "$1" = ivs ]]; then
+    SDK_PATH="$IVS_SDK_PATH"
+    SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH"
+  elif [[ "$1" = cnv ]]; then
+    SDK_PATH="$CNV_SDK_PATH"
+    SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH"
+  fi
+  pushd "$SDK_PATH"
+  HOST_TOOL_PATH="$HOST_TOOL_PATH" \
+  MW_PATH="$MW_PATH" \
+  CHIP_ARCH="$CHIP_ARCH" \
+  OPENCV_INSTALL_PATH="$TPU_SDK_INSTALL_PATH"/opencv \
+  TRACER_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
+  TPU_SDK_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
+  IVE_SDK_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
+  IVS_SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH" \
+  CNV_SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH" \
+  KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
+      scripts/sdk_release.sh
+  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
+  popd
+
+  # copy so
+  cp -a "$SDK_INSTALL_PATH"/lib/*.so* "$SYSTEM_OUT_DIR"/lib/
+  # copy sample_xxx
+  if [[ "$CHIP_ARCH" != CV180X ]] && [[ "$CHIP_ARCH" != CV181X ]] && [[ "$CHIP_ARCH" != CV184X ]] && [[ "$1" = ai ]]; then
+    mkdir -p "$SYSTEM_OUT_DIR"/usr/bin/"$1"
+    cp -a "$SDK_INSTALL_PATH"/bin/sample_* "$SYSTEM_OUT_DIR"/usr/bin/"$1"
+  fi
+}
+
+function clean_sdk()
+{
+    print_notice "Run ${FUNCNAME[0]}() $1 function"
+  [[ "$1" = ive ]] && rm -rf "$IVE_SDK_INSTALL_PATH"
+  [[ "$1" = ivs ]] && rm -rf "$IVS_SDK_INSTALL_PATH"
+  [[ "$1" = cnv ]] && rm -rf "$CNV_SDK_INSTALL_PATH"
+  rm -f "$SYSTEM_OUT_DIR"/lib/libcvi_"$1"_tpu.so*
+  rm -rf "${SYSTEM_OUT_DIR:?}"/usr/bin/"$1"
+}
+
+function build_ive_sdk()
+{
+  if [[ "$CHIP_ARCH" != CV184X ]] && [[ "$CHIP_ARCH" != CV181X ]] ; then
+    build_sdk ive || return "$?"
+  fi
+}
+
+function clean_ive_sdk()
+{
+  if [[ "$CHIP_ARCH" != CV184X ]] && [[ "$CHIP_ARCH" != CV181X ]] ; then
+    clean_sdk ive
+  fi
+}
+
+function build_ivs_sdk()
+{
+  if [[ "$CHIP_ARCH" == CV182X ]] || [[ "$CHIP_ARCH" == CV183X ]]; then
+    build_sdk ivs || return "$?"
+  fi
+}
+
+function clean_ivs_sdk()
+{
+  if [[ "$CHIP_ARCH" == CV182X ]] || [[ "$CHIP_ARCH" == CV183X ]]; then
+    clean_sdk ivs
+  fi
+}
+
+function build_tdl_sdk()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh all
+  test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
+  popd
+}
+
+function clean_tdl_sdk()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  pushd "$TDL_SDK_PATH"
+  ./build_tdl_sdk.sh clean
+  popd
+}
+
+function build_cnv_sdk()
+{
+  build_sdk cnv || return "$?"
+}
+
+function clean_cnv_sdk()
+{
+  clean_sdk cnv
+}
+
+function build_osdrv()
+{(
+  print_notice "Run ${FUNCNAME[0]}() ${1} function"
+
+  cd "$BUILD_PATH" || return
+  make "$ROOTFS_DIR" || return "$?"
+
+  local osdrv_target="$1"
+  if [ -z "$osdrv_target" ]; then
+    osdrv_target=all
+  fi
+
+  pushd "$OSDRV_PATH"
+  make BUILD_DIR="$BUILD_PATH" KERNEL_DIR="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER" INSTALL_DIR="$SYSTEM_OUT_DIR"/ko "$osdrv_target"
+  test "$?" -eq 0 || return 1
+  popd
+)}
+
+function clean_osdrv()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  pushd "$OSDRV_PATH"
+  make BUILD_DIR="$BUILD_PATH" KERNEL_DIR="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER" INSTALL_DIR="$SYSTEM_OUT_DIR"/ko clean || return "$?"
+  popd
+}
+
+function _build_cvi_pipeline_env()
+{
+  export SYSTEM_OUT_DIR CROSS_COMPILE_PATH_32 CROSS_COMPILE_PATH_64 CROSS_COMPILE_PATH_MUSL
+}
+
+function build_cvi_pipeline()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_cvi_pipeline_env
+
+  pushd "$CVI_PIPELINE_PATH"
+  ./build.sh "1"
+  ./install_base_pkg.sh prebuilt "$(pwd)/install"
+  ./download_models.sh "$(pwd)/install/cvi_models"
+  make install DESTDIR="$(pwd)/install/system" LIBC_PATH="$TOOLCHAIN_PATH/gcc/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/arm-linux-gnueabihf/libc/lib/"
+  test "$?" -eq 0 || return 1
+  popd
+}
+
+function clean_cvi_pipeline()
+{
+  pushd "$CVI_PIPELINE_PATH"
+  make clean
+  rm -rf cvi_pipeline.tar.gz
+  rm -rf prebuilt/*
+  popd
+}
+
+function _build_cvi_rtsp_env()
+{
+  export CROSS_COMPILE
+}
+
+function build_cvi_rtsp()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_cvi_rtsp_env
+
+  cd "$CVI_RTSP_PATH" || return
+  ./build.sh || { print_notice "build_cvi_rtsp failed !!"; return 1; }
+)}
+
+function clean_cvi_rtsp()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$CVI_RTSP_PATH" || return
+  make clean
+)}
+
+function build_pqtool_server()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$PQTOOL_SERVER_PATH" || return
+  ./build.sh || { print_notice "build_pqtool_server failed !!"; return 1; }
+)}
+
+function clean_pqtool_server()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$PQTOOL_SERVER_PATH" || return
+  make clean
+)}
+
+function build_3rd_party()
+{
+  mkdir -p "$OSS_TARBALL_PATH"
+
+  if [ -d "${OSS_PATH}/oss_release_tarball/${SDK_VER}" ]; then
+    echo "oss prebuilt tarball found!"
+  else
+    echo "Please download oss release tarball from https://github.com/sophgo/oss.git"
+    return 1
+  fi
+  echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
+  cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
+
+  local oss_list=(
+    "zlib"
+    "glog"
+    "flatbuffers"
+    "opencv"
+    "live555"
+    "sqlite3"
+    "ffmpeg"
+    "thttpd"
+    "openssl"
+    "libwebsockets"
+    "json-c"
+    "nanomsg"
+    "miniz"
+    "uv"
+    "cvi-json-c"
+    "cvi-miniz"
+  )
+
+  for name in "${oss_list[@]}"; do
+    if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
+      echo "$name found"
+      "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+      echo "$name successfully downloaded and untared."
+    else
+      echo "$name not found"
+      return 1
+    fi
+  done
+}
+
+function clean_3rd_party()
+{
+  rm -rf "$OSS_PATH"/build
+  rm -rf "$OSS_TARBALL_PATH"
+}
+
+function clean_ramdisk()
+{
+  rm -rf "${RAMDISK_PATH:?}"/"$RAMDISK_OUTPUT_BASE"
+  rm -rf "$SYSTEM_OUT_DIR"
+  rm -rf "$ROOTFS_DIR"
+}
+
+function build_access_guard_turnkey_app()
+{(
+  if [[ -d "$ACCESSGUARD_PATH" ]] && [[ "$BUILD_TURNKEY_ACCESSGUARD" = "y" ]]; then
+    export SDK_PATH=$(pwd)
+    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
+    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
+    export SDK_INSTALL_PATH="$OUTPUT_DIR"
+    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    ln -sf "$SDK_INSTALL_PATH"/tpu_* "$SDK_INSTALL_PATH"/tpu
+    pushd "$ACCESSGUARD_PATH"
+      source build.sh
+      access_guard_build || return 1
+      access_guard_install || return 1
+      mkdir -p "$SYSTEM_OUT_DIR"/data
+      cp -a  ${ACCESSGUARD_PATH}/install "$SYSTEM_OUT_DIR"/data/
+    popd
+  fi
+)}
+
+function clean_access_guard_turnkey_app()
+{(
+  if [[ -d "$ACCESSGUARD_PATH" ]] && [[ "$BUILD_TURNKEY_ACCESSGUARD" = "y" ]]; then
+    export SDK_PATH=$(pwd)
+    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
+    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
+    export SDK_INSTALL_PATH="$OUTPUT_DIR"
+    export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
+    pushd "$ACCESSGUARD_PATH"
+    source build.sh
+    access_guard_clean
+    popd
+  fi
+)}
+
+function build_ipc_app()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  if [[ -d "$IPC_APP_PATH" ]] && [[ "$BUILD_TURNKEY_IPC" = "y" ]]; then
+    pushd "$IPC_APP_PATH"
+        make clean; make; make ipc_install || return $?
+        if [[ -f "$OUTPUT_DIR"/ipc_install.tar.gz ]] ; then
+            rm "$OUTPUT_DIR"/ipc_install.tar.gz
+        fi
+        pushd install
+        tar -czvf "$OUTPUT_DIR"/ipc_install.tar.gz "${IPC_APP_PATH}"/install/ipc_install || return $?
+        popd
+    popd
+  fi
+}
+
+function clean_ipc_app()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  if [[ -d "$IPC_APP_PATH" ]] && [[ "$BUILD_TURNKEY_IPC" = "y" ]]; then
+    pushd "$IPC_APP_PATH"
+        make clean
+        if [[ -f "$OUTPUT_DIR"/ipc_install.tar.gz ]] ; then
+            rm "$OUTPUT_DIR"/ipc_install.tar.gz
+        fi
+    popd
+  fi
+}
+
+function clean_libsophon()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf ${TPU_SDK_INSTALL_PATH}
+  rm -rf "$LIBSOPHON_PATH"/build/*
+  rm -rf "$LIBSOPHON_PATH"/install/*
+  rm -rf "$SYSTEM_OUT_DIR"/usr/lib/libsophon-0.4.4
+  rm -rf "$SYSTEM_OUT_DIR"/ko/bmtpu.ko
+}
+
+function build_libsophon()
+{
+  clean_libsophon
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  # pushd "$LIBSOPHON_PATH" || return
+  #   echo "running 'git submodule update --init' ..."
+  #   git submodule update --init
+  # popd
+
+  if [ ! -d "$LIBSOPHON_PATH"/build ]; then
+    mkdir -p "$LIBSOPHON_PATH"/build
+  fi
+
+  pushd "$LIBSOPHON_PATH"/build || return
+  # rm -rf "$LIBSOPHON_PATH"/build/*
+  case "$ARCH" in
+      armv7l|arm)
+          echo "building libsophon for arm ..."
+          CMAKE_TOOLCHAIN_FILE="${LIBSOPHON_PATH}/toolchain-arm-linux.cmake"
+          ;;
+      aarch64|arm64)
+          echo "building libsophon for arm64 ..."
+          CMAKE_TOOLCHAIN_FILE="${LIBSOPHON_PATH}/toolchain-aarch64-linux.cmake"
+          ;;
+      *)
+          echo "Error: Unsupported ARCH '$ARCH'"
+          exit 1
+          ;;
+  esac
+
+  cmake -DPLATFORM=soc \
+        -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
+        -DLIB_DIR="$LIBSOPHON_PATH"/3rdparty/$ARCH/soc/ \
+        -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH" \
+        -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE" \
+        -DBUILD_STATIC_LIB=ON \
+        -DCROSS_COMPILE=$CROSS_COMPILE_PATH/bin/$CROSS_COMPILE \
+        -DCMAKE_INSTALL_PREFIX="$LIBSOPHON_PATH"/install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DLITE_BUILD=ON ..
+
+  make -j8
+  make driver -j
+  make install -j8
+  make package -j8
+
+  if [ ! -d "$SYSTEM_OUT_DIR"/lib ]; then
+    mkdir -p "$SYSTEM_OUT_DIR"/lib
+  fi
+  if [ ! -d "$SYSTEM_OUT_DIR"/bin ]; then
+    mkdir -p "$SYSTEM_OUT_DIR"/bin
+  fi
+  if [ ! -d "$SYSTEM_OUT_DIR"/ko ]; then
+    mkdir -p "$SYSTEM_OUT_DIR"/ko
+  fi
+  mkdir -p ${TPU_SDK_INSTALL_PATH}
+
+  cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/lib/* "$SYSTEM_OUT_DIR"/lib || return
+  cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/bin/* "$SYSTEM_OUT_DIR"/bin || return
+  cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/data/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
+
+  popd
+}
+
+function build_tpu_kernel()
+{(
+  clean_tpu_kernel
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  pushd "$LIBSOPHON_PATH"/tpu-kernel || return
+  cp -rf "$LIBSOPHON_PATH"/tpu-kernel/lib/"$SDK_VER"/libtpu_kernel_module.so "$SYSTEM_OUT_DIR"/lib/
+  popd
+)}
+
+function clean_tpu_kernel()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf "$SYSTEM_OUT_DIR"/lib/libtpu_kernel_module.so
+)}
+
+# shellcheck disable=SC2120
+function build_all()
+{(
+  if [[ "$ARCH" == "riscv" ]];then
+    build_opensbi_kernel || return $?
+  else
+    build_kernel || return $?
+  fi
+  build_uboot || return $?
+  build_ramboot || return $?
+  if [[ "$BOARD" != "fpga" ]] && [[ "$BOARD" != "palladium" ]]; then
+    build_osdrv || return $?
+    build_3rd_party || return $?
+    build_libsophon || return $?
+    build_middleware || return $?
+    build_cvi_rtsp || return $?
+    if [ "$TPU_REL" = 1 ]; then
+      build_tpu_kernel || return $?
+      build_ive_sdk || return $?
+      build_tdl_sdk || return $?
+    fi
+    build_pqtool_server || return $?
+    build_access_guard_turnkey_app || return $?
+    build_ipc_app || return $?
+  fi
+  pack_cfg || return $?
+  pack_rootfs || return $?
+  pack_data || return $?
+  pack_system || return $?
+  copy_tools || return $?
+  pack_upgrade || return $?
+)}
+
+function clean_all()
+{
+  clean_uboot
+  [[ "$ARCH" == "riscv" ]] && clean_opensbi
+  [[ "$ENABLE_ALIOS" == y ]] && clean_alios
+  clean_rtos
+  [[ "$ATF_SRC" == y ]] && clean_atf
+  clean_kernel
+  clean_ramdisk
+  clean_3rd_party
+  if [ "$TPU_REL" = 1 ]; then
+    clean_tpu_kernel
+    clean_ive_sdk
+    clean_ivs_sdk
+    clean_tpu_sdk
+    clean_tdl_sdk
+    clean_cnv_sdk
+  fi
+  clean_access_guard_turnkey_app
+  clean_ipc_app
+  clean_middleware
+  clean_osdrv
+  clean_libsophon
+  clean_cvi_rtsp
+  clean_pqtool_server
+  cd "$TOP_DIR" || return
+}
+
+function distclean_all()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  clean_all
+  # repo forall -c "git clean -dfx"
+)}
+
+# shellcheck disable=SC2120
+function envs_sdk_ver()
+{
+  if [ -n "$1" ]; then
+    SDK_VER="$1"
+  fi
+
+  if [ "$SDK_VER" = 64bit ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_64"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+    SYSROOT_PATH="$SYSROOT_PATH_64"
+  elif [ "$SDK_VER" = 32bit ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_32"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_32"
+    SYSROOT_PATH="$SYSROOT_PATH_32"
+  elif [ "$SDK_VER" = musl ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_MUSL"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_MUSL"
+    SYSROOT_PATH="$SYSROOT_PATH_MUSL"
+  elif [ "$SDK_VER" = glibc_riscv64 ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_GLIBC_RISCV64"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
+    SYSROOT_PATH="$SYSROOT_PATH_GLIBC_RISCV64"
+  elif [ "$SDK_VER" = musl_riscv64 ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_MUSL_RISCV64"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_MUSL_RISCV64"
+    SYSROOT_PATH="$SYSROOT_PATH_MUSL_RISCV64"
+  else
+    echo -e "Invalid SDK_VER=${SDK_VER}"
+    exit 1
+  fi
+
+  TPU_OUTPUT_PATH="$OUTPUT_DIR"/tpu_"$SDK_VER"
+  # ramdisk packages PATH
+  pushd $BUILD_PATH || return $?
+  CVI_TARGET_PACKAGES_LIBDIR=$(make print-target-packages-libdir)
+  CVI_TARGET_PACKAGES_INCLUDE=$(make print-target-packages-include)
+  popd
+  export CVI_TARGET_PACKAGES_LIBDIR
+  export CVI_TARGET_PACKAGES_INCLUDE
+
+  OSS_TARBALL_PATH="$TPU_OUTPUT_PATH"/third_party
+  TPU_SDK_INSTALL_PATH="$TPU_OUTPUT_PATH"/cvitek_tpu_sdk
+  IVE_SDK_INSTALL_PATH="$TPU_OUTPUT_PATH"/cvitek_ive_sdk
+  IVS_SDK_INSTALL_PATH="$TPU_OUTPUT_PATH"/cvitek_ivs_sdk
+  AI_SDK_INSTALL_PATH="$TPU_OUTPUT_PATH"/cvitek_ai_sdk
+  CNV_SDK_INSTALL_PATH="$TPU_OUTPUT_PATH"/cvitek_cnv_sdk
+  TPU_MODEL_PATH="$TPU_OUTPUT_PATH"/models
+  IVE_CMODEL_INSTALL_PATH="$TPU_OUTPUT_PATH"/tools/ive_cmodel
+}
+
+function cvi_setup_env()
+{
+  local _tmp ret
+
+  _build_default_env
+
+  _tmp=$(python3 "${TOP_DIR}/build/scripts/boards_scan.py" --gen-board-env="${CHIP}_${BOARD}")
+  ret=$?
+  [[ "$ret" == 0 ]] || return "$ret"
+
+  # shellcheck disable=SC1090
+  source <(echo "${_tmp}")
+
+  if [[ "$CHIP_ARCH" == "CV183X" ]];then
+  export  CVIARCH="CV183X"
+  fi
+  if [[ "$CHIP_ARCH" == "CV182X" ]];then
+  export  CVIARCH="CV182X"
+  fi
+  if [[ "$CHIP_ARCH" == "CV184X" ]];then
+  export  CVIARCH="CV184X"
+  fi
+  if [[ "$CHIP_ARCH" == "CV180X" ]];then
+  export  CVIARCH="CV180X"
+  fi
+
+  export BRAND BUILD_VERBOSE DEBUG PROJECT_FULLNAME
+  export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH ALIOS_PATH
+  export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH MW_PATH
+
+  PROJECT_FULLNAME="$CHIP"_"$BOARD"
+
+  # output folder path
+  INSTALL_PATH="$TOP_DIR"/install
+  OUTPUT_DIR="$INSTALL_PATH"/soc_"$PROJECT_FULLNAME"
+  ROOTFS_DIR="$OUTPUT_DIR"/rootfs
+  SYSTEM_OUT_DIR="$OUTPUT_DIR"/rootfs/system
+
+  # source file folders
+  LIBSOPHON_PATH="$TOP_DIR"/libsophon
+  FSBL_PATH="$TOP_DIR"/fsbl
+  BUSYBOX_PATH="$TOP_DIR"/busybox
+  ATF_PATH="$TOP_DIR"/arm-trusted-firmware
+  UBOOT_PATH="$TOP_DIR/$UBOOT_SRC"
+  FREERTOS_PATH="$TOP_DIR"/freertos
+  ALIOS_PATH="$TOP_DIR"/cvi_alios
+  KERNEL_PATH="$TOP_DIR"/"$KERNEL_SRC"
+  OSDRV_PATH="$TOP_DIR"/osdrv
+  RAMDISK_PATH="$TOP_DIR"/ramdisk
+  BM_BLD_PATH="$TOP_DIR"/bm_bld
+  TOOLCHAIN_PATH="$TOP_DIR"/host-tools
+  OSS_PATH="$TOP_DIR"/oss
+  OPENCV_PATH="$TOP_DIR"/opencv
+  APPS_PATH="$TOP_DIR"/apps
+  MW_PATH="$TOP_DIR"/cvi_mpi
+  PQTOOL_SERVER_PATH="$TOP_DIR"/isp-tool-daemon
+  ISP_TUNING_PATH="$TOP_DIR"/isp_tuning
+  TPU_SDK_PATH="$TOP_DIR"/cviruntime
+  IVE_SDK_PATH="$TOP_DIR"/ive
+  IVS_SDK_PATH="$TOP_DIR"/ivs
+  CNV_SDK_PATH="$TOP_DIR"/cnv
+  TDL_SDK_PATH="$TOP_DIR"/tdl_sdk
+  CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
+  CVI_RTSP_PATH="$TOP_DIR"/cvi_rtsp
+  OPENSBI_PATH="$TOP_DIR"/opensbi
+  TOOLS_PATH="$BUILD_PATH"/tools
+  COMMON_TOOLS_PATH="$TOOLS_PATH"/common
+  VENC_PATH="$MW_PATH"/modules/venc
+  IMGTOOL_PATH="$COMMON_TOOLS_PATH"/image_tool
+  EMMCTOOL_PATH="$COMMON_TOOLS_PATH"/emmc_tool
+  SCRIPTTOOL_PATH="$COMMON_TOOLS_PATH"/scripts
+  ROOTFSTOOL_PATH="$COMMON_TOOLS_PATH"/rootfs_tool
+  SPINANDTOOL_PATH="$COMMON_TOOLS_PATH"/spinand_tool
+  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo/logo.jpg
+
+  # subfolder path for buidling, chosen accroding to .gitignore rules
+  UBOOT_OUTPUT_FOLDER=build/"$PROJECT_FULLNAME"
+  RAMDISK_OUTPUT_BASE=build/"$PROJECT_FULLNAME"
+  KERNEL_OUTPUT_FOLDER=build/"$PROJECT_FULLNAME"
+  RAMDISK_OUTPUT_FOLDER="$RAMDISK_OUTPUT_BASE"/workspace
+
+  # toolchain
+  export CROSS_COMPILE_64=aarch64-none-linux-gnu-
+  export CROSS_COMPILE_32=arm-none-linux-gnueabihf-
+  export CROSS_COMPILE_MUSL=arm-none-linux-musleabihf-
+  export CROSS_COMPILE_64_NONOS_RISCV64=riscv64-unknown-elf-
+  export CROSS_COMPILE_GLIBC_RISCV64=riscv64-unknown-linux-gnu-
+  export CROSS_COMPILE_MUSL_RISCV64=riscv64-unknown-linux-musl-
+  export CROSS_COMPILE="$CROSS_COMPILE_64"
+
+  # toolchain path
+  CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu
+  CROSS_COMPILE_PATH_32="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-gnueabihf
+  CROSS_COMPILE_PATH_MUSL="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-musleabihf
+  CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
+  CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
+  CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
+  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+
+  # add toolchain path
+  pathprepend "$CROSS_COMPILE_PATH_64"/bin
+  pathprepend "$CROSS_COMPILE_PATH_32"/bin
+  pathprepend "$CROSS_COMPILE_PATH_64_NONOS_RISCV64"/bin
+  pathprepend "$CROSS_COMPILE_PATH_GLIBC_RISCV64"/bin
+  pathprepend "$CROSS_COMPILE_PATH_MUSL_RISCV64"/bin
+  pathappend "$CROSS_COMPILE_PATH_MUSL"/bin
+
+  # Check ccache is enable or not
+  pathremove "$BUILD_PATH"/output/bin
+  rm -rf "$BUILD_PATH"/output/bin/
+  if [ "$USE_CCACHE" == "y" ];then
+    if command -v ccache &> /dev/null;then
+      mkdir -p "$BUILD_PATH"/output/bin
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-none-linux-gnu-gcc
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-none-linux-gnu-g++
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-none-linux-gnu-c++
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-none-linux-gnueabihf-gcc
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-none-linux-gnueabihf-g++
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-none-linux-gnueabihf-c++
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-none-linux-musleabihf-gcc
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-none-linux-musleabihf-g++
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-none-linux-musleabihf-c++
+      pathprepend "$BUILD_PATH"/output/bin
+    else
+      echo "You have enabled ccache but there is no ccache in your PATH. Please cheack!"
+      USE_CCACHE="n"
+    fi
+  fi
+
+  # sysroot
+  SYSROOT_PATH_64="$CROSS_COMPILE_PATH_64"/aarch64-none-linux-gnu/libc
+  SYSROOT_PATH_32="$CROSS_COMPILE_PATH_32"/arm-none-linux-gnueabihf/libc
+  SYSROOT_PATH_MUSL="$CROSS_COMPILE_PATH_MUSL"/arm-none-linux-musleabihf/sysroot
+  SYSROOT_PATH_GLIBC_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-glibc-riscv64
+  SYSROOT_PATH_MUSL_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-musl-riscv64
+  SYSROOT_PATH="$SYSROOT_PATH_64"
+
+  # envs setup for specific ${SDK_VER}
+  envs_sdk_ver
+
+  if [ "${STORAGE_TYPE}" == "spinand" ]; then
+    PAGE_SUFFIX=2k
+    if [ ${NANDFLASH_PAGESIZE} == 4096 ]; then
+      PAGE_SUFFIX=4k
+    fi
+
+    if [[ "$ENABLE_ALIOS" != "y" ]]; then
+      rm -rf "$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
+      ln -fs "$BUILD_PATH"/boards/default/partition/partition_spinand_page_"$PAGE_SUFFIX".xml \
+        "$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
+    fi
+  fi
+
+  # configure flash partition table
+  if [ -z "${STORAGE_TYPE}" ]; then
+    FLASH_PARTITION_XML="$BUILD_PATH"/boards/default/partition/partition_none.xml
+  else
+    if [[ "$SKIP_UBOOT" == y ]]; then
+      FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_fastboot_"$STORAGE_TYPE".xml
+    else
+      FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
+    fi
+    if ! [ -e "$FLASH_PARTITION_XML" ]; then
+      print_error "${FLASH_PARTITION_XML} does not exist!!"
+      return 1
+    fi
+  fi
+
+  # config yoc.bin packed in fip.bin or not
+  if [ `grep -c "partition label=\"2nd\"" $FLASH_PARTITION_XML` -ne '0' ]; then
+    export C906L_PARTITION_EXIST=1
+  else
+    export C906L_PARTITION_EXIST=0
+  fi
+
+}
+
+cvi_print_env()
+{
+  echo -e ""
+  echo -e "\e[1;32m====== Environment Variables ======= \e[0m\n"
+  echo -e "  PROJECT: \e[34m$PROJECT_FULLNAME\e[0m, DDR_CFG=\e[34m$DDR_CFG\e[0m"
+  echo -e "  CHIP_ARCH: \e[34m$CHIP_ARCH\e[0m, DEBUG=\e[34m$DEBUG\e[0m"
+  echo -e "  SDK VERSION: \e[34m$SDK_VER\e[0m, RPC=\e[34m$MULTI_PROCESS_SUPPORT\e[0m"
+  echo -e "  ATF options: ATF_KEY_SEL=\e[34m$ATF_KEY_SEL\e[0m, BL32=\e[34m$ATF_BL32\e[0m"
+  echo -e "  Linux source folder:\e[34m$KERNEL_SRC\e[0m, Uboot source folder: \e[34m$UBOOT_SRC\e[0m"
+  echo -e "  ENABLE_DUAL_OS: $DUAL_OS"
+  echo -e "  CROSS_COMPILE_PREFIX: \e[34m$CROSS_COMPILE\e[0m"
+  echo -e "  ENABLE_BOOTLOGO: $ENABLE_BOOTLOGO"
+  echo -e "  Flash layout xml: $FLASH_PARTITION_XML"
+  echo -e "  Sensor tuning bin: $SENSOR_TUNING_PARAM"
+  echo -e "  Output path: \e[33m$OUTPUT_DIR\e[0m"
+  echo -e ""
+}
+
+function print_usage()
+{
+  printf "  -------------------------------------------------------------------------------------------------------\n"
+  printf "    Usage:\n"
+  printf "    (1)\33[94m menuconfig \33[0m- Use menu to configure your board.\n"
+  printf "        ex: $ menuconfig\n\n"
+  printf "    (2)\33[96m defconfig \$CHIP_ARCH \33[0m- List EVB boards(\$BOARD) by CHIP_ARCH.\n"
+  "${BUILD_PATH}/scripts/boards_scan.py" --list-chip-arch
+  printf "        ex: $ defconfig cv184x\n\n"
+  printf "    (3)\33[92m defconfig \$BOARD\33[0m - Choose EVB board settings.\n"
+  printf "        ex: $ defconfig cv1842hp_wevb_0014a_spinor\n"
+  printf "        ex: $ defconfig cv1842cp_wevb_0015a_spinand\n"
+  printf "  -------------------------------------------------------------------------------------------------------\n"
+}
+
+TOP_DIR=$(gettop)
+BUILD_PATH="$TOP_DIR/build"
+export TOP_DIR BUILD_PATH
+"${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
+"${BUILD_PATH}/scripts/gen_sensor_config.py"
+"${BUILD_PATH}/scripts/gen_panel_config.py"
+
+# import common functions
+# shellcheck source=./common_functions.sh
+source "$TOP_DIR/build/common_functions.sh"
+# shellcheck source=./riscv_functions.sh
+source "$TOP_DIR/build/riscv_functions.sh"
+# shellcheck source=./alios_functions.sh
+source "$TOP_DIR/build/alios_functions.sh"
+
+source "$TOP_DIR/build/tools/cv184x/pld_tools/pld_backdoor.sh"
+
+print_usage
