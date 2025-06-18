@@ -97,7 +97,7 @@ function _build_uboot_env()
 
 function _build_br2_env()
 {
-  export BUILDROOT_PATH BR2_OVERLAY_PATH
+  export BUILDROOT_PATH
 }
 
 function build_fip_pre()
@@ -130,22 +130,9 @@ function menuconfig_uboot()
   make u-boot-menuconfig || return "$?"
 )}
 
-function _prepare_buildroot_()
-{(
-  if [ ! -d "${BUILDROOT_PATH}" ]; then
-    echo "buildroot directory does not exist. Exit..."
-    # echo "buildroot directory does not exist. Cloning from GitHub..."
-    # git clone -b 2023.11.x --single-branch https://github.com/buildroot/buildroot.git ${BUILDROOT_PATH}
-  else
-    echo "buildroot directory already exists."
-  fi
-)}
-export -f _prepare_buildroot_
-
 function menuconfig_buildroot()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
-  _prepare_buildroot_
   _build_br2_env
   cd "$BUILD_PATH" || return
   make menuconfig-br2 || return "$?"
@@ -154,7 +141,6 @@ function menuconfig_buildroot()
 function savedefconfig_br2()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
-  _prepare_buildroot_
   _build_br2_env
   cd "$BUILD_PATH" || return
   make savedefconfig-br2 || return "$?"
@@ -163,7 +149,6 @@ function savedefconfig_br2()
 function build_br2_package()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
-  _prepare_buildroot_
   _build_br2_env
   cd "$BUILD_PATH" || return
   make build_package-br2 || return "$?"
@@ -547,7 +532,7 @@ function cvi_setup_env()
   KERNEL_PATH="$TOP_DIR"/"$KERNEL_SRC"
   RAMDISK_PATH="$TOP_DIR"/ramdisk
   BUILDROOT_PATH="$TOP_DIR"/buildroot
-  BR2_OVERLAY_PATH="$BUILDROOT_PATH"/board/sophgo
+  BR2_OVERLAY_PATH="$TOP_DIR"/buildroot/board/sophgo/
   BM_BLD_PATH="$TOP_DIR"/bm_bld
   TOOLCHAIN_PATH="$TOP_DIR"/host-tools
   OSS_PATH="$TOP_DIR"/oss

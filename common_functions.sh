@@ -126,7 +126,7 @@ function pack_rootfs
 
   export ROOTFS_DIR COMMON_TOOLS_PATH FLASH_PARTITION_XML STORAGE_TYPE
   export CHIP_FOLDER_PATH SDK_VER_FOLDER_PATH CUST_FOLDER_PATH
-  export TOOLCHAIN_PATH BR2_OVERLAY_PATH BUILDROOT_PATH
+  export TOOLCHAIN_PATH BUILDROOT_PATH BR2_OVERLAY_PATH
 
   cd "$BUILD_PATH" || return
   make rootfs
@@ -146,7 +146,8 @@ function pack_data
 
 function clean_rootfs
 {(
-  export ROOTFS_DIR STORAGE_TYPE BUILDROOT_PATH BR2_OVERLAY_PATH
+  export ROOTFS_DIR STORAGE_TYPE
+  export BUILDROOT_PATH
 
   cd "$BUILD_PATH" || return
   make rootfs-clean
@@ -187,6 +188,8 @@ function pack_cfg
   pushd "$ISP_TUNING_PATH"
   ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/param/ "$SENSOR_TUNING_PARAM"
   popd
+
+  cp -rf $HDCP_KEY_PATH/hdcp_key.bin "$OUTPUT_DIR"/rootfs/mnt/cfg/
 
   export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML ROOTFS_DIR
 

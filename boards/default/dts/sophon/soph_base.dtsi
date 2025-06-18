@@ -189,7 +189,7 @@
 		reg-names = "spif";
 		sck-div = <3>;
 		sck_mhz = <300>;
-		spi-max-frequency = <75000000>;
+		spi-max-frequency = <35000000>;
 		spiflash {
 			compatible = "jedec,spi-nor";
 			spi-rx-bus-width = <4>;
@@ -726,7 +726,7 @@
 
 		sata0: sata-port@0 {
 			reg = <0>;
-		       };
+		};
 
 		sata1: sata-port@1 {
 			reg = <1>;
@@ -1051,7 +1051,7 @@
 			<0x0 0x68102000 0x0 0x2000>, <0x0 0x68104000 0x0 0x2000>,
 			<0x0 0x68106000 0x0 0x2000>, <0x0 0x68108000 0x0 0x2000>,
 			<0x0 0x6810A000 0x0 0x2000>, <0x0 0x6810C000 0x0 0x2000>,
-			<0x0 0x6810E000 0x0 0x2000>, <0x0 0x680be000 0x0 0x1000>;
+			<0x0 0x6810E000 0x0 0x2000>;
 
 		reg-names = "csi_mac0", "csi_wrap0", "csi_mac1", "csi_mac2", "csi_mac3", "csi_mac4", "csi_mac5",
 					"csi_mac_vi0", "csi_mac_vi1";
@@ -1660,9 +1660,9 @@
 			<0 0x28104b00 0 0x100>,
 			<0 0x28104c00 0 0x100>,
 			<0 0x28104e00 0 0x100>,
-			<0 0x28105000 0 0x100>,
+			<0 0x28105000 0 0x200>,
 			<0 0x28105300 0 0x100>,
-			<0 0x28105600 0 0x100>;
+			<0 0x28105600 0 0x3e0>;
 	};
 
 	irrx:irrx@0502E000 {
