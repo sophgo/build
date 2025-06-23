@@ -306,6 +306,12 @@ config SENSOR_SMS_SC531AI_2L
     help
       "y" Add sensor sms_sc531ai_2l to libsns_full.so.
 
+config SENSOR_SMS_SC635AI
+    bool "Choose sensor sms_sc635ai"
+    default n
+    help
+      "y" Add sensor sms_sc635ai to libsns_full.so.
+
 config SENSOR_SMS_SC850SL
     bool "Choose sensor sms_sc850sl"
     default n
@@ -371,12 +377,6 @@ config SENSOR_SMS_SC4336P
     default n
     help
       "y" Add sensor sms_sc4336p to libsns_full.so.
-
-config SENSOR_SMS_SC4336P_SLAVE
-    bool "Choose sensor sms_sc4336p_slave"
-    default n
-    help
-      "y" Add sensor sms_sc4336p_slave to libsns_full.so.
 
 config SENSOR_SMS_SC8238
     bool "Choose sensor sms_sc8238"
@@ -540,6 +540,12 @@ config SENSOR_SONY_IMX675
     help
       "y" Add sensor sony_imx675 to libsns_full.so.
 
+config SENSOR_SONY_IMX678
+    bool "Choose sensor sony_imx678"
+    default n
+    help
+      "y" Add sensor sony_imx678 to libsns_full.so.
+
 config SENSOR_SONY_IMX900
     bool "Choose sensor sony_imx900"
     default n
@@ -612,6 +618,9 @@ choice
   config SENSOR_TUNING_PARAM_cv184x_src_cvsens_cv2003
     bool "cvsens_cv2003"
 
+  config SENSOR_TUNING_PARAM_cv184x_src_gcore_gc8613
+    bool "gcore_gc8613"
+
 endchoice
 endmenu
 endif
@@ -619,5 +628,6 @@ endif
 config SENSOR_TUNING_PARAM
   string
   default "cvsens_cv2003" if SENSOR_TUNING_PARAM_cv184x_src_cvsens_cv2003
+  default "gcore_gc8613" if SENSOR_TUNING_PARAM_cv184x_src_gcore_gc8613
 endmenu
 endmenu

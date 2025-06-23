@@ -53,6 +53,9 @@ choice
   config BOARD_wevb_0015a_spinor
     bool "wevb_0015a_spinor (CA53 + SPINOR + QFN SIP 128MB)"
     depends on CHIP_cv1841c
+  config BOARD_wevb_0015a_spinand
+    bool "wevb_0015a_spinand (CA53 + SPINAND + QFN SIP 256MB)"
+    depends on CHIP_cv1842cp
   config BOARD_wevb_0015a_spinor
     bool "wevb_0015a_spinor (CA53 + SPINOR + QFN SIP 256MB)"
     depends on CHIP_cv1842cp
@@ -66,7 +69,7 @@ choice
     bool "wevb_0014a_spinor (CA53 + SPINOR + BGA SIP 256MB)"
     depends on CHIP_cv1842hp
   config BOARD_wevb_0014a_emmc
-    bool "wevb_0014a_emmc (C906B + EMMC + BGA SIP 256MB)"
+    bool "wevb_0014a_emmc (CA53 + EMMC + BGA SIP 512MB)"
     depends on CHIP_cv1843hp
   config BOARD_fpga
     bool "fpga (FPGA)"
@@ -85,6 +88,7 @@ config BOARD
   default "wevb_0015a_emmc" if BOARD_wevb_0015a_emmc
   default "wevb_0015a_spinand" if BOARD_wevb_0015a_spinand
   default "wevb_0015a_spinor" if BOARD_wevb_0015a_spinor
+  default "wevb_0015a_spinand" if BOARD_wevb_0015a_spinand
   default "wevb_0015a_spinor" if BOARD_wevb_0015a_spinor
   default "wevb_0014a_emmc" if BOARD_wevb_0014a_emmc
   default "wevb_0014a_spinand" if BOARD_wevb_0014a_spinand
@@ -144,6 +148,18 @@ choice
   config DDR_CFG_ddr_auto_x16
     bool "ddr_auto_x16"
     depends on CHIP_cv1841c && BOARD_wevb_0015a_spinor
+  config DDR_CFG_none
+    bool "none"
+    depends on CHIP_cv1842cp && BOARD_wevb_0015a_spinand
+  config DDR_CFG_ddr3_1866_x16
+    bool "ddr3_1866_x16"
+    depends on CHIP_cv1842cp && BOARD_wevb_0015a_spinand
+  config DDR_CFG_ddr3_2133_x16
+    bool "ddr3_2133_x16"
+    depends on CHIP_cv1842cp && BOARD_wevb_0015a_spinand
+  config DDR_CFG_ddr_auto_x16
+    bool "ddr_auto_x16"
+    depends on CHIP_cv1842cp && BOARD_wevb_0015a_spinand
   config DDR_CFG_ddr3_1866_x16
     bool "ddr3_1866_x16"
     depends on CHIP_cv1842cp && BOARD_wevb_0015a_spinor
@@ -209,6 +225,10 @@ config DDR_CFG
   default "o" if DDR_CFG_o
   default "n" if DDR_CFG_n
   default "e" if DDR_CFG_e
+  default "none" if DDR_CFG_none
+  default "ddr3_1866_x16" if DDR_CFG_ddr3_1866_x16
+  default "ddr3_2133_x16" if DDR_CFG_ddr3_2133_x16
+  default "ddr_auto_x16" if DDR_CFG_ddr_auto_x16
   default "none" if DDR_CFG_none
   default "ddr3_1866_x16" if DDR_CFG_ddr3_1866_x16
   default "ddr3_2133_x16" if DDR_CFG_ddr3_2133_x16

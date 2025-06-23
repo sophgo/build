@@ -7,6 +7,6 @@
   <partition label="MISC" size_in_kb="128" readonly="false" file="logo.jpg" mountpoint="" type=""/>
   <partition label="ENV" size_in_kb="64" readonly="false" file="" mountpoint="" type=""/>
   <partition label="ENV_BAK" size_in_kb="64" readonly="false" file="" mountpoint="" type=""/>
-  <partition label="ROOTFS" size_in_kb="4352" readonly="false" file="rootfs.spinor" mountpoint="" type=""/>
+  <partition label="ROOTFS" size_in_kb="4608" readonly="false" file="rootfs.spinor" mountpoint="" type=""/>
   <partition label="DATA" size_in_kb="1024" readonly="false" file="data.spinor" mountpoint="/mnt/data" type="jffs2"/>
 </physical_partition>

@@ -275,6 +275,21 @@ else
 KERNEL_CONFIG += MTD_SPI_NOR_USE_4K_SECTORS=n
 endif
 endif
+# setting audio config for dual os or single os
+ifeq (${CONFIG_AUD_DRV_SEL},y)
+AUDIO_DRV_SEL:=n
+else
+AUDIO_DRV_SEL:=y
+endif
+KERNEL_CONFIG += SOUND=${AUDIO_DRV_SEL} \
+				SND=${AUDIO_DRV_SEL} \
+				SND_SOC=${AUDIO_DRV_SEL} \
+				SND_SOC_CVITEK_DAC=${AUDIO_DRV_SEL} \
+				SND_SOC_CVITEK_CARD_DAC=${AUDIO_DRV_SEL} \
+				SND_SOC_CVITEK_ADC=${AUDIO_DRV_SEL} \
+				SND_SOC_CVITEK_CARD_ADC=${AUDIO_DRV_SEL} \
+				SND_CVITEK_I2S=${AUDIO_DRV_SEL} \
+				SND_CVITEK_I2S_SUBSYS=${AUDIO_DRV_SEL}
 # Set CONFIG_SERIAL_EARLYCON_RISCV_SBI config in defconfig
 ifeq (${CONFIG_SKIP_UBOOT_DEBUG},y)
 KERNEL_CONFIG += SERIAL_EARLYCON_RISCV_SBI=y
@@ -295,6 +310,10 @@ endif
 
 ifneq (${CONFIG_NO_TP},y)
 KERNEL_CONFIG += INPUT=y
+endif
+
+ifneq (${CONFIG_SUSPEND},y)
+KERNEL_CONFIG += SUSPEND=n
 endif
 
 # Make a copy to .config~
@@ -556,6 +575,32 @@ endif
 $(OUTPUT_DIR)/rawimages:
 	${Q}mkdir -p $@
 
+
+# Pack_image
+# Description: Macro for packing image
+# Parameters 1: partition label
+# Parameters 2: Folder path for pack
+# Parameters 3: Size for packing (for make_ext4fs)
+ifeq (${STORAGE_TYPE},spinand)
+define pack_image
+	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py $(FLASH_PARTITION_XML) $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') ${2} $(OUTPUT_DIR)/rawimages/${1}.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
+endef
+else ifeq (${STORAGE_TYPE},emmc)
+define pack_image
+	${Q}$(COMMON_TOOLS_PATH)/prebuild/make_ext4fs -l ${3}  -L $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') $(OUTPUT_DIR)/rawimages/${1}.emmc ${2}
+	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.emmc
+endef
+else ifeq (${STORAGE_TYPE},spinor)
+# TODO:
+define pack_image
+	$(warning spi nor flash is not support rw filesystem)
+endef
+else
+define pack_image
+	$(error Unknown STORAGE_TYPE ${STORAGE_TYPE})
+endef
+endif
+
 rootfs-pack:export CROSS_COMPILE_KERNEL=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
 rootfs-pack:export CROSS_COMPILE_SDK=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_SDK))
 rootfs-pack:export OSDRV_BUILD_IN:=$(CONFIG_OSDRV_BUILD_IN)
@@ -571,6 +616,11 @@ endif
 	${Q}find $(ROOTFS_DIR) -name "*.ko" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-unneeded {} \;
 	${Q}find $(ROOTFS_DIR) -name "*.so*" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} \;
 	${Q}find $(ROOTFS_DIR) -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
+
+ifeq (${CONFIG_ROOTFS_RW},y)
+	$(call pack_image,rootfs,$(ROOTFS_DIR),71M)
+else
+
 ifeq ($(STORAGE_TYPE),spinor)
 ifeq (${CONFIG_ROOTFS_FORMAT_OPTIMIZATION},y)
 	${Q}mksquashfs $(ROOTFS_DIR) $(OUTPUT_DIR)/rawimages/rootfs.sqsh -root-owned -comp gzip
@@ -587,6 +637,8 @@ else
 	${Q}mv $(OUTPUT_DIR)/rawimages/rootfs.sqsh $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE)
 endif
 
+endif
+
 define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
@@ -599,10 +651,67 @@ define mkjffs2image
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkjffs2.py $(COMMON_TOOLS_PATH)/mkfs.jffs2 $(OUTPUT_DIR)/data ${1} $(OUTPUT_DIR)/rawimages/${2} $(FLASH_PARTITION_XML)
 endef
 
+menuconfig-br2:
+	${Q}$(MAKE) -C ${BUILDROOT_PATH} menuconfig
+
+savedefconfig-br2:
+	${Q}$(MAKE) -C ${BUILDROOT_PATH} savedefconfig
+
+# BR_OVERLAY_DIR
+# BR_ROOTFS_RAWIMAGE
+br-rootfs-prepare:export CROSS_COMPILE_KERNEL=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
+br-rootfs-prepare:export CROSS_COMPILE_SDK=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_SDK))
+br-rootfs-prepare:
+	$(call print_target)
+	# copy ko and mmf libs
+	${Q}mkdir -p $(BR_OVERLAY_DIR)/system
+	${Q}cp -arf $(OUTPUT_DIR)/rootfs/system/* $(BR_OVERLAY_DIR)/system/
+	# copy usr/share/fw_vcodec
+	# ${Q}mkdir -p $(BR_OVERLAY_DIR)/usr/share
+	# ${Q}cp -rf $(RAMDISK_PATH)/rootfs/$(ROOTFS_BASE)/usr/share/fw_vcodec $(BR_OVERLAY_DIR)/usr/share
+	# strip
+	${Q}find $(BR_OVERLAY_DIR) -name "*.ko" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-unneeded {} \;
+	${Q}find $(BR_OVERLAY_DIR) -name "*.so*" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-all {} \;
+	${Q}find $(BR_OVERLAY_DIR) -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
+
+br-rootfs-pack:export TARGET_OUTPUT_DIR=$(BR_DIR)/output/$(BR_BOARD)
+br-rootfs-pack:
+	$(call print_target)
+	${Q}$(MAKE) -C $(BR_DIR) $(BR_DEFCONFIG)
+	${Q}$(MAKE) -j${NPROC} -C $(BR_DIR)
+	# ${Q}rm -rf $(BR_ROOTFS_DIR)/*
+	# copy rootfs to rawimg dir
+ifeq (${CONFIG_ROOTFS_RW},y)
+ifeq ($(STORAGE_TYPE),spinor)
+	$(warning spi nor flash is not support rw filesystem)
+else ifeq (${STORAGE_TYPE},spinand)
+	${Q}cp $(BR_DIR)/output/images/rootfs.ubifs $(OUTPUT_DIR)/rawimages/
+	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py --ubionly $(FLASH_PARTITION_XML) ROOTFS $(OUTPUT_DIR)/rawimages/rootfs.ubifs $(OUTPUT_DIR)/rawimages/rootfs.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
+	${Q}rm $(OUTPUT_DIR)/rawimages/rootfs.ubifs
+else
+	${Q}cp $(BR_DIR)/output/images/rootfs.ext4 $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE)
+endif
+else
+ifeq (${STORAGE_TYPE},spinand)
+	${Q}cp $(BR_DIR)/output/images/rootfs.squashfs $(OUTPUT_DIR)/rawimages/
+	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py --ubionly $(FLASH_PARTITION_XML) ROOTFS $(OUTPUT_DIR)/rawimages/rootfs.squashfs $(OUTPUT_DIR)/rawimages/rootfs.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
+	${Q}rm $(OUTPUT_DIR)/rawimages/rootfs.squashfs
+else
+	${Q}cp $(BR_DIR)/output/images/rootfs.squashfs $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE)
+endif
+endif
+	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
+
+# TODO A/B boot is currently not supported when CONFIG_BUILDROOT_FS is enabled
+ifeq ($(CONFIG_BUILDROOT_FS),y)
+rootfs:br-rootfs-prepare
+rootfs:br-rootfs-pack
+else
 rootfs:rootfs-pack
 rootfs:
 	$(call print_target)
 	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
+endif
 
 data:
 	$(call print_target)
@@ -633,30 +742,6 @@ endif
 
 $(OUTPUT_DIR)/system:
 	${Q}mkdir -p $@
-
-# Pack_image
-# Description: Macro for packing image
-# Parameters 1: partition label
-# Parameters 2: Folder path for pack
-# Parameters 3: Size for packing (for make_ext4fs)
-ifeq (${STORAGE_TYPE},spinand)
-define pack_image
-	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py $(FLASH_PARTITION_XML) $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') ${2} $(OUTPUT_DIR)/rawimages/${1}.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
-endef
-else ifeq (${STORAGE_TYPE},emmc)
-define pack_image
-	${Q}$(COMMON_TOOLS_PATH)/prebuild/make_ext4fs -l ${3}  -L $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') $(OUTPUT_DIR)/rawimages/${1}.emmc ${2}
-	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.emmc
-endef
-else ifeq (${STORAGE_TYPE},spinor)
-# TODO:
-define pack_image
-endef
-else
-define pack_image
-	$(error Unknown STORAGE_TYPE ${STORAGE_TYPE})
-endef
-endif
 
 $(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE):$(OUTPUT_DIR)/system
 	$(call pack_image,system,$(OUTPUT_DIR)/system,38M)

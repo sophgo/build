@@ -19,7 +19,7 @@ function _build_default_env()
 
 function gettop()
 {
-  local TOPFILE=build/cvisetup.sh
+  local TOPFILE=build/envsetup_soc.sh
   if [ -n "$TOP" -a -f "$TOP/$TOPFILE" ] ; then
     # The following circumlocution ensures we remove symlinks from TOP.
     (cd "$TOP"; PWD= /bin/pwd)
@@ -117,6 +117,11 @@ function _build_busybox_env()
   export BUSYBOX_PATH
 }
 
+function _build_br2_env()
+{
+  export BUILDROOT_PATH
+}
+
 function _build_kernel_opensbi_env()
 {
   _build_kernel_env
@@ -168,6 +173,30 @@ function build_busybox()
   _build_busybox_env
   cd "$BUILD_PATH" || return
   make busybox || return "$?"
+)}
+
+function menuconfig_buildroot()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make menuconfig-br2 || return "$?"
+)}
+
+function savedefconfig_buildroot()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make savedefconfig-br2 || return "$?"
+)}
+
+function build_buildroot_package()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_br2_env
+  cd "$BUILD_PATH" || return
+  make build_package-br2 || return "$?"
 )}
 
 function _link_uboot_logo()
@@ -298,6 +327,35 @@ function clean_middleware_all()
   pushd "$MW_PATH"
   make clean_all
   popd
+}
+
+function _build_tpu_sdk_env()
+{
+  export SYSTEM_OUT_DIR OSS_TARBALL_PATH OSS_PATH
+}
+
+function build_tpu_sdk()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  _build_tpu_sdk_env
+  # build tpu
+  TPU_SDK_BUILD_PATH="$TPU_SDK_PATH"/build_sdk \
+  TPU_SDK_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
+  "$TPU_SDK_PATH"/build_tpu_sdk.sh
+
+  test "$?" -eq 0 || return 1
+)}
+
+function clean_tpu_sdk()
+{
+  rm -rf "$TPU_SDK_INSTALL_PATH"
+  rm -rf "$TPU_SDK_PATH"/build_sdk
+
+  rm -f "$SYSTEM_OUT_DIR"/lib/libcnpy.so*
+  rm -f "$SYSTEM_OUT_DIR"/lib/libcvikernel.so*
+  rm -f "$SYSTEM_OUT_DIR"/lib/libcviruntime.so*
+  rm -f "$SYSTEM_OUT_DIR"/lib/libopencv_*
 }
 
 function build_sdk()
@@ -525,12 +583,9 @@ function build_3rd_party()
 
   if [ -d "${OSS_PATH}/oss_release_tarball/${SDK_VER}" ]; then
     echo "oss prebuilt tarball found!"
-  else
-    echo "Please download oss release tarball from https://github.com/sophgo/oss.git"
-    return 1
+    echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
+    cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
   fi
-  echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
-  cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
 
   local oss_list=(
     "zlib"
@@ -554,11 +609,20 @@ function build_3rd_party()
   for name in "${oss_list[@]}"; do
     if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
       echo "$name found"
-      "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
-      echo "$name successfully downloaded and untared."
     else
       echo "$name not found"
-      return 1
+      echo "Try to download $name tarball ..."
+      wget ftp://${FTP_SERVER_NAME}:${FTP_SERVER_PWD}@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/${name}.tar.gz \
+        -T 3 -t 3 -q -P ${OSS_TARBALL_PATH}
+      if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
+        "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+        test "$?" -eq 0 || return 1
+        echo "$name successfully downloaded and untared."
+      else
+        echo "No prebuilt tarball, build oss $name"
+        "$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
+        test "$?" -eq 0 || return 1
+      fi
     fi
   done
 }
@@ -751,6 +815,7 @@ function build_all()
     if [ "$TPU_REL" = 1 ]; then
       build_tpu_kernel || return $?
       build_ive_sdk || return $?
+      build_ivs_sdk || return $?
       build_tdl_sdk || return $?
     fi
     build_pqtool_server || return $?
@@ -893,6 +958,7 @@ function cvi_setup_env()
   LIBSOPHON_PATH="$TOP_DIR"/libsophon
   FSBL_PATH="$TOP_DIR"/fsbl
   BUSYBOX_PATH="$TOP_DIR"/busybox
+  BUILDROOT_PATH="$TOP_DIR"/buildroot-2021.05
   ATF_PATH="$TOP_DIR"/arm-trusted-firmware
   UBOOT_PATH="$TOP_DIR/$UBOOT_SRC"
   FREERTOS_PATH="$TOP_DIR"/freertos
@@ -1026,6 +1092,12 @@ function cvi_setup_env()
     export C906L_PARTITION_EXIST=0
   fi
 
+  # buildroot config
+  export BR_DIR="$TOP_DIR"/buildroot-2021.05
+  export BR_BOARD=cvitek_${CHIP_ARCH}_${SDK_VER}
+  export BR_OVERLAY_DIR=${BR_DIR}/board/cvitek/${CHIP_ARCH}/overlay
+  export BR_DEFCONFIG=${BR_BOARD}_defconfig
+  export BR_ROOTFS_DIR="$OUTPUT_DIR"/tmp-rootfs
 }
 
 cvi_print_env()

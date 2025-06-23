@@ -99,24 +99,18 @@
 		reset-names = "res_wgn";
 	};
 
-	saradc0 {
+	saradc0: saradc@0x030F0000 {
 		compatible = "cvitek,saradc";
-		reg-names = "top_domain_saradc", "rtc_domain_saradc";
-		reg = <0x0 0x030F0000 0x0 0x1000>, <0x0 0x0502c000 0x0 0x1000>;
+		reg-names = "saradc0", "saradc1", "saradc2", "rtc_saradc0", "rtc_saradc1";
+		reg = <0x0 0x030F0000 0x0 0x1000>, <0x0 0x030F1000 0x0 0x1000>,
+		      <0x0 0x030F2000 0x0 0x1000>, <0x0 0x0502C000 0x0 0x1000>,
+		      <0x0 0x0502F000 0x0 0x1000>;
 		clocks = <&clk CV184X_CLK_SARADC>;
 		clock-names = "clk_saradc";
 		resets = <&rst RST_SARADC>;
 		reset-names = "res_saradc";
+		#io-channel-cells = <0>;
 	};
-	// saradc1 {
-	// 	compatible = "cvitek,saradc";
-	// 	reg-names = "top_domain_saradc", "rtc_domain_saradc";
-	// 	reg = <0x0 0x030F1000 0x0 0x1000>, <0x0 0x0502F000 0x0 0x1000>;
-	// 	clocks = <&clk CV184X_CLK_SARADC>, <&clk CV184X_CLK_EFUSE>;
-	// 	clock-names = "clk_saradc", "clk_efuse";
-	// 	resets = <&rst RST_SARADC>;
-	// 	reset-names = "res_saradc";
-	// };
 
 	rtc {
 		compatible = "cvitek,rtc";
@@ -215,6 +209,7 @@
 	};
 
 	spif:cvi-spif@10000000 {
+		u-boot,dm-spl;
 		compatible = "snps,dw-apb-ssi-4.04a";
 		reg = <0x0 0x10000000 0x0 0x1000>;
 		spi-work-frequency = <75000000>;
@@ -429,7 +424,6 @@
 		#address-cells = <0x1>;
 		resets = <&rst RST_I2C0>;
 		reset-names = "i2c0";
-		status = "disabled";
 	};
 
 	i2c1: i2c@04010000 {
@@ -510,6 +504,8 @@
 		clock-names = "stmmaceth", "ptp_ref";
 		clocks = <&eth_csrclk>, <&eth_ptpclk>;
 		//phy-reset-gpios = <&porta 26 0>;
+		ephy_base_reg = <0x3009000>;
+		ephy_top_reg = <0x3009800>;
 		tx-fifo-depth = <8192>;
 		rx-fifo-depth = <8192>;
 		/* no hash filter and perfect filter support */
@@ -527,6 +523,7 @@
 	};
 
 	emmc:cv-emmc@4300000 {
+		u-boot,dm-spl;
 		compatible = "cvitek,cv184x-emmc";
 		reg = <0x0 0x4300000 0x0 0x1000>;
 		reg-names = "core_mem";
@@ -823,6 +820,10 @@
 	vi {
 		compatible = "cvitek,vi";
 		reg = <0x0 0x0a000000 0x0 0x80000>;
+		clocks = <&clk CV184X_CLK_CSI_MAC0_VIP>, <&clk CV184X_CLK_CSI_MAC1_VIP>, <&clk CV184X_CLK_CSI_MAC2_VIP>,
+				<&clk CV184X_CLK_CSI_BE_VIP>, <&clk CV184X_CLK_ISP_TOP_VIP>;
+		clock-names = "reg_clk_csi_mac0_vip_en", "reg_clk_csi_mac1_vip_en", "reg_clk_csi_mac2_vip_en",
+				"reg_clk_csi_be_vip_en", "reg_clk_isp_top_vip_en";
 	};
 
 	vpss {
@@ -1010,7 +1011,7 @@
 	};
 
 	config {
-		load-environment = <0>;
+		load-environment = <1>;
 	};
 
 	aliases {
