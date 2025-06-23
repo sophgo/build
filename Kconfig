@@ -827,7 +827,14 @@ config CV180ZB_GC2053
         depends on ENABLE_ALIOS
         help
           Select pipeline for CV180ZB_GC2053 project.
+
+config CV1811C_JD9165
+        bool "CV1811C_JD9165 pipeline"
+        depends on ENABLE_ALIOS
+        help
+          Select pipeline for CV1811C_JD9165 project.
 endchoice
+
 endmenu
 
 menu "Rootfs packages"
