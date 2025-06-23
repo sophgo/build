@@ -536,6 +536,13 @@ config SUSPEND
 		Allow the system to enter sleep states in which main memory is
 		powered and thus its contents are preserved, such as the
 		suspend-to-RAM state (e.g. the ACPI S3 state).
+
+config KERNEL_SECURE_BOOT
+	bool "Enable kernel secure boot"
+	default n
+	help
+	  Enable kernel secure boot.
+
 endmenu
 
 menu "ROOTFS options"
