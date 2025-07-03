@@ -163,7 +163,7 @@
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3060000 0x0 0x1000>;
 		clocks = <&clk CV180X_CLK_PWM>;
-		#pwm-cells = <1>;
+		#pwm-cells = <2>;
 	};
 
 	pwm1: pwm@3061000 {
@@ -177,14 +177,14 @@
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3062000 0x0 0x1000>;
 		clocks = <&clk CV180X_CLK_PWM>;
-		#pwm-cells = <3>;
+		#pwm-cells = <2>;
 	};
 
 	pwm3: pwm@3063000 {
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3063000 0x0 0x1000>;
 		clocks = <&clk CV180X_CLK_PWM>;
-		#pwm-cells = <4>;
+		#pwm-cells = <2>;
 	};
 
 	pclk: pclk {

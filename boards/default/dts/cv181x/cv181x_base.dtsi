@@ -161,7 +161,7 @@
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3060000 0x0 0x1000>;
 		clocks = <&clk CV181X_CLK_PWM>;
-		#pwm-cells = <1>;
+		#pwm-cells = <2>;
 	};
 
 	pwm1: pwm@3061000 {
@@ -175,14 +175,14 @@
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3062000 0x0 0x1000>;
 		clocks = <&clk CV181X_CLK_PWM>;
-		#pwm-cells = <3>;
+		#pwm-cells = <2>;
 	};
 
 	pwm3: pwm@3063000 {
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3063000 0x0 0x1000>;
 		clocks = <&clk CV181X_CLK_PWM>;
-		#pwm-cells = <4>;
+		#pwm-cells = <2>;
 	};
 
 	pclk: pclk {
@@ -569,8 +569,8 @@
 	i2s0: i2s@04100000 {
 		compatible = "cvitek,cv1835-i2s";
 		reg = <0x0 0x04100000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV181X_CLK_SDMA_AUD0>;
+		clock-names = "clk_sdma_aud0";
 		dev-id = <0>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 0 1 1>; /* read channel */
@@ -582,8 +582,8 @@
 	i2s1: i2s@04110000 {
 		compatible = "cvitek,cv1835-i2s";
 		reg = <0x0 0x04110000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV181X_CLK_SDMA_AUD1>;
+		clock-names = "clk_sdma_aud1";
 		dev-id = <1>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 2 1 1 /* read channel */
@@ -596,8 +596,8 @@
 	i2s2: i2s@04120000 {
 		compatible = "cvitek,cv1835-i2s";
 		reg = <0x0 0x04120000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV181X_CLK_SDMA_AUD2>;
+		clock-names = "clk_sdma_aud2";
 		dev-id = <2>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 6 1 1 /* read channel */
@@ -611,8 +611,8 @@
 	i2s3: i2s@04130000 {
 		compatible = "cvitek,cv1835-i2s";
 		reg = <0x0 0x04130000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV181X_CLK_SDMA_AUD3>;
+		clock-names = "clk_sdma_aud3";
 		dev-id = <3>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 7 1 1>; /* write channel */
@@ -624,16 +624,16 @@
 	adc: adc@0300A100 {
 		compatible = "cvitek,cv182xaadc";
 		reg = <0x0 0x0300A100 0x0 0x100>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV181X_CLK_SDMA_AUD3>;
+		clock-names = "clk_sdma_aud3";
 		clk_source = <0x04130000>; /* MCLK source is I2S3 */
 	};
 
 	dac: dac@0300A000 {
 		compatible = "cvitek,cv182xadac";
 		reg = <0x0 0x0300A000 0x0 0x100>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV181X_CLK_SDMA_AUD3>;
+		clock-names = "clk_sdma_aud3";
 	};
 
 	pdm: pdm@0x041D0C00 {
