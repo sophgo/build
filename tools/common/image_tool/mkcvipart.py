@@ -77,7 +77,7 @@ def gen_cvipart_h(output, parser):
 
         if param_exist and "PARAM_BAK" in parser.parts:
             param_bak = True
-            
+
         if "jump" in parser.parts:
             jump_exist = True
 
@@ -117,6 +117,8 @@ def gen_cvipart_h(output, parser):
             for i, p in enumerate(parts):
                 if p["label"] == "ROOTFS":
                     of.write('#define ROOTFS_DEV "/dev/mmcblk0p%d"\n' % (i + 1))
+                elif p["label"] == "ROOTFS_B":
+                    of.write('#define ROOTFS_DEV_B "/dev/mmcblk0p%d"\n' % (i + 1))
 
         elif parser.getStorage() == "spinand":
             if env_exist:
@@ -135,6 +137,12 @@ def gen_cvipart_h(output, parser):
                 else:
                     comma = ","
                 of.write("%s(%s)%s" % (part_size, p["label"], comma))
+
+            for i, p in enumerate(parts):
+                if p["label"] == "ROOTFS":
+                    of.write('#define ROOTFS_DEV "rootfs"\n')
+                elif p["label"] == "ROOTFS_B":
+                    of.write('#define ROOTFS_DEV_B "rootfs_b"\n')
 
         elif parser.getStorage() == "spinor":
             if env_exist:
@@ -276,6 +284,9 @@ def gen_cvipart_h(output, parser):
         for i, p in enumerate(parts):
             if p["label"].startswith("BOOT"):
                 of.write('#define SPL_%s_PART_OFFSET 0x%x\n' % (p["label"], int(p["offset"] / LBA_SIZE)))
+            elif p["label"].startswith("VENDOR") or p["label"].startswith("MISC") or p["label"].startswith("RECOVERY"):
+                of.write('#define %s_PART_OFFSET 0x%x\n' % (p["label"], int(p["offset"] / LBA_SIZE)))
+                of.write('#define %s_PART_SIZE 0x%x\n' % (p["label"], int(p["part_size"] / LBA_SIZE)))
             elif p["label"] == 'jump':
                 of.write('#define SPL_%s_PART_OFFSET 0x%x\n' % ("BOOT", 0))
                 # of.write('#define SPL_%s_PART_OFFSET 0x%x\n' % (p["label"], 0))

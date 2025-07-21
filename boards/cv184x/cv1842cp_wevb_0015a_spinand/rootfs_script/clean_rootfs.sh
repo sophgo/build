@@ -1,1 +1,1 @@
-../../../default/rootfs_script/clean_rootfs_dualos.sh
+../../../default/rootfs_script/clean_rootfs.sh

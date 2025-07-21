@@ -94,6 +94,7 @@ enum vo_sdk_ctrl {
 	VO_SDK_PAUSE_CHN,
 	VO_SDK_SEND_FRAME,
 	VO_SDK_CLEAR_CHNBUF,
+	VO_SDK_SEND_LOGO_FROMION,
 };
 
 struct vo_ext_control {

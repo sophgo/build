@@ -108,6 +108,30 @@ else
 uboot_erasesize_set := ${Q}sed -in "s/CONFIG_SPI_FLASH_USE_4K_SECTORS=y/\# CONFIG_SPI_FLASH_USE_4K_SECTORS is not set/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 endif
 
+ifeq ($(CONFIG_VENDOR_PARTITION),y)
+define uboot_vendor_action
+	${Q}sed -i "/CMD_CVI_VENDOR/d" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+	${Q}sed -i "\$$aCMD_CVI_VENDOR=y" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endef
+else
+define uboot_vendor_action
+	${Q}sed -i "/CMD_CVI_VENDOR/d" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+	${Q}sed -i "\$$a\# CMD_CVI_VENDOR is not set" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endef
+endif
+
+ifneq ($(CONFIG_ROOTFS_B)$(CONFIG_ROOTFS_RECOVERY),)
+define uboot_rootfs_action
+	${Q}sed -i "/CONFIG_CMD_BOOT_MODE/d" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+	${Q}sed -i "\$$aCONFIG_CMD_BOOT_MODE=y" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endef
+else
+define uboot_rootfs_action
+	${Q}sed -i "/CONFIG_CMD_BOOT_MODE/d" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+	${Q}sed -i "\$$a\# CONFIG_CMD_BOOT_MODE is not set" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endef
+endif
+
 ifeq (${COMPRESSOR_UBOOT},lzma)
 define uboot_compress_action
 	${Q}echo "Compress u-boot with LZMA"
@@ -143,6 +167,8 @@ ${UBOOT_OUTPUT_CONFIG_PATH}: ${UBOOT_DEFAULT_CONFIG_PATH} ${BUILD_PATH}/.config
 ifeq ($(STORAGE_TYPE), spinor)
 	$(call uboot_erasesize_set)
 endif
+	$(call uboot_vendor_action)
+	$(call uboot_rootfs_action)
 
 UBOOT_CVI_BOARD_INIT_PATH := ${UBOOT_PATH}/board/cvitek/cvi_board_init.c
 UBOOT_CVITEK_PATH := ${UBOOT_PATH}/include/cvitek/cvitek.h
@@ -316,6 +342,14 @@ ifneq (${CONFIG_SUSPEND},y)
 KERNEL_CONFIG += SUSPEND=n
 endif
 
+ifeq (${CONFIG_ENABLE_FREERTOS}, y)
+KERNEL_CONFIG += CVI_RTOS_CMDQU=y
+endif
+
+ifeq (${CONFIG_ENABLE_ALIOS}, y)
+KERNEL_CONFIG += CVI_DUAL_OS_CLK=y
+endif
+
 # Make a copy to .config~
 ${KERNEL_OUTPUT_CONFIG_PATH}: ${KERNEL_DEFAULT_CONFIG_PATH} ${BUILD_PATH}/.config
 	$(call print_target)
@@ -343,6 +377,11 @@ kernel-setconfig: ${KERNEL_OUTPUT_CONFIG_PATH}
 kernel-build: memory-map
 kernel-build: ${KERNEL_OUTPUT_CONFIG_PATH}
 	$(call print_target)
+ifeq ($(CONFIG_OSDRV_BUILD_IN),y)
+	@cp -f $(BUILD_PATH)/media/include/internal/osdrv_uapi/* $(BUILD_PATH)/../osdrv/interdrv/include/common/uapi/
+	@cp -f $(BUILD_PATH)/media/include/internal/comm/* $(BUILD_PATH)/../osdrv/interdrv/include/common/uapi/
+	@cp -f $(BUILD_PATH)/media/include/release/cvi_defines.h $(BUILD_PATH)/../osdrv/interdrv/include/chip/$(CHIP_ARCH_L)/uapi/defines.h
+endif
 	${Q}echo LOCALVERSION=${LOCALVERSION}
 	$(call kernel_setconfig,"${KERNEL_CONFIG}")
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} olddefconfig
@@ -405,6 +444,13 @@ $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/configs:
 $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/workspace:
 	${Q}mkdir -p $@
 
+ifneq ($(CONFIG_ROOTFS_B)$(CONFIG_ROOTFS_RECOVERY),)
+update_misc:
+	make -C ${TOP_DIR}/build/tools/common/update_misc
+	cp ${TOP_DIR}/build/tools/common/update_misc/update_misc $(OUTPUT_DIR)/rootfs/bin
+
+ramdisk: update_misc
+endif
 ramdisk: $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target
 ramdisk: $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/configs
 ramdisk: $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/workspace
@@ -422,6 +468,7 @@ ifneq ("$(wildcard $(CUST_FOLDER_PATH))", "")
 	${Q}cp -r $(CUST_FOLDER_PATH)/* $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target
 endif
 
+
 define gen_cpio
 	cd $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER);\
 	$(COMMON_TOOLS_PATH)/gen_init_cpio $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER)/../configs/$(1) > $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER)/boot.cpio
@@ -438,6 +485,11 @@ else
 BOOT_IMAGE_ARG += --gen-board-its ${CHIP_ARCH}
 endif
 
+define raw2cimg
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
+endef
+
+boot: $(OUTPUT_DIR)/rawimages
 boot: export KERNEL_COMPRESS=$(patsubst "%",%,$(CONFIG_KERNEL_COMPRESS))
 boot: kernel-dts
 	$(call print_target)
@@ -473,6 +525,10 @@ endif
 
 ramboot: kernel-dts
 	$(call print_target)
+ifeq ($(CONFIG_FASTBOOT),y)
+	echo "file /etc/init.d/S11defer_init ../target/etc/init.d/S11defer_init 755 0 0" >> $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER)/../configs/ramboot_fixed_files.txt
+	echo "file /etc/init.d/fastboot ../target/etc/init.d/fastboot 755 0 0" >> $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER)/../configs/ramboot_fixed_files.txt
+endif
 	$(call gen_cpio,ramboot_fixed_files.txt)
 	# copy multi.its for *.itb layout
 	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi.its" "${BUILD_PATH}/output/multi.its.tmp"
@@ -487,6 +543,10 @@ ifeq ($(CONFIG_KERNEL_ENTRY_HACK),y)
 	${Q}sed -i "s/entry = <0x0 0x.*>;/entry = <0x0 $(CONFIG_KERNEL_ENTRY_HACK_ADDR)>;/g" ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
 endif
 	$(COMMON_TOOLS_PATH)/prebuild/mkimage -f ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its -k $(RAMDISK_PATH)/keys -r $(OUTPUT_DIR)/ramboot.itb
+ifeq ($(CONFIG_ROOTFS_RECOVERY),y)
+	cp $(OUTPUT_DIR)/ramboot.itb $(OUTPUT_DIR)/rawimages/recovery.$(STORAGE_TYPE)
+	$(call raw2cimg ,recovery.$(STORAGE_TYPE))
+endif
 
 kernel-clean:
 	$(call print_target)
@@ -542,6 +602,9 @@ ifeq ($(CONFIG_FASTBOOT),y)
 else
 	${Q}cp -a --remove-destination $(RAMDISK_PATH)/rootfs/$(ROOTFS_BASE)/* $(OUTPUT_DIR)/rootfs
 endif
+ifneq ($(CONFIG_ROOTFS_B)$(CONFIG_ROOTFS_RECOVERY),)
+	cp ${TOP_DIR}/build/tools/common/update_misc/update_misc $(OUTPUT_DIR)/rootfs/bin
+endif
 
 	# Copy arch overlay rootfs
 ifneq ("$(wildcard $(SDK_VER_FOLDER_PATH))", "")
@@ -583,7 +646,7 @@ $(OUTPUT_DIR)/rawimages:
 # Parameters 3: Size for packing (for make_ext4fs)
 ifeq (${STORAGE_TYPE},spinand)
 define pack_image
-	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py $(FLASH_PARTITION_XML) $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') ${2} $(OUTPUT_DIR)/rawimages/${1}.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
+	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py $(FLASH_PARTITION_XML) $(shell echo ${1} | tr '[:lower:]' '[:upper:]') ${2} $(OUTPUT_DIR)/rawimages/${1}.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
 endef
 else ifeq (${STORAGE_TYPE},emmc)
 define pack_image
@@ -619,6 +682,9 @@ endif
 
 ifeq (${CONFIG_ROOTFS_RW},y)
 	$(call pack_image,rootfs,$(ROOTFS_DIR),71M)
+ifeq ($(CONFIG_ROOTFS_B),y)
+	$(call pack_image,rootfs_b,$(ROOTFS_DIR),71M)
+endif
 else
 
 ifeq ($(STORAGE_TYPE),spinor)
@@ -638,10 +704,6 @@ else
 endif
 
 endif
-
-define raw2cimg
-	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
-endef
 
 define raw2cimg_lps
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg_lps.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
@@ -663,6 +725,9 @@ br-rootfs-prepare:export CROSS_COMPILE_KERNEL=$(patsubst "%",%,$(CONFIG_CROSS_CO
 br-rootfs-prepare:export CROSS_COMPILE_SDK=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_SDK))
 br-rootfs-prepare:
 	$(call print_target)
+ifneq ($(CONFIG_ROOTFS_B)$(CONFIG_ROOTFS_RECOVERY),)
+	cp ${TOP_DIR}/build/tools/common/update_misc/update_misc $(BR_OVERLAY_DIR)/bin/
+endif
 	# copy ko and mmf libs
 	${Q}mkdir -p $(BR_OVERLAY_DIR)/system
 	${Q}cp -arf $(OUTPUT_DIR)/rootfs/system/* $(BR_OVERLAY_DIR)/system/
@@ -674,7 +739,9 @@ br-rootfs-prepare:
 	${Q}find $(BR_OVERLAY_DIR) -name "*.so*" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-all {} \;
 	${Q}find $(BR_OVERLAY_DIR) -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
 
+br-rootfs-pack:$(OUTPUT_DIR)/rawimages
 br-rootfs-pack:export TARGET_OUTPUT_DIR=$(BR_DIR)/output/$(BR_BOARD)
+br-rootfs-pack:export ROOTFS_TYPE=$(patsubst "%",%,$(CONFIG_ROOTFS_TYPE))
 br-rootfs-pack:
 	$(call print_target)
 	${Q}$(MAKE) -C $(BR_DIR) $(BR_DEFCONFIG)
@@ -687,6 +754,9 @@ ifeq ($(STORAGE_TYPE),spinor)
 else ifeq (${STORAGE_TYPE},spinand)
 	${Q}cp $(BR_DIR)/output/images/rootfs.ubifs $(OUTPUT_DIR)/rawimages/
 	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py --ubionly $(FLASH_PARTITION_XML) ROOTFS $(OUTPUT_DIR)/rawimages/rootfs.ubifs $(OUTPUT_DIR)/rawimages/rootfs.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
+ifeq ($(CONFIG_ROOTFS_B),y)
+	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py --ubionly $(FLASH_PARTITION_XML) ROOTFS_B $(OUTPUT_DIR)/rawimages/rootfs.ubifs $(OUTPUT_DIR)/rawimages/rootfs_b.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
+endif
 	${Q}rm $(OUTPUT_DIR)/rawimages/rootfs.ubifs
 else
 	${Q}cp $(BR_DIR)/output/images/rootfs.ext4 $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE)
@@ -700,7 +770,14 @@ else
 	${Q}cp $(BR_DIR)/output/images/rootfs.squashfs $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE)
 endif
 endif
+
 	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
+ifeq ($(CONFIG_ROOTFS_B),y)
+ifneq (${CONFIG_ROOTFS_RW},y)
+	${Q}cp $(TARGET_OUTPUT_DIR)/images/rootfs.$(ROOTFS_TYPE) $(OUTPUT_DIR)/rawimages/rootfs_b.$(STORAGE_TYPE)
+endif
+	$(call raw2cimg ,rootfs_b.$(STORAGE_TYPE))
+endif
 
 # TODO A/B boot is currently not supported when CONFIG_BUILDROOT_FS is enabled
 ifeq ($(CONFIG_BUILDROOT_FS),y)
@@ -711,6 +788,12 @@ rootfs:rootfs-pack
 rootfs:
 	$(call print_target)
 	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
+ifeq ($(CONFIG_ROOTFS_B),y)
+ifneq (${CONFIG_ROOTFS_RW},y)
+	${Q}cp $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE) $(OUTPUT_DIR)/rawimages/rootfs_b.$(STORAGE_TYPE)
+endif
+	$(call raw2cimg ,rootfs_b.$(STORAGE_TYPE))
+endif
 endif
 
 data:

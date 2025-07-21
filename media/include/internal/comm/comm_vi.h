@@ -310,7 +310,7 @@ typedef struct _vi_wdr_attr_s {
 
 /* Infomation of switch gpio*/
 typedef struct _vi_gpio_cfg_s {
-	bool enable;/*enable mipi switch*/
+	unsigned char enable;/*enable mipi switch*/
 	int gpio_port;/*gpio port*/
 	int gpio_pin;/*gpio pin*/
 	int gpio_pol;/*gpio initial state, 0 pull down, 1 pull up*/
@@ -321,11 +321,11 @@ typedef struct _vi_gpio_cfg_s {
  * input_data_type: RW;RGB: CSC-709 or CSC-601, PT YUV444 disable; YUV: default yuv CSC coef PT YUV444 enable.
  */
 typedef struct _vi_dev_attr_ex_s {
-	bool mux_dev; /* multi sensor use same dev*/
+	unsigned char mux_dev; /* multi sensor use same dev*/
 	uint8_t snsr_num; /* the num of multi sensor */
 	int phy_dev; /* bind dev, must phy dev [0 ~ VI_MAX_PHY_DEV_NUM)*/
 	vi_gpio_cfg_s gpio_cfg[VI_MAX_DEV_SWITCH_DEPTH];/*default gpio info*/
-	bool frm_ctrl; /*Frame ctrl for mipi switch */
+	unsigned char frm_ctrl; /*Frame ctrl for mipi switch */
 	uint8_t dst_frm; /*revicive frm_num after switch */
 } vi_dev_attr_ex_s;
 
@@ -481,7 +481,7 @@ typedef struct _vi_chn_attr_s {
 	unsigned int depth; /* RW;Range [0,8];Depth */
 	frame_rate_ctrl_s frame_rate; /* RW;Frame rate */
 	unsigned int bind_vb_pool; /*chn bind vb*/
-	bool single_vb; /*RW; single vb or ping-pong buffer*/
+	unsigned char single_vb; /*RW; single vb or ping-pong buffer*/
 } vi_chn_attr_s;
 
 /* The status of pipe */

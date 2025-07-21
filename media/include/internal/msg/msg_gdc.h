@@ -17,6 +17,8 @@ typedef enum tagMSG_GDC_CMD_E {
 	MSG_CMD_GDC_RESUME,
 	MSG_CMD_GDC_SET_JOB_IDENTITY,
 	MSG_CMD_GDC_GET_CHN_FRAME,
+	MSG_CMD_GDC_ATTACH_VB_POOL,
+	MSG_CMD_GDC_DETACH_VB_POOL,
 	MSG_CMD_GDC_GET_WORK_JOB,
 } MSG_GDC_CMD_E;
 
@@ -41,5 +43,10 @@ struct gdc_chn_frm_cfg {
 	VIDEO_FRAME_INFO_S VideoFrame;
 	CVI_S32 MilliSec;
 	struct gdc_identity_attr identity;
+};
+
+struct ldc_vb_pool_cfg {
+	MMF_CHN_S Chn;
+	__u32 VbPool;
 };
 #endif

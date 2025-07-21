@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import argparse
+from os import path
 import os
 from array import array
 import binascii
@@ -55,9 +56,10 @@ class ImagerBuilder(object):
         4 Bytes: Version
         4 Bytes: Chunk header size
         4 Bytes: Total chunks
-        4 Bytes: File size
+        4 Bytes: File size low 32bit
+        4 Bytes: File size high 32bit
         32 Bytes: Extra Flags
-        12 Bytes: Reserved
+        8 Bytes: Reserved
         """
         with open(part["file_path"], "rb") as fd:
             magic = fd.read(4)
@@ -74,7 +76,10 @@ class ImagerBuilder(object):
             if (remain != 0):
                 chunk_counts = chunk_counts + 1
             Totak_chunk = array("I", [chunk_counts])
-            File_sz = array("I", [part["file_size"] + (chunk_counts * chunk_header_sz)])
+            total_filesz = part["file_size"] + (chunk_counts * chunk_header_sz)
+            file_sz_low = total_filesz & 0xFFFFFFFF
+            file_sz_high = (total_filesz >> 32) & 0xFFFFFFFF
+            File_sz = array("I", [file_sz_low, file_sz_high])
             try:
                 label = part["label"]
             except KeyError:
@@ -82,8 +87,7 @@ class ImagerBuilder(object):
             Extra_flags = array("B", [ord(c) for c in label])
             for _ in range(len(label), 32):
                 Extra_flags.append(ord("\0"))
-
-            img = open(os.path.join(self.output_path, part["file_name"]), "wb")
+            img = open(os.path.join(self.output_path, "temp_"+part["file_name"]), "wb")
             # Write Header
             for h in [Magic, Version, Chunk_sz, Totak_chunk, File_sz, Extra_flags]:
                 h.tofile(img)
@@ -98,34 +102,42 @@ class ImagerBuilder(object):
                 chunk_header = self._getChunkHeader(chunk_sz, offset, part_sz, crc)
                 img.write(chunk_header)
                 img.write(chunk)
+                logging.debug("total_size:%d,chunk_sz:%d,offset:%d" % (total_size, chunk_sz, offset))
                 total_size -= chunk_sz
                 offset += chunk_sz
+
             img.close()
+            shutil.copyfile(os.path.join(self.output_path, "temp_"+part["file_name"]), os.path.join(self.output_path, part["file_name"]))
+            os.remove(os.path.join(self.output_path, "temp_"+part["file_name"]))
 
     def _getChunkHeader(self, size: int, offset: int, part_sz: int, crc32: int):
         """
         Header format total 64 bytes
         4 Bytes: Chunk Type
-        4 Bytes: Chunk data size (low 32bit)
-        4 Bytes: Chunk data size (high 32bit)
-        4 Bytes: Program part offset (low 32bit)
-        4 Bytes: Program part offset (high 32bit)
-        4 Bytes: Program part size (low 32bit)
-        4 Bytes: Program part size (high 32bit)
+        4 Bytes: Chunk data size
+        4 Bytes: Program part offset Low 32bit
+        4 Bytes: Program part offset High 32bit
+        4 Bytes: Program part size Low 32bit
+        4 Bytes: Program part size High 32bit
         4 Bytes: Crc32 checksum
+        36 Bytes: Reserved
         """
         logging.info("size:%x, offset:%x, part_sz:%x, crc:%x" % (size, offset, part_sz, crc32))
+        part_sz_high = (part_sz >> 32) & 0xFFFFFFFF
+        part_sz_low = part_sz & 0xFFFFFFFF
+        offset_high = (offset >> 32) & 0xFFFFFFFF
+        offset_low = offset & 0xFFFFFFFF
         Chunk = array(
             "I",
             [
                 CHUNK_TYPE_CRC_CHECK,
-                size & 0xFFFFFFFF,
-                (size >> 32) & 0xFFFFFFFF,
-                offset & 0xFFFFFFFF,
-                (offset >> 32) & 0xFFFFFFFF,
-                part_sz & 0xFFFFFFFF,
-                (part_sz >> 32) & 0xFFFFFFFF,
+                size,
+                offset_low,
+                offset_high,
+                part_sz_low,
+                part_sz_high,
                 crc32,
+                0,
                 0,
                 0,
                 0,
@@ -140,13 +152,21 @@ class ImagerBuilder(object):
 
 
 def main():
-    logging.info("raw2cimg small part size")
     args = parse_Args()
     xmlParser = XmlParser(args.xml)
     install_dir = os.path.dirname(args.file_path)
     parts = xmlParser.parse(install_dir)
     storage = xmlParser.getStorage()
     tmp = TemporaryDirectory()
+    if os.path.basename(args.file_path) == "gpt.img":
+        gpt_part = {
+            "offset": 0,
+            "part_size": 8192 * 1024,
+            "file_path": args.file_path,
+            "file_size": int(os.stat(args.file_path).st_size),
+            "file_name": "gpt.img",
+        }
+        parts.append(gpt_part)
     imgBuilder = ImagerBuilder(storage, tmp.name)
     for p in parts:
         # Since xml parser will parse with abspath and the user input path can

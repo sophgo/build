@@ -96,7 +96,7 @@ struct gdc_chn_frm_cfg {
 };
 
 struct ldc_vb_pool_cfg {
-	void *reserved;
+	MMF_CHN_S Chn;
 	__u32 VbPool;
 };
 
@@ -156,7 +156,7 @@ struct ldc_internal_chn_ldc_cfg {
 #define CVI_LDC_GET_CHN_FRM _IOWR('L', 0x09, struct gdc_chn_frm_cfg)
 
 #define CVI_LDC_ATTACH_VB_POOL _IOW('L', 0x0c, struct ldc_vb_pool_cfg)
-#define CVI_LDC_DETACH_VB_POOL _IO('L', 0x0d)
+#define CVI_LDC_DETACH_VB_POOL _IOW('L', 0x0d, struct ldc_vb_pool_cfg)
 #define CVI_LDC_SUSPEND _IO('L', 0x0e)
 #define CVI_LDC_RESUME _IO('L', 0x0f)
 #define CVI_LDC_GET_INTER_CHN_ATTR _IOWR('L', 0x10, struct ldc_internal_chn_attr)

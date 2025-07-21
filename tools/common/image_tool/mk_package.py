@@ -68,11 +68,11 @@ def main():
         metadata = NamedTemporaryFile(prefix="meta")
 
         # Since emmc will not define fip in partition.xml add them
-        # manually.
+        # # manually.
         if storage == "emmc":
-            fip_path = path.join(args.input, "fip.bin")
+            fip_path = path.join(args.input, "fip_spl.bin")
             if path.isfile(fip_path):
-                zipObj.write(fip_path, "fip.bin")
+                zipObj.write(fip_path, "fip_spl.bin")
 
         # Add partition file to zip
         for p in parts:

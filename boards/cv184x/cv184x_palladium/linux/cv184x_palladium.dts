@@ -8,8 +8,8 @@
 /dts-v1/;
 
 /memreserve/	0x80000000 0x0000000000080000; // ATF BL31 + BL32
-#if CVIMMAP_ALIOS_SIZE > 0
-/memreserve/	CVIMMAP_ALIOS_SYS_ADDR CVIMMAP_ALIOS_SIZE;
+#if CVIMMAP_RTOS_SYS_TOTAL_SIZE > 0
+/memreserve/	CVIMMAP_FSBL_C906L_START_ADDR CVIMMAP_RTOS_SYS_TOTAL_SIZE;
 #endif
 / {
 	compatible = "linux,dummy-virt";
@@ -119,11 +119,11 @@
 			alloc-ranges = <0x0 CVIMMAP_ION_ADDR 0 CVIMMAP_ION_SIZE>;
 			size = <0x0 CVIMMAP_ION_SIZE>;
 		};
-#if CVIMMAP_ALIOS_SIZE > 0
+#if CVIMMAP_RTOS_SYS_TOTAL_SIZE > 0
 		rtos_reserved: rtos {
 			compatible = "rtos-region";
-			alloc-ranges = <0x0 CVIMMAP_ALIOS_RESV_ADDR 0 CVIMMAP_ALIOS_RESV_SIZE>;
-			size = <0x0 CVIMMAP_ALIOS_RESV_SIZE>;
+			alloc-ranges = <0x0 CVIMMAP_RTOS_ION_ADDR 0 CVIMMAP_RTOS_ION_SIZE>;
+			size = <0x0 CVIMMAP_RTOS_ION_SIZE>;
 		};
 #endif
 	};
@@ -185,7 +185,7 @@
 		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 	};
 
-#if CVIMMAP_ALIOS_SIZE > 0
+#if CVIMMAP_RTOS_SYS_TOTAL_SIZE > 0
 	rtos_cmdqu {
 		compatible = "cvitek,rtos_cmdqu";
 		reg = <0x0 0x01900000 0x0 0x1000>;

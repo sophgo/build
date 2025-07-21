@@ -71,7 +71,7 @@ config KERNEL_ENTRY_HACK
 config KERNEL_ENTRY_HACK_ADDR
 	hex
 	depends on KERNEL_ENTRY_HACK
-	default 0x80108000 if !(DUAL_OS && CHIP_ARCH_cv184x)
+	default 0x80208000 if !(DUAL_OS && CHIP_ARCH_cv184x)
 	default 0x80708000 if DUAL_OS && CHIP_ARCH_cv184x
 	help
 	  This option allows you to set the kernel entry address in the boot image.
@@ -503,6 +503,12 @@ config NANDFLASH_PAGESIZE
 	  The page size of nand flash
 
 source "Kconfig.partitions"
+
+config VENDOR_PARTITION
+	bool "Enable vendor partition"
+	default n
+	help
+	  Enable vendor partition
 endmenu
 
 source "output/Kconfig.sensors"
@@ -651,6 +657,18 @@ config ROOTFS_RW
 	help
 	  Enable rootfs with rw.
 
+config ROOTFS_B
+	bool "Enable b system"
+	default n
+	help
+	  Enable b system.
+
+config ROOTFS_RECOVERY
+	bool "Enable recovery system"
+	default n
+	help
+	  Enable recovery system.
+
 endmenu
 
 menu "Turnkey options"
@@ -679,23 +697,22 @@ config DUAL_OS
 
 config ENABLE_FREERTOS
 	bool "Enable FREERTOS"
-	depends on CHIP_ARCH_cv181x || CHIP_ARCH_cv180x
-	default n
-        depends on DUAL_OS
+	depends on !DUAL_OS
+	default y if !DUAL_OS
 	help
 	  Enable freertos.
 
 config ENABLE_RTOS_DUMP_PRINT
 	bool "Enable FREE RTOS DUMP PRINT MSG"
 	depends on ENABLE_FREERTOS
-	default n
+	default y if ENABLE_FREERTOS
 	help
 	  Enable freertos dump print msg.
 
 config DUMP_PRINT_SZ_IDX
 	int "Select dump print size idx"
 	depends on ENABLE_FREERTOS
-	default 13
+	default 17 if ENABLE_FREERTOS
 	help
 		dump print size will be 1 << IDX.
 
@@ -719,13 +736,13 @@ config ENABLE_ALIOS
 
 config CHIP_BIG_ARM
 	bool
-	default y if ARCH = "arm"
     depends on ENABLE_ALIOS
+	default y if ARCH = "arm"
 
 choice
     prompt "Solution in AliOS"
-    default NORM_SOLUTION
     depends on ENABLE_ALIOS
+    default NORM_SOLUTION
     help
         Don't change this option, if you don't know how it work.
         NORM_SOLUTION - The default option for general use.
@@ -748,9 +765,9 @@ endchoice
 
 config ALIOS_SOLUTION
     string # "Solution in AliOS"
+    depends on ENABLE_ALIOS
     default "normboot" if NORM_SOLUTION
     default "fastboot" if FAST_SOLUTION
-    depends on ENABLE_ALIOS
     help
         Don't change this value, if you don't know how to run it.
         "normboot" - The default value for general use.
@@ -758,24 +775,24 @@ config ALIOS_SOLUTION
 
 config MEDIA_SUPPORT_PROC
     bool "Media Proc Support"
-    default y
     depends on ENABLE_ALIOS
+    default y
     help
         If set to "y", some media modules' proc commands will be enabled in AliOS.
         If set to "n", some media modules' proc commands will be disabled in AliOS.
 
 config RTOS_INIT_MEDIA
     bool "Automatically Initialize Media in RTOS"
-    default n
     depends on ENABLE_ALIOS
+    default n
     help
         If set to "y", the media will be automatically initialized by RTOS.
         If set to "n", the media should be initialized in applications on Linux.
 
 config RTOS_PARSE_PARAM
     bool "Parse Params in RTOS"
-    default n
     depends on ENABLE_ALIOS && RTOS_INIT_MEDIA
+    default n
     help
         If set to "y", the RTOS will parse parameters from the param.bin file.
         If set to "n", the RTOS will use the default parameters.
@@ -800,8 +817,8 @@ endchoice
 
 config MIRROR_2ND_PACK_HEAD
         bool "Update second mirror image with 128 byte headers"
-        default n
         depends on ENABLE_ALIOS
+        default n
         help
           set alios with 128 byte headers update to storage.
 

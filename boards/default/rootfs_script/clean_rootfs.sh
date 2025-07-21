@@ -13,6 +13,7 @@ rm -f $SYSTEM_DIR/system/usr/lib/libcvi_rtsp.so
 rm -f $SYSTEM_DIR/system/data/install/lib/libcvi_rtsp.so
 rm -f $SYSTEM_DIR/system/usr/lib/libcvikernel.so
 rm -f $SYSTEM_DIR/system/usr/lib/*.a
+rm -f $SYSTEM_DIR/system/lib/*.a
 rm -f $SYSTEM_DIR/system/usr/lib/libgst*
 rm -f $SYSTEM_DIR/system/usr/lib/libg*
 rm -f $SYSTEM_DIR/system/usr/lib/gstreamer-1.0/libgst*
@@ -50,6 +51,11 @@ rm -rf $SYSTEM_DIR/etc/init.d/S40network
 #del thttpd/libwebsockets lib
 rm -f $SYSTEM_DIR/system/lib/libthttpd*
 rm -f $SYSTEM_DIR/system/lib/libwebsocket*
+
+if [ "$OSDRV_BUILD_IN" == "y" ]
+then
+find $SYSTEM_DIR/system/ko/ -type f -exec rm -rf {} \;
+fi
 if [ $SDK_VER = "uclibc" ]
 then
     #del opencv lib

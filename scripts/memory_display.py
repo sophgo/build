@@ -109,21 +109,23 @@ def sort_and_save_vertical_table(data, stage, output_filename):
             file.write('PS: When the kernel is booted, it will overwrite the FSBL and uboot memory space\n')
 
 
+# FSBL stage
 def filter_first_stage(data):
-    prefixes = ("FREERTOS", "UIMAG", "MONITOR", "OPENSBI", "FSBL", "ALIOS")
+    prefixes = ("UIMAG", "MONITOR", "OPENSBI", "FSBL", "RTOS_SYS", "RTOS_COMPRESS_BIN")
     first_stage = [item for item in data if item["Name"].startswith(prefixes)]
     return first_stage
 
 
+# uboot stage
 def filter_second_stage(data):
-    prefixes = ("BOOTLOGO", "CVI_UPDATE", "UIMAG", "MONITOR", "OPENSBI", "RECYCLE_MEM", "OOPS", "FREERTOS", "ALIOS")
+    prefixes = ("BOOTLOGO", "CVI_UPDATE", "UIMAG", "MONITOR", "OPENSBI", "RTOS_SYS", "RTOS_ION", "RTOS_LOG", "RTOS_COMPRESS_BIN", "SHARE_MEM", "SHARE_PARAM", "PQBIN")
     second_stage = [item for item in data if item["Name"].startswith(prefixes)]
     return second_stage
 
-
+# kernel stage
 def filter_third_stage(data):
-    prefixes = ("KERNEL", "MONITOR", "OPENSBI", "FREERTOS", "H26X", "ION", "RECYCLE_MEM", "OOPS",
-                "ISP", "FRAMEBUFFER", "ALIOS", "SHARE", "PQBIN")
+    prefixes = ("KERNEL", "MONITOR", "OPENSBI", "RTOS_SYS", "RTOS_ION", "RTOS_LOG", "RTOS_COMPRESS_BIN", "H26X", "ION", "OOPS",
+                "ISP", "FRAMEBUFFER", "SHARE_MEM", "SHARE_PARAM", "PQBIN")
     third_stage = [item for item in data if item["Name"].startswith(prefixes)]
     return third_stage
 
@@ -156,4 +158,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

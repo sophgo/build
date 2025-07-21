@@ -4,35 +4,30 @@
 		reg = <0x00 CVIMMAP_KERNEL_MEMORY_ADDR 0x00 CVIMMAP_KERNEL_MEMORY_SIZE>;
 	};
 
-#if 0
-	fast_image {
-		compatible = "cvitek,rtos_image";
-		reg-names = "rtos_region";
-		reg = <0x0 CVIMMAP_FREERTOS_ADDR 0x0 CVIMMAP_FREERTOS_SIZE>;
-		ion-size = <CVIMMAP_FREERTOS_RESERVED_ION_SIZE>;	//reserved ion size for freertos
-	};
-#endif
 	reserved-memory {
 		#size-cells = <0x2>;
 		#address-cells = <0x2>;
 		ranges;
 
+#ifndef __UBOOT__
 		ion_reserved: ion {
 			compatible = "ion-region";
 			alloc-ranges = <0x0 CVIMMAP_ION_ADDR 0 CVIMMAP_ION_SIZE>;
 			size = <0x0 CVIMMAP_ION_SIZE>;
 		};
+#endif
 
 		rtos_reserved: rtos {
 			compatible = "rtos-region";
-			alloc-ranges = <0x0 CVIMMAP_ALIOS_SYS_ADDR 0 CVIMMAP_ALIOS_SIZE>;
-			size = <0x0 CVIMMAP_ALIOS_SIZE>;
+			alloc-ranges = <0x0 CVIMMAP_FSBL_C906L_START_ADDR 0 CVIMMAP_RTOS_SYS_TOTAL_SIZE>;
+			size = <0x0 CVIMMAP_RTOS_SYS_TOTAL_SIZE>;
 		};
 
 		rtos_resv_reserved: rtos_resv {
 			compatible = "rtos-resv-region";
-			alloc-ranges = <0x0 CVIMMAP_ALIOS_RESV_ADDR 0 CVIMMAP_ALIOS_RESV_SIZE>;
-			size = <0x0 CVIMMAP_ALIOS_RESV_SIZE>;
+			alloc-ranges = <0x0 CVIMMAP_RTOS_ION_ADDR 0 CVIMMAP_RTOS_ION_SIZE>;
+			size = <0x0 CVIMMAP_RTOS_ION_SIZE>;
 		};
+
 	};
 };

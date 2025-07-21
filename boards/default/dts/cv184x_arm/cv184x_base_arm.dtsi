@@ -6,7 +6,7 @@
 #include <dt-bindings/dma/cv184x-dmamap.h>
 #include "cvi_board_memmap.h"
 
-/memreserve/	CVIMMAP_MONITOR_ADDR CVIMMAP_ATF_SIZE; // ATF (BL31 + BL32) 512KB
+/memreserve/	CVIMMAP_MONITOR_ADDR CVIMMAP_ATF_SIZE; // ATF (BL31(256KB) + license(64KB) + BL32(320KB)) 640KB
 
 #include "cv184x_base.dtsi"
 
@@ -85,7 +85,7 @@
 	cv184x_cooling:cv184x_cooling {
 		clocks = <&clk CV184X_CLK_CPU>, <&clk CV184X_CLK_TPU>;
 		clock-names = "clk_cpu", "clk_tpu";
-		dev-freqs = <1000000000 500000000>,
+		dev-freqs = <1100000000 750000000>,
 			<500000000 375000000>,
 			<500000000 300000000>;
 		compatible = "cvitek,cv184x-cooling";

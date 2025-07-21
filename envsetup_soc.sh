@@ -122,6 +122,11 @@ function _build_br2_env()
   export BUILDROOT_PATH
 }
 
+function _build_br2_env()
+{
+  export BUILDROOT_PATH
+}
+
 function _build_kernel_opensbi_env()
 {
   _build_kernel_env
@@ -367,10 +372,10 @@ function build_sdk()
 
   print_notice "Run ${FUNCNAME[0]}() $1 function"
 
-  if [ ! -e "$TPU_SDK_INSTALL_PATH" ]; then
-    echo "$TPU_SDK_INSTALL_PATH not present, run build_tpu_sdk first"
-    return 1
-  fi
+  # if [ ! -e "$TPU_SDK_INSTALL_PATH" ]; then
+  #   echo "$TPU_SDK_INSTALL_PATH not present, run build_tpu_sdk first"
+  #   return 1
+  # fi
 
   if [ "$SDK_VER" = 64bit ]; then
     HOST_TOOL_PATH="$CROSS_COMPILE_PATH_64"
@@ -402,18 +407,29 @@ function build_sdk()
   HOST_TOOL_PATH="$HOST_TOOL_PATH" \
   MW_PATH="$MW_PATH" \
   CHIP_ARCH="$CHIP_ARCH" \
-  OPENCV_INSTALL_PATH="$TPU_SDK_INSTALL_PATH"/opencv \
   TRACER_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
-  TPU_SDK_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
   IVE_SDK_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
   IVS_SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH" \
   CNV_SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH" \
   KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
       scripts/sdk_release.sh
+  # HOST_TOOL_PATH="$HOST_TOOL_PATH" \
+  # MW_PATH="$MW_PATH" \
+  # CHIP_ARCH="$CHIP_ARCH" \
+  # OPENCV_INSTALL_PATH="$TPU_SDK_INSTALL_PATH"/opencv \
+  # TRACER_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
+  # TPU_SDK_INSTALL_PATH="$TPU_SDK_INSTALL_PATH" \
+  # IVE_SDK_INSTALL_PATH="$IVE_SDK_INSTALL_PATH" \
+  # IVS_SDK_INSTALL_PATH="$IVS_SDK_INSTALL_PATH" \
+  # CNV_SDK_INSTALL_PATH="$CNV_SDK_INSTALL_PATH" \
+  # KERNEL_HEADER_PATH="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER"/usr/ \
+  #     scripts/sdk_release.sh
+
   test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
   popd
 
   # copy so
+  mkdir -p "$SYSTEM_OUT_DIR"/lib
   cp -a "$SDK_INSTALL_PATH"/lib/*.so* "$SYSTEM_OUT_DIR"/lib/
   # copy sample_xxx
   if [[ "$CHIP_ARCH" != CV180X ]] && [[ "$CHIP_ARCH" != CV181X ]] && [[ "$CHIP_ARCH" != CV184X ]] && [[ "$1" = ai ]]; then
@@ -434,7 +450,7 @@ function clean_sdk()
 
 function build_ive_sdk()
 {
-  if [[ "$CHIP_ARCH" != CV184X ]] && [[ "$CHIP_ARCH" != CV181X ]] ; then
+  if [[ "$CHIP_ARCH" != CV181X ]] ; then
     build_sdk ive || return "$?"
   fi
 }
@@ -604,6 +620,7 @@ function build_3rd_party()
     "uv"
     "cvi-json-c"
     "cvi-miniz"
+    "curl"
   )
 
   for name in "${oss_list[@]}"; do
@@ -784,8 +801,9 @@ function build_tpu_kernel()
   clean_tpu_kernel
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  pushd "$LIBSOPHON_PATH"/tpu-kernel || return
-  cp -rf "$LIBSOPHON_PATH"/tpu-kernel/lib/"$SDK_VER"/libtpu_kernel_module.so "$SYSTEM_OUT_DIR"/lib/
+  pushd "$LIBSOPHON_PATH"/tpu-kernel
+    mkdir -p "$SYSTEM_OUT_DIR"/lib
+    cp -rf "$LIBSOPHON_PATH"/tpu-kernel/lib/"$SDK_VER"/libtpu_kernel_module.so "$SYSTEM_OUT_DIR"/lib/
   popd
 )}
 
@@ -1076,7 +1094,15 @@ function cvi_setup_env()
   else
     if [[ "$SKIP_UBOOT" == y ]]; then
       FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_fastboot_"$STORAGE_TYPE".xml
-    else
+	elif [[ "$VENDOR_PARTITION" == y ]]; then
+      FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_v_"$STORAGE_TYPE".xml
+    elif [[ "$ROOTFS_B" == y ]] && [[ "$ROOTFS_RECOVERY" == y ]]; then
+      FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_abr_"$STORAGE_TYPE".xml
+    elif [[ "$ROOTFS_B" == y ]]; then
+      FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_ab_"$STORAGE_TYPE".xml
+    elif [[ "$ROOTFS_RECOVERY" == y ]]; then
+      FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_ar_"$STORAGE_TYPE".xml
+	else
       FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
     fi
     if ! [ -e "$FLASH_PARTITION_XML" ]; then
@@ -1084,6 +1110,8 @@ function cvi_setup_env()
       return 1
     fi
   fi
+
+  export FLASH_PARTITION_XML
 
   # config yoc.bin packed in fip.bin or not
   if [ `grep -c "partition label=\"2nd\"" $FLASH_PARTITION_XML` -ne '0' ]; then

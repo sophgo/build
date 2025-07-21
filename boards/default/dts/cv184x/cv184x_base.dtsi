@@ -117,6 +117,7 @@
 		reg = <0x0 0x05026000 0x0 0x1000>,<0x0 0x05025000 0x0 0x1000>;
 	};
 
+#ifndef __UBOOT__
 	cvitek-ion {
 		compatible = "cvitek,cvitek-ion";
 
@@ -125,6 +126,7 @@
 			memory-region = <&ion_reserved>;
 		};
 	};
+#endif
 
 	sysdma_remap {
 		compatible = "cvitek,sysdma_remap";
@@ -211,8 +213,11 @@
 	spif:cvi-spif@10000000 {
 		u-boot,dm-spl;
 		compatible = "snps,dw-apb-ssi-4.04a";
+		clocks = <&clk CV184X_CLK_SPI_NOR>;
 		reg = <0x0 0x10000000 0x0 0x1000>;
-		spi-work-frequency = <75000000>;
+		/* current work frequency in kernel: */
+		spi-work-frequency = <37500000>;
+		/* current work frequency in u-boot: */
 		spi-max-frequency = <75000000>;
 		rx-sample-delay-ns = <1>;
 		#address-cells = <1>;
@@ -224,6 +229,7 @@
 		dma-names = "rx", "tx";
 		capability = "rxtx";
 		spiflash {
+			/* Max work frequency in kernel: */
 			spi-max-frequency = <75000000>;
 			compatible = "jedec,spi-nor";
 			spi-tx-bus-width = <4>;
@@ -238,10 +244,12 @@
 		clocks = <&clk CV184X_CLK_SPI>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+#if 0
 		dmas = <&dmac 2 1 1
 			&dmac 3 1 1>;
 		dma-names = "rx", "tx";
 		capability = "txrx";
+#endif
 		status = "okay";
 		num-cs = <1>;
 		spidev@0 {
@@ -407,16 +415,9 @@
 		};
 	};
 
-	i2c_srcclk: clk25mhz {
-		clock-output-names = "clk25mhz";
-		clock-frequency = <25000000>;
-		#clock-cells = <0x0>;
-		compatible = "fixed-clock";
-	};
-
 	i2c0: i2c@04000000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&i2c_srcclk>;
+		clocks = <&clk CV184X_CLK_I2C>;
 		reg = <0x0 0x04000000 0x0 0x1000>;
 		clock-frequency = <400000>;
 
@@ -428,7 +429,7 @@
 
 	i2c1: i2c@04010000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&i2c_srcclk>;
+		clocks = <&clk CV184X_CLK_I2C>;
 		reg = <0x0 0x04010000 0x0 0x1000>;
 		clock-frequency = <400000>;
 
@@ -440,7 +441,7 @@
 
 	i2c2: i2c@04020000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&i2c_srcclk>;
+		clocks = <&clk CV184X_CLK_I2C>;
 		reg = <0x0 0x04020000 0x0 0x1000>;
 		clock-frequency = <400000>;
 		resets = <&rst RST_I2C2>;
@@ -449,7 +450,7 @@
 
 	i2c3: i2c@04030000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&i2c_srcclk>;
+		clocks = <&clk CV184X_CLK_I2C>;
 		reg = <0x0 0x04030000 0x0 0x1000>;
 		clock-frequency = <400000>;
 
@@ -461,7 +462,7 @@
 
 	i2c4: i2c@04040000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&i2c_srcclk>;
+		clocks = <&clk CV184X_CLK_I2C>;
 		reg = <0x0 0x04040000 0x0 0x1000>;
 		clock-frequency = <400000>;
 		resets = <&rst RST_I2C4>;
@@ -536,6 +537,8 @@
 		max-frequency = <200000000>;
 		64_addressing;
 		reset_tx_rx_phy;
+		pll_reg = <0x30020a0>;
+		pll_index = <0x180>;
 	};
 
 	sd:cv-sd@4310000 {
@@ -553,6 +556,8 @@
 		64_addressing;
 		reset_tx_rx_phy;
 		reset-names = "sdhci";
+		pll_reg = <0x3002098>;
+		pll_index = <0x18>;
 	};
 
 	wifisd:wifi-sd@4320000 {
@@ -560,14 +565,14 @@
 		bus-width = <4>;
 		reg = <0x0 0x4320000 0x0 0x1000>;
 		reg_names = "core_mem";
-		src-frequency = <375000000>;
+		src-frequency = <400000000>;
 		min-frequency = <400000>;
 		max-frequency = <50000000>;
 		64_addressing;
 		reset_tx_rx_phy;
 		non-removable;
-		pll_index = <0x7>;
-		pll_reg = <0x300207C>;
+		pll_index = <0x60>;
+		pll_reg = <0x300209C>;
 		no-mmc;
 		no-sd;
 		status = "disabled";
@@ -770,7 +775,7 @@
 		};
 	};
 
-	wifi_pin {
+	wifi_pin: wifi_pin@0 {
 		compatible = "cvitek,wifi-pin";
 		poweron-gpio = <&porta 18 GPIO_ACTIVE_HIGH>;
 		wakeup-gpio = <&porte 7 GPIO_ACTIVE_HIGH>;
@@ -803,6 +808,8 @@
 		reg = <0x0 0x0B020000 0x0 0x10000>,<0x0 0x0B030000 0x0 0x100>,
 				<0x0 0x0B058000 0x0 0x100>,<0x0 0x0B050000 0x0 0x400>;
 		reg-names = "vepu","vc_ctrl","vc_sbm","vc_addr_remap";
+		clocks = <&clk CV184X_CLK_VC_SRC0>;
+		clock-names = "reg_vc_clk_vc_src0_en";
 	};
 
 	sys {
@@ -841,8 +848,12 @@
 		reg =   <0x0 0x0a094000 0x0 0x2000>,
 			<0x0 0x0a099000 0x0 0x1000>,
 			<0x0 0x0a098000 0x0 0x1000>,
-			<0x0 0x0a0a8000 0x0 0x1000>;
-		reg-names = "disp", "dsi_mac", "dsi_phy", "vo_mac";
+			<0x0 0x0a0a8000 0x0 0x1000>,
+			<0x0 0x0a090000 0x0 0x4000>;
+		reg-names = "disp", "dsi_mac", "dsi_phy", "vo_mac", "vi_sys";
+		reset-gpio = <&porte 2 GPIO_ACTIVE_LOW>;
+		pwm-gpio = <&porte 0 GPIO_ACTIVE_HIGH>;
+		power-ct-gpio = <&porte 1 GPIO_ACTIVE_HIGH>;
 
 	};
 
@@ -851,8 +862,7 @@
 		reg = <0x0 0x0a096000 0x0 0x2000>;
 		reg-names = "ldc0";
 		clocks = <&clk CV184X_CLK_LDC_VIP>;
-		clock-names = "clk_ldc0";
-		clock-freq-vip-sys2 = <400000000>;
+		clock-names = "reg_clk_ldc_vip_en";
 	};
 
 	tde {
@@ -870,12 +880,14 @@
 		compatible = "cvitek,codec-jpeg";
 		reg = <0x0 0x0B000000 0x0 0x10000>;
 		reg-names = "jpeg_ctrl";
+		clocks = <&clk CV184X_CLK_VC_SRC1>;
+		clock-names = "reg_vc_clk_vc_src1_en";
 	};
 
 	vc_drv {
 		compatible = "cvitek,vc_drv";
 	};
-#if CVIMMAP_ALIOS_SIZE > 0
+#if CVIMMAP_RTOS_SYS_TOTAL_SIZE > 0
 	rtos_cmdqu {
 		compatible = "cvitek,rtos_cmdqu";
 		reg = <0x0 0x01900000 0x0 0x1000>;

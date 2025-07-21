@@ -469,6 +469,7 @@ typedef struct _venc_attr_s {
 	unsigned int u32_pic_height;		///< height of a picture to be encoded
 	unsigned char b_single_core;		///< Use single HW core
 	unsigned char b_es_buf_queue_en;		///< Use es buffer queue
+	unsigned char es_buf_queue_depth; ///< Use es buffer queue default depth is 10,limte is [10~128]
 	unsigned char b_iso_send_frm_en;		///< Isolating SendFrame/GetStream pairing
 	union {
 		venc_attr_h264_s st_attr_h264e;	///< TODO VENC

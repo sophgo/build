@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<physical_partition type="spinand">
+  <!--This is an auto-generated file. DO NOT EDIT manually.-->
+  <partition label="fip" size_in_kb="2560" readonly="false" file="fip_spl.bin" mountpoint="" type=""/>
+  <partition label="2nd" size_in_kb="3072" readonly="false" file="yoc.bin" mountpoint="" type=""/>
+  <partition label="BOOT" size_in_kb="8192" readonly="false" file="boot.spinand" mountpoint="" type=""/>
+  <partition label="BOOT_B" size_in_kb="8192" readonly="false" file="boot_b.spinand" mountpoint="" type=""/>
+  <partition label="MISC" size_in_kb="1024" readonly="false" file="logo.jpg" mountpoint="" type=""/>
+  <partition label="ENV" size_in_kb="128" readonly="false" file="" mountpoint="" type=""/>
+  <partition label="ENV_BAK" size_in_kb="128" readonly="false" file="" mountpoint="" type=""/>
+  <partition label="RECOVERY" size_in_kb="10240" file="recovery.spinand"/>
+  <partition label="ROOTFS" size_in_kb="71680" readonly="false" file="rootfs.spinand" mountpoint="" type=""/>
+  <partition label="ROOTFS_B" size_in_kb="71680" readonly="false" file="rootfs_b.spinand" mountpoint="" type=""/>
+  <partition label="SYSTEM" size_in_kb="20480" readonly="false" file="system.spinand" mountpoint="/mnt/system" type="ubifs"/>
+  <partition label="CFG" size_in_kb="4096" readonly="false" file="cfg.spinand" mountpoint="/mnt/cfg" type="ubifs"/>
+  <partition label="DATA" size_in_kb="4096" readonly="false" file="data.spinand" mountpoint="/mnt/data" type="ubifs"/>
+</physical_partition>
