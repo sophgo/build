@@ -302,6 +302,51 @@
 			};
 		};
 
+		fdt-bm1688_se9b4_4G {
+			description = "cvitek device tree - bm1688_se9b4_4G";
+			data = /incbin/("./bm1688_se9b4_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b4_8G {
+			description = "cvitek device tree - bm1688_se9b4_8G";
+			data = /incbin/("./bm1688_se9b4_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b4_12G {
+			description = "cvitek device tree - bm1688_se9b4_12G";
+			data = /incbin/("./bm1688_se9b4_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b4_16G {
+			description = "cvitek device tree - bm1688_se9b4_16G";
+			data = /incbin/("./bm1688_se9b4_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+
 		fdt-bm1688_sm9v1_4G {
 			description = "cvitek device tree - bm1688_sm9v1_4G";
 			data = /incbin/("./bm1688_sm9v1_4G.dtb");
@@ -785,6 +830,50 @@
 		fdt-cv186ah_se9k1_16G {
 			description = "cvitek device tree - cv186ah_se9k1_16G";
 			data = /incbin/("./cv186ah_se9k1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_4G {
+			description = "cvitek device tree - cv186ah_se9b4_4G";
+			data = /incbin/("./cv186ah_se9b4_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_8G {
+			description = "cvitek device tree - cv186ah_se9b4_8G";
+			data = /incbin/("./cv186ah_se9b4_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_12G {
+			description = "cvitek device tree - cv186ah_se9b4_12G";
+			data = /incbin/("./cv186ah_se9b4_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_16G {
+			description = "cvitek device tree - cv186ah_se9b4_16G";
+			data = /incbin/("./cv186ah_se9b4_16G.dtb");
 			type = "flat_dt";
 			arch = "arm64";
 			compression = "none";

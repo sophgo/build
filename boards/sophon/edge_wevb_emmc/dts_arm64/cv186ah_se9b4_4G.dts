@@ -131,7 +131,7 @@
 
 		sys_led {
 			gpios = <&portg 1 GPIO_ACTIVE_HIGH>;
-			label = "system-green";
+			label = "status";
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
 		};
