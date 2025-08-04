@@ -447,7 +447,7 @@ $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/workspace:
 ifneq ($(CONFIG_ROOTFS_B)$(CONFIG_ROOTFS_RECOVERY),)
 update_misc:
 	make -C ${TOP_DIR}/build/tools/common/update_misc
-	cp ${TOP_DIR}/build/tools/common/update_misc/update_misc $(OUTPUT_DIR)/rootfs/bin
+	cp ${TOP_DIR}/build/tools/common/update_misc/update_misc $(OUTPUT_DIR)/rootfs/bin/
 
 ramdisk: update_misc
 endif

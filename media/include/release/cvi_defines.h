@@ -327,6 +327,7 @@ enum ENUM_CHIP_ID {
 #define VI_PHYCHN_ONLINE_MAX_WIDTH          3840
 #define VI_PHYCHN_ONLINE_MAX_HEIGHT         2160
 
+#define VI_DEFAULT_ALIGN                     16
 #define VI_CMP_PARAM_SIZE                   152
 
 #define VI_PIXEL_FORMAT                     PIXEL_FORMAT_NV12

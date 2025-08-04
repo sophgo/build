@@ -67,6 +67,12 @@ def main():
         # create metadata for record md5sum
         metadata = NamedTemporaryFile(prefix="meta")
 
+        # Since will not define fip.bin in partition.xml add them
+        # # manually.
+        fip_path = path.join(args.input, "fip.bin")
+        if path.isfile(fip_path):
+            zipObj.write(fip_path, "fip.bin")
+
         # Since emmc will not define fip in partition.xml add them
         # # manually.
         if storage == "emmc":

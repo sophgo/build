@@ -621,6 +621,7 @@ function build_3rd_party()
     "cvi-json-c"
     "cvi-miniz"
     "curl"
+    "opencv4.5"
   )
 
   for name in "${oss_list[@]}"; do

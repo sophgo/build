@@ -41,6 +41,9 @@ enum VI_IOCTL {
 	VI_IOCTL_SET_SLICE_BUF_EN,
 	VI_IOCTL_GET_CLUT_TBL_IDX,
 	VI_IOCTL_SET_PROC_CONTENT,
+	VI_IOCTL_AI_ISP_CFG,
+	VI_IOCTL_GET_AI_ISP_RAW,
+	VI_IOCTL_PUT_AI_ISP_RAW,
 	VI_IOCTL_MAX,
 };
 
@@ -175,6 +178,13 @@ enum VI_EVENT {
 	VI_EVENT_MAX,
 };
 
+enum VI_ISP_CFG_TYPE {
+	AI_ISP_CFG_INIT,
+	AI_ISP_CFG_DEINIT,
+	AI_ISP_CFG_ENABLE,
+	AI_ISP_CFG_DISABLE,
+};
+
 struct sop_isp_sc_online {
 	CVI_U8   raw_num;
 	CVI_U8   is_sc_online;
@@ -216,6 +226,20 @@ struct vi_vb_pool_cfg {
 	VI_PIPE ViPipe;
 	VI_CHN ViChn;
 	CVI_U32 VbPool;
+};
+
+struct vi_ai_isp_cfg {
+	VI_PIPE ViPipe;
+	CVI_U8 ViAiISPType;
+	CVI_U64 Reserved[2];
+};
+
+struct vi_ai_isp_info {
+	VI_PIPE ViPipe;
+	CVI_U64 InputAddr[2];
+	CVI_U64 OutputAddr[2];
+	CVI_U32 Size;
+	CVI_U64 Reserved[1];
 };
 
 #ifdef __cplusplus

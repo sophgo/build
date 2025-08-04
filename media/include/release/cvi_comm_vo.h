@@ -20,6 +20,7 @@ extern "C" {
 
 #define VO_GAMMA_NODENUM 65
 #define MAX_VO_PINS 32
+#define MAX_MCU_INSTR 256
 
 /* VO video output interface type */
 typedef enum _VO_INTF_TYPE_E {
@@ -140,42 +141,113 @@ typedef enum _VO_MAC_BT_MUX_E {
 	VO_BT_MUX_MAX,
 } VO_MAC_BT_MUX_E;
 
+typedef enum _VO_MAC_I80_MUX_E {
+	VO_MUX_MCU_CS = 0,
+	VO_MUX_MCU_RS,
+	VO_MUX_MCU_WR,
+	VO_MUX_MCU_RD,
+	VO_MUX_MCU_DATA0,
+	VO_MUX_MCU_DATA1,
+	VO_MUX_MCU_DATA2,
+	VO_MUX_MCU_DATA3,
+	VO_MUX_MCU_DATA4,
+	VO_MUX_MCU_DATA5,
+	VO_MUX_MCU_DATA6,
+	VO_MUX_MCU_DATA7,
+	VO_MUX_MAX,
+} VO_MAC_I80_MUX_E;
+
+enum _VO_SEL {
+	VO_CLK0 = 0,
+	VO_CLK1,
+	VO_D0,
+	VO_D1,
+	VO_D2,
+	VO_D3,
+	VO_D4,
+	VO_D5,
+	VO_D6,
+	VO_D7,
+	VO_D8,
+	VO_D9,
+	VO_D10,
+	VO_D11,
+	VO_D12,
+	VO_D13,
+	VO_D14,
+	VO_D15,
+	VO_D16,
+	VO_D17,
+	VO_D18,
+	VO_D19,
+	VO_D20,
+	VO_D21,
+	VO_D22,
+	VO_D23,
+	VO_D24,
+	VO_D25,
+	VO_D26,
+	VO_D27,
+	VO_D28,
+	VO_D29,
+	VO_D30,
+	VO_D31,
+	VO_D32,
+	VO_D33,
+	VO_D34,
+	VO_D35,
+	VO_D36,
+	VO_D37,
+	VO_D_MAX,
+};
+
 typedef enum _VO_MAC_D_SEL {
-	VO_VIVO_CLK  = 0,
-	VO_VIV1_CLK  = 1,
-	VO_MIPI1_TXN1 = 2,
-	VO_MIPI1_TXP2 = 3,
-	VO_MIPI1_TXN2 = 4,
-	VO_MIPI1_TXP3 = 5,
-	VO_MIPI1_TXN3 = 6,
-	VO_MIPI1_TXP4 = 7,
-	VO_MIPI1_TXN4 = 8,
-	VO_VIVO0_D10 = 9,
-	VO_VIVO0_D11 = 10,
-	VO_VIVO0_D12 = 11,
-	VO_VIVO0_D13 = 12,
-	VO_VIVO0_D14 = 13,
-	VO_VIVO0_D15 = 14,
-	VO_VIVO0_D16 = 15,
-	VO_MIPI0_TXP0 = 16,
-	VO_MIPI0_TXN0 = 17,
-	VO_MIPI0_TXP1 = 18,
-	VO_MIPI0_TXN1 = 19,
-	VO_MIPI0_TXP2 = 20,
-	VO_MIPI0_TXN2 = 21,
-	VO_MIPI0_TXP3 = 22,
-	VO_MIPI0_TXN3 = 23,
-	VO_MIPI0_TXP4 = 24,
-	VO_MIPI0_TXN4 = 25,
-	VO_MIPI1_TXP0 = 26,
-	VO_MIPI1_TXN0 = 27,
-	VO_MIPI1_TXP1 = 28,
-	VO_PAD_MAX,
+	VO_VIVO_D0 = VO_D13,
+	VO_VIVO_D1 = VO_D14,
+	VO_VIVO_D2 = VO_D15,
+	VO_VIVO_D3 = VO_D16,
+	VO_VIVO_D4 = VO_D17,
+	VO_VIVO_D5 = VO_D18,
+	VO_VIVO_D6 = VO_D19,
+	VO_VIVO_D7 = VO_D20,
+	VO_VIVO_D8 = VO_D21,
+	VO_VIVO_D9 = VO_D22,
+	VO_VIVO_D10 = VO_D23,
+	VO_VIVO_CLK = VO_CLK1,
+	VO_MIPI_TXM4 = VO_D24,
+	VO_MIPI_TXP4 = VO_D25,
+	VO_MIPI_TXM3 = VO_D26,
+	VO_MIPI_TXP3 = VO_D27,
+	VO_MIPI_TXM2 = VO_D0,
+	VO_MIPI_TXP2 = VO_CLK0,
+	VO_MIPI_TXM1 = VO_D2,
+	VO_MIPI_TXP1 = VO_D1,
+	VO_MIPI_TXM0 = VO_D4,
+	VO_MIPI_TXP0 = VO_D3,
+	VO_MIPI_RXN5 = VO_D12,
+	VO_MIPI_RXP5 = VO_D11,
+	VO_MIPI_RXN2 = VO_D10,
+	VO_MIPI_RXP2 = VO_D9,
+	VO_MIPI_RXN1 = VO_D8,
+	VO_MIPI_RXP1 = VO_D7,
+	VO_MIPI_RXN0 = VO_D6,
+	VO_MIPI_RXP0 = VO_D5,
+	VO_JTAG_CPU_TMS = VO_D28,
+	VO_JTAG_CPU_TCK = VO_D29,
+	VO_JTAG_CPU_TRST = VO_D30,
+	VO_AUX0 = VO_D31,
+	VO_SD1_D3 = VO_D32,
+	VO_SD1_D2 = VO_D33,
+	VO_SD1_D1 = VO_D34,
+	VO_SD1_D0 = VO_D35,
+	VO_SD1_CMD = VO_D36,
+	VO_SD1_CLK = VO_D37,
+	VO_PAD_MAX = VO_D_MAX,
 } VO_MAC_D_SEL_E;
 
 struct VO_D_REMAP {
 	VO_MAC_D_SEL_E sel;
-	VO_MAC_BT_MUX_E mux;
+	CVI_U32 mux;
 };
 
 typedef enum _VO_BT_MODE_E {
@@ -201,6 +273,62 @@ typedef struct _VO_BT_ATTR_S {
 	struct VO_D_REMAP d_pins[MAX_VO_PINS];
 } VO_BT_ATTR_S;
 
+/* Define I80's cmd
+ *
+ * delay: ms to delay after instr
+ * data_type: Data(1)/Command(0)
+ * data: data to send
+ */
+typedef struct _VO_I80_INSTR_S {
+	CVI_U8 delay;
+	CVI_U8 data_type;
+	CVI_U8 data;
+} VO_I80_INSTR_S;
+
+/* Define PINMUX
+ *
+ * pin_num: Number of pins
+ * d_pins: Pin mapping
+ */
+typedef struct _VO_PINMUX_S {
+	CVI_U8 pin_num;
+	struct VO_D_REMAP d_pins[MAX_VO_PINS];
+} VO_PINMUX_S;
+
+typedef enum _VO_MCU_MODE {
+	VO_MCU_MODE_RGB565 = 0,
+	VO_MCU_MODE_RGB888,
+	VO_MCU_MODE_MAX,
+} VO_MCU_MODE;
+
+/* Define MCU Initialization
+ *
+ * instr_num: Initialization sequence num
+ * instr_cmd: Initialization sequence
+ */
+typedef struct _VO_MCU_INSTRS {
+	CVI_U8 instr_num;
+	VO_I80_INSTR_S instr_cmd[MAX_MCU_INSTR];
+} VO_MCU_INSTRS_S;
+
+/* Define HW_MCU's config
+ *
+ * mode: fmt mode
+ * pins: pin mapping
+ * lcd_power_gpio_num: power gpio num
+ * lcd_power_avtive: polarity
+ * backlight_gpio_num: backlight gpio num
+ * backlight_avtive: polarity
+ * reset_gpio_num: reset gpio num
+ * reset_avtive: polarity
+ * instrs: Initialization sequence
+ */
+typedef struct _VO_HW_MCU_CFG_S {
+	VO_MCU_MODE mode;
+	VO_PINMUX_S pins;
+	VO_MCU_INSTRS_S instrs;
+} VO_HW_MCU_CFG_S;
+
 /*
  * u32BgColor: Background color of a device, in RGB format.
  * enIntfType: Type of a VO interface.
@@ -212,6 +340,9 @@ typedef struct _VO_PUB_ATTR_S {
 	VO_INTF_TYPE_E enIntfType;
 	VO_INTF_SYNC_E enIntfSync;
 	VO_SYNC_INFO_S stSyncInfo;
+	union {
+		VO_HW_MCU_CFG_S stMcuCfg;
+	};
 } VO_PUB_ATTR_S;
 
 typedef enum _VO_LVDS_MODE_E {

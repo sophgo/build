@@ -5,6 +5,9 @@
 ALIOS_SOLUTIONS_DIR=${ALIOS_PATH}/solutions/${subst ",,${CONFIG_ALIOS_SOLUTION}}
 PACK_YOC_TOOL=$(COMMON_TOOLS_PATH)/image_tool/alios/PackYocTool/PackYocTool
 
+ALIOS_OSDRV_PATH=${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv
+ALIOS_MW_PATH=${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_middleware
+ALIOS_MSG_PATH=${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_msg
 MEDIA_INCLUDE_DIR = $(TOP_DIR)/build/media/include
 
 RTOS_COMPRESS_TYPE=$(patsubst "%",%, ${CONFIG_RTOS_COMPRESS_TYPE})
@@ -14,6 +17,13 @@ endef
 
 alios-depends:
 	$(call print_target)
+	${Q}ln -sf $(TOP_DIR)/build/media/SensorSupportList $(TOP_DIR)/cvi_alios/components/cvi_mmf_sdk/
+	${Q}cp -f $(MEDIA_INCLUDE_DIR)/internal/osdrv_uapi/* $(ALIOS_OSDRV_PATH)/include/common/uapi/
+	${Q}cp -f $(MEDIA_INCLUDE_DIR)/internal/comm/* $(ALIOS_OSDRV_PATH)/include/common/uapi/
+	${Q}cp -f $(MEDIA_INCLUDE_DIR)/release/cvi_defines.h $(ALIOS_OSDRV_PATH)/include/chip/$(CHIP_ARCH_L)/uapi/defines.h
+	${Q}cp -f $(MEDIA_INCLUDE_DIR)/release/*.h $(ALIOS_MW_PATH)/include
+	${Q}cp -f $(MEDIA_INCLUDE_DIR)/internal/mpi_uapi/*.h $(ALIOS_MW_PATH)/uapi
+	${Q}cp -f $(MEDIA_INCLUDE_DIR)/internal/msg/*.h $(ALIOS_MSG_PATH)/internal_include/msg/
 
 alios-build: $(OUTPUT_DIR)/rawimages
 alios-build: memory-map alios-depends
@@ -27,6 +37,12 @@ alios-build: memory-map alios-depends
 
 alios_clean: alios-depends
 	$(call print_target)
+	${Q}rm -f $(ALIOS_OSDRV_PATH)/include/common/uapi/*.h
+	${Q}rm -f $(ALIOS_OSDRV_PATH)/include/chip/$(CHIP_ARCH_L)/uapi/defines.h
+	${Q}rm -f $(ALIOS_MW_PATH)/include/*.h
+	${Q}rm -f $(ALIOS_MW_PATH)/uapi/*.h
+	${Q}rm -f $(ALIOS_MSG_PATH)/internal_include/msg/*.h
+#	${Q}rm -f $(TOP_DIR)/cvi_alios/components/cvi_mmf_sdk/SensorSupportList
 	${Q}$(MAKE) -C ${ALIOS_SOLUTIONS_DIR} clean
 
 alios: alios-build

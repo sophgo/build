@@ -1,4 +1,5 @@
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/soc/cvitek,boot-mode.h>
 
 / {
 	compatible = "cvitek,cv184x";
@@ -1020,6 +1021,24 @@
 				MATRIX_KEY(0x03, 0x01, KEY_F12)
 				MATRIX_KEY(0x03, 0x02, KEY_F8)
 				MATRIX_KEY(0x03, 0x03, KEY_F4) >;
+	};
+
+	reboot_arg: syscon@0x05026ff0 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0x0 0x05026ff0 0x0 0x4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x0>;
+			mode-normal = <BOOT_NORMAL>;
+			mode-recovery = <BOOT_RECOVERY>;
+			mode-loader = <BOOT_BL_DOWNLOAD>;
+			mode-charge = <BOOT_CHARGING>;
+			mode-rootfsa = <BOOT_ROOTFSA>;
+			mode-rootfsb = <BOOT_ROOTFSB>;
+			status = "okay";
+		};
 	};
 
 	config {

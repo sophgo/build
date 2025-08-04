@@ -69,12 +69,25 @@ typedef struct _buffer_info_s {
 
 typedef struct _vdec_buffer_info_s {
 	buffer_info_s *bitstream_buffer;
+#ifdef __arm__
+	__u32 addr_padding1;
+#endif
 	buffer_info_s *frame_buffer;
+#ifdef __arm__
+	__u32 addr_padding2;
+#endif
 	buffer_info_s *y_table_buffer;
+#ifdef __arm__
+	__u32 addr_padding3;
+#endif
 	buffer_info_s *c_table_buffer;
+#ifdef __arm__
+	__u32 addr_padding4;
+#endif
 	int num_of_dec_fbc;
 	int num_of_decwtl;
 } vdec_buffer_info_s;
+
 
 typedef struct _vdec_chn_attr_s {
 	payload_type_e en_type; /* RW; video type to be decoded   */
