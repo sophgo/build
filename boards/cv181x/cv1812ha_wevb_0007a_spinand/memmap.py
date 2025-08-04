@@ -10,7 +10,7 @@ class MemoryMap:
     ]
 
     DRAM_BASE = 0x80000000
-    DRAM_SIZE = 512 * SIZE_1M
+    DRAM_SIZE = 256 * SIZE_1M
 
     # ==============
     # C906L FreeRTOS

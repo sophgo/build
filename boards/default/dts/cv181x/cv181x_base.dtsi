@@ -502,6 +502,8 @@
 		reset_tx_rx_phy;
 		pll_index = <0x5>;
 		pll_reg = <0x3002064>;
+		clocks = <&clk CV181X_CLK_EMMC>;
+		clock-names = "clk_emmc";
 	};
 
 	sd:cv-sd@4310000 {
@@ -526,6 +528,8 @@
 		reset-names = "sdhci";
 		pll_index = <0x6>;
 		pll_reg = <0x3002070>;
+		clocks = <&clk CV181X_CLK_SD0>;
+		clock-names = "clk_sd";
 		cvi-cd-gpios = <&porta 13 GPIO_ACTIVE_LOW>;
 	};
 
@@ -542,6 +546,8 @@
 		non-removable;
 		pll_index = <0x7>;
 		pll_reg = <0x300207C>;
+		clocks = <&clk CV181X_CLK_SD1>;
+		clock-names = "clk_wifisd";
 		no-mmc;
 		no-sd;
 		status = "disabled";

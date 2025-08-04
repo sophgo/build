@@ -518,6 +518,8 @@
 		reset-names = "sdhci";
 		pll_index = <0x6>;
 		pll_reg = <0x3002070>;
+		clocks = <&clk CV180X_CLK_SD0>;
+		clock-names = "clk_sd";
 		cvi-cd-gpios = <&porta 13 GPIO_ACTIVE_LOW>;
 	};
 
@@ -534,6 +536,8 @@
 		non-removable;
 		pll_index = <0x7>;
 		pll_reg = <0x300207C>;
+		clocks = <&clk CV180X_CLK_SD1>;
+		clock-names = "clk_wifisd";
 		no-mmc;
 		no-sd;
 		status = "disabled";

@@ -539,6 +539,8 @@ function build_3rd_party()
     "uv"
     "cvi-json-c"
     "cvi-miniz"
+    "curl"
+    "opencv4.5"
   )
 
   for name in "${oss_list[@]}"

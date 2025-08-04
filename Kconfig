@@ -682,6 +682,13 @@ config ALIOS_SOLUTION
 	help
 		Select solution to build alios.
 
+config ENABLE_RTT_UPDATE
+	bool "Enable rtt update"
+	depends on CHIP_ARCH_cv181x || CHIP_ARCH_cv180x
+	default n
+	help
+	  Enable rtt update.
+
 endmenu
 
 menu "Rootfs packages"
