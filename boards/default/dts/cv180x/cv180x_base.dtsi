@@ -168,7 +168,7 @@
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3060000 0x0 0x1000>;
 		clocks = <&clk CV180X_CLK_PWM>;
-		#pwm-cells = <1>;
+		#pwm-cells = <2>;
 	};
 
 	pwm1: pwm@3061000 {
@@ -182,14 +182,14 @@
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3062000 0x0 0x1000>;
 		clocks = <&clk CV180X_CLK_PWM>;
-		#pwm-cells = <3>;
+		#pwm-cells = <2>;
 	};
 
 	pwm3: pwm@3063000 {
 		compatible = "cvitek,cvi-pwm";
 		reg = <0x0 0x3063000 0x0 0x1000>;
 		clocks = <&clk CV180X_CLK_PWM>;
-		#pwm-cells = <4>;
+		#pwm-cells = <2>;
 	};
 
 	pclk: pclk {
@@ -524,6 +524,8 @@
 		reset-names = "sdhci";
 		pll_index = <0x6>;
 		pll_reg = <0x3002070>;
+		clocks = <&clk CV180X_CLK_SD0>;
+		clock-names = "clk_sd";
 		cvi-cd-gpios = <&porta 13 GPIO_ACTIVE_LOW>;
 	};
 
@@ -532,8 +534,6 @@
 		bus-width = <4>;
 		reg = <0x0 0x4320000 0x0 0x1000>;
 		reg_names = "core_mem";
-		clocks = <&clk CV180X_CLK_SD1>;
-		clock-names = "clk_sd";
 		src-frequency = <375000000>;
 		min-frequency = <400000>;
 		max-frequency = <50000000>;
@@ -542,6 +542,8 @@
 		non-removable;
 		pll_index = <0x7>;
 		pll_reg = <0x300207C>;
+		clocks = <&clk CV180X_CLK_SD1>;
+		clock-names = "clk_wifisd";
 		no-mmc;
 		no-sd;
 		status = "disabled";

@@ -86,7 +86,7 @@ class MemoryMap:
     # ===================
     CVI_UPDATE_HEADER_SIZE = SIZE_1K
     CVI_MMC_SKIP_TUNING_SIZE = SIZE_1K
-    UIMAG_SIZE = 16 * SIZE_1M
+    UIMAG_SIZE = 14 * SIZE_1M
 
     # kernel image loading buffer
     UIMAG_ADDR = DRAM_BASE + 12 * SIZE_1M
@@ -101,19 +101,18 @@ class MemoryMap:
 
     # u-boot's run address and entry point
     # CONFIG_SYS_TEXT_BASE = DRAM_BASE + 2 * SIZE_1M
-    # CONFIG_SYS_TEXT_BASE = BOOTLOGO_ADDR + BOOTLOGO_SIZE
-    CONFIG_SYS_TEXT_BASE = FREERTOS_ADDR - 0x200000
+    CONFIG_SYS_TEXT_BASE = BOOTLOGO_ADDR + BOOTLOGO_SIZE
+
     # SYS_TEXT_SIZE 1M
     assert CONFIG_SYS_TEXT_BASE + SIZE_1M <= ION_ADDR + ION_SIZE
 
     # u-boot's init stack point is only used before board_init_f()
-    # CONFIG_SYS_INIT_SP_ADDR = UIMAG_ADDR + UIMAG_SIZE
+    CONFIG_SYS_INIT_SP_ADDR = UIMAG_ADDR + UIMAG_SIZE
 
-    # asssert CONFIG_SYS_INIT_SP_ADDR +  SIZE_1M <= ION_ADDR
-    CONFIG_SYS_INIT_SP_ADDR = FREERTOS_ADDR - 0x300000
+    assert CONFIG_SYS_INIT_SP_ADDR +  SIZE_1M <= ION_ADDR
 
     # spl fdt addr
-    SPL_FDT_SIZE = SIZE_1K
-    SPL_FDT_ADDR = CVI_UPDATE_HEADER_ADDR - SPL_FDT_SIZE
+    SPL_FDT_SIZE = SIZE_1M
+    SPL_FDT_ADDR = CVI_MMC_SKIP_TUNING_ADDR - SPL_FDT_SIZE
 
-    # assert SPL_FDT_ADDR
+    #assert SPL_FDT_ADDR
