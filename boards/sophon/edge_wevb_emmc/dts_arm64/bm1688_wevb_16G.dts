@@ -37,7 +37,7 @@
 
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
-			reg = <0x3 0x00000000 0x1 0x00000000>; // 4G, for TPU
+			reg = <0x3 0x00400000 0x0 0xFFC00000>; // 4G, for TPU
 		};
 #endif
 	};
