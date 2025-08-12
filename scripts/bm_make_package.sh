@@ -292,8 +292,19 @@ function create_partition_script()
 	if [ "$part_num" = "" ]; then
 		script_update "if test -n \$load_partition; then echo \"skip empty part_num partition \";  exit; fi;"
 		script_update ""
-	else
-		script_update "if test -n \$load_partition; then if test \$load_partition -eq $part_num; then echo \"skip partition \$load_partition\";  exit; fi; fi;"
+	elif [ $part_num != 3 ]; then
+		script_update "if test -n \$ota_one_partition; then \
+		  if test $part_num -ne \$ota_one_partition; then \
+			echo \"skip partition $part_num (ota_one_partition=\$ota_one_partition)\"; \
+			exit; \
+		  fi; \
+		fi; \
+		if test -n \$load_partition; then \
+		  if test \$load_partition -eq $part_num; then \
+			echo \"skip load_partition \$load_partition (protected)\"; \
+			exit; \
+		  fi; \
+		fi;"
 		script_update ""
 	fi
 }

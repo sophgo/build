@@ -44,8 +44,9 @@
 	cpus {
 		#size-cells = <0x0>;
 		#address-cells = <0x1>;
-
+		u-boot,dm-spl;
 		cpu-map {
+			u-boot,dm-spl;
 			cluster0 {
 				core0 {
 					cpu = <&cpu0>;
@@ -78,6 +79,7 @@
 		};
 
 		cpu0: cpu@0 {
+			u-boot,dm-spl;
 			reg = <0x0>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
@@ -86,6 +88,7 @@
 		};
 
 		cpu1: cpu@1 {
+			u-boot,dm-spl;
 			reg = <0x1>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
@@ -94,6 +97,7 @@
 		};
 
 		cpu2: cpu@2 {
+			u-boot,dm-spl;
 			reg = <0x2>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
@@ -102,6 +106,7 @@
 		};
 
 		cpu3: cpu@3 {
+			u-boot,dm-spl;
 			reg = <0x3>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
@@ -110,6 +115,7 @@
 		};
 
 		cpu4: cpu@100 {
+			u-boot,dm-spl;
 			reg = <0x100>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
@@ -118,6 +124,7 @@
 		};
 
 		cpu5: cpu@101 {
+			u-boot,dm-spl;
 			reg = <0x101>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
@@ -126,6 +133,7 @@
 		};
 
 		cpu6: cpu@102 {
+			u-boot,dm-spl;
 			reg = <0x102>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
@@ -134,6 +142,7 @@
 		};
 
 		cpu7: cpu@103 {
+			u-boot,dm-spl;
 			reg = <0x103>;
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";

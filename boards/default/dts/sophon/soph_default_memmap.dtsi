@@ -9,6 +9,13 @@
 		#size-cells = <0x2>;
 		ranges;
 #ifndef __UBOOT__
+		//reserved for ddr resume bist
+		ddr_bist_mem: ddr_bist_mem {
+			alloc-ranges = <0x1 0x000F0000 0 0x10000>;
+			size = <0x0 0x10000>;
+			no-map;
+		};
+
 		//0x1_02E0_0000 - 0x1_0300_0000 for vo logo (owner: yu.yang@sophgo.com)
 		vo_logo: vo_logo {
 			alloc-ranges = <0x1 0x2E00000 0 0x200000>; // 2M, for vo logo
@@ -41,7 +48,7 @@
 		//0x2_0000_0000 - 0x3_0000_0000 for VPP (owner: kenneth.liu@sophgo.com)
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
-			reg = <0x2 0x00000000 0x1 0x00000000>; // 4G, for VPP
+			reg = <0x2 0x00400000 0x0 0xFFC00000>; // 4G, for VPP
 		};
 #endif
 	};
