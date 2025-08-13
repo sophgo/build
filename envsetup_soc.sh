@@ -636,6 +636,8 @@ function build_edge_ubuntu
     "$DISTRO_OVERLAY_DIR"/common/rootfs/* \
     "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/rootfs/* \
     "${EDGE_ROOTFS_DIR}"
+
+  python $COMMON_TOOLS_PATH/image_tool/mkcvipart_edge.py $FLASH_PARTITION_XML "${EDGE_ROOTFS_DIR}/etc/" --fw_env
   # copy customer's debs
   find "${TOP_DIR}"/ubuntu/bootloader-arm64/distro/debs \
     -name *.deb -exec cp -f {} "${MOD_DEBS}" \;

@@ -192,41 +192,8 @@ def gen_cvipart_h(output, parser):
 
 def gen_fw_config(output, parser, block_size=128 * 1024):
     logging.info("generating fw_env.config")
-    parts = parser.parse()
-    part_index = -1
     with open(os.path.join(output, "fw_env.config"), "w") as of:
-        for i in range(len(parts)):
-            if (
-                parts[i]["label"] == "ENV"
-                or parts[i]["label"] == "U-BOOT ENV"
-                or parts[i]["label"] == "ENV_BAK"
-            ):
-                part_index = i
-                if parser.storage == "spinand":
-                    of.write(
-                        "/dev/mtd%d 0x%x 0x%x 0x%x\n"
-                        % (part_index, 0, parts[part_index]["part_size"], block_size)
-                    )
-                elif parser.storage == "emmc":
-                    of.write(
-                        "/dev/mmcblk0 0x%x 0x%x\n"
-                        % (
-                            (parts[part_index]["offset"]),
-                            parts[part_index]["part_size"],
-                        )
-                    )
-                elif parser.storage == "spinor":
-                    of.write(
-                        "/dev/mtd%d 0x%x 0x%x 0x%x\n"
-                        % (part_index, 0, parts[part_index]["part_size"], 64 * 1024)
-                    )
-        if part_index == -1:
-            logging.info(
-                "There is no ENV or U-BOOT ENV partition in partition.xml ignore generating fw_env.config"
-            )
-            if os.path.isfile("fw_env.config"):
-                os.remove("fw_env.config")
-            return
+        of.write("/boot/u-boot.env 0x0 0x80000")
 
 
 def main():
