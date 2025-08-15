@@ -33,6 +33,7 @@ config CROSS_COMPILE_KERNEL
 	string "Cross-compiler tool prefix for kernel"
 	default "aarch64-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
 	default "arm-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
+	default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
 	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -156,6 +157,11 @@ config TOOLCHAIN_UCLIBC_ARM
 	help
 	  uclibc library for arm(AARCH32).
 
+config TOOLCHAIN_MUSL_ARM
+	bool "musl library for user mode application on arm"
+	help
+	  musl library for arm(AARCH32).
+
 config TOOLCHAIN_GLIBC_RISCV64
 	bool "glibc library for user mode application on riscv64"
 	help
@@ -186,6 +192,7 @@ config SDK_VER
 	default "64bit" if TOOLCHAIN_GLIBC_ARM64
 	default "32bit" if TOOLCHAIN_GLIBC_ARM
 	default "uclibc" if TOOLCHAIN_UCLIBC_ARM
+	default "musl" if TOOLCHAIN_MUSL_ARM
 	default "glibc_riscv64" if TOOLCHAIN_GLIBC_RISCV64
 	default "musl_riscv64" if TOOLCHAIN_MUSL_RISCV64
 	help

@@ -370,6 +370,8 @@ else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_RISCV64),y)
 INITRAMFS_BASE := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)
 INITRAMFS_BASE := musl_riscv64
+else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM),y)
+INITRAMFS_BASE := musl_arm
 endif
 
 $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target:
@@ -484,6 +486,8 @@ else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 packages_arch := arm
 else ifeq ($(CONFIG_TOOLCHAIN_UCLIBC_ARM),y)
 packages_arch := uclibc
+else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM),y)
+packages_arch := musl
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_RISCV64),y)
 packages_arch := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)
