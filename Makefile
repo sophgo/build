@@ -178,6 +178,8 @@ u-boo%: export RELEASE=${RELEASE_VERSION}
 u-boo%: export CVIBOARD=${BOARD}
 u-boo%: export CONFIG_SKIP_RAMDISK:=${CONFIG_SKIP_RAMDISK}
 u-boo%: export CONFIG_USE_DEFAULT_ENV:=${CONFIG_USE_DEFAULT_ENV}
+u-boo%: export CONFIG_ENABLE_SPINOR_TUNING:=${CONFIG_ENABLE_SPINOR_TUNING}
+u-boo%: export CONFIG_ENABLE_SPINOR_DTR:=${CONFIG_ENABLE_SPINOR_DTR}
 u-boo%: export CONFIG_BUILD_FOR_DEBUG:=${CONFIG_BUILD_FOR_DEBUG}
 u-boo%: export CONFIG_MMC_SKIP_TUNING:=${CONFIG_MMC_SKIP_TUNING}
 u-boo%: export MULTI_FIP=$(if ${CONFIG_MULTI_FIP},1,0)
@@ -343,6 +345,10 @@ KERNEL_CONFIG += SUSPEND=n
 endif
 
 ifeq (${CONFIG_ENABLE_FREERTOS}, y)
+KERNEL_CONFIG += CVI_RTOS_CMDQU=y
+endif
+
+ifeq (${CONFIG_ENABLE_RTT}, y)
 KERNEL_CONFIG += CVI_RTOS_CMDQU=y
 endif
 
@@ -560,7 +566,7 @@ packages_arch := arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 packages_arch := arm
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM),y)
-packages_arch := musl
+packages_arch := musl_arm
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_RISCV64),y)
 packages_arch := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)

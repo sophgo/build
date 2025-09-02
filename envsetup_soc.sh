@@ -156,6 +156,35 @@ function clean_rtos()
   make rtos-clean
 )}
 
+function  _build_rtt_env()
+{
+  export RTT_PATH
+}
+
+function menuconfig_rtt()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_rtt_env
+  cd "$BUILD_PATH" || return
+  make rtt-menuconfig || return "$?"
+)}
+
+function build_rtt()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_rtt_env
+  cd "$BUILD_PATH" || return
+  make rtt || return "$?"
+)}
+
+function clean_rtt()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  _build_rtt_env
+  cd "$BUILD_PATH" || return
+  make rtt-clean || return "$?"
+)}
+
 function menuconfig_uboot()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
@@ -377,12 +406,12 @@ function build_sdk()
   #   return 1
   # fi
 
-  if [ "$SDK_VER" = 64bit ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_64"
-  elif [ "$SDK_VER" = 32bit ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_32"
-  elif [ "$SDK_VER" = musl ]; then
-    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL"
+  if [ "$SDK_VER" = glibc_arm64 ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM64"
+  elif [ "$SDK_VER" = glibc_arm ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM"
+  elif [ "$SDK_VER" = musl_arm ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL_ARM"
   elif [ "$SDK_VER" = glibc_riscv64 ]; then
     HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
   elif [ "$SDK_VER" = musl_riscv64 ]; then
@@ -532,7 +561,7 @@ function clean_osdrv()
 
 function _build_cvi_pipeline_env()
 {
-  export SYSTEM_OUT_DIR CROSS_COMPILE_PATH_32 CROSS_COMPILE_PATH_64 CROSS_COMPILE_PATH_MUSL
+  export SYSTEM_OUT_DIR CROSS_COMPILE_PATH_GLIBC_ARM CROSS_COMPILE_PATH_GLIBC_ARM64 CROSS_COMPILE_PATH_MUSL_ARM
 }
 
 function build_cvi_pipeline()
@@ -662,8 +691,8 @@ function build_access_guard_turnkey_app()
 {(
   if [[ -d "$ACCESSGUARD_PATH" ]] && [[ "$BUILD_TURNKEY_ACCESSGUARD" = "y" ]]; then
     export SDK_PATH=$(pwd)
-    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
-    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
+    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM64"/bin/
+    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_GLIBC_ARM"/bin/
     export SDK_INSTALL_PATH="$OUTPUT_DIR"
     export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
     ln -sf "$SDK_INSTALL_PATH"/tpu_* "$SDK_INSTALL_PATH"/tpu
@@ -681,8 +710,8 @@ function clean_access_guard_turnkey_app()
 {(
   if [[ -d "$ACCESSGUARD_PATH" ]] && [[ "$BUILD_TURNKEY_ACCESSGUARD" = "y" ]]; then
     export SDK_PATH=$(pwd)
-    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_64"/bin/
-    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_32"/bin/
+    export TOOLCHAIN_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM64"/bin/
+    export TOOLCHAIN_PATH_32="$CROSS_COMPILE_PATH_GLIBC_ARM"/bin/
     export SDK_INSTALL_PATH="$OUTPUT_DIR"
     export KERNEL_INC="$KERNEL_PATH"/build/"$CHIP"_"$BOARD"/usr/include/
     pushd "$ACCESSGUARD_PATH"
@@ -891,18 +920,18 @@ function envs_sdk_ver()
     SDK_VER="$1"
   fi
 
-  if [ "$SDK_VER" = 64bit ]; then
-    CROSS_COMPILE="$CROSS_COMPILE_64"
-    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
-    SYSROOT_PATH="$SYSROOT_PATH_64"
-  elif [ "$SDK_VER" = 32bit ]; then
-    CROSS_COMPILE="$CROSS_COMPILE_32"
-    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_32"
-    SYSROOT_PATH="$SYSROOT_PATH_32"
-  elif [ "$SDK_VER" = musl ]; then
-    CROSS_COMPILE="$CROSS_COMPILE_MUSL"
-    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_MUSL"
-    SYSROOT_PATH="$SYSROOT_PATH_MUSL"
+  if [ "$SDK_VER" = glibc_arm64 ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_GLIBC_ARM64"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM64"
+    SYSROOT_PATH="$SYSROOT_PATH_GLIBC_ARM64"
+  elif [ "$SDK_VER" = glibc_arm ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_GLIBC_ARM"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM"
+    SYSROOT_PATH="$SYSROOT_PATH_GLIBC_ARM"
+  elif [ "$SDK_VER" = musl_arm ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_MUSL_ARM"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_MUSL_ARM"
+    SYSROOT_PATH="$SYSROOT_PATH_MUSL_ARM"
   elif [ "$SDK_VER" = glibc_riscv64 ]; then
     CROSS_COMPILE="$CROSS_COMPILE_GLIBC_RISCV64"
     CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
@@ -962,7 +991,7 @@ function cvi_setup_env()
   fi
 
   export BRAND BUILD_VERBOSE DEBUG PROJECT_FULLNAME
-  export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH ALIOS_PATH
+  export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH ALIOS_PATH RTT_PATH
   export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH MW_PATH
 
   PROJECT_FULLNAME="$CHIP"_"$BOARD"
@@ -981,6 +1010,7 @@ function cvi_setup_env()
   ATF_PATH="$TOP_DIR"/arm-trusted-firmware
   UBOOT_PATH="$TOP_DIR/$UBOOT_SRC"
   FREERTOS_PATH="$TOP_DIR"/freertos
+  RTT_PATH="$TOP_DIR"/rt-thread
   ALIOS_PATH="$TOP_DIR"/cvi_alios
   KERNEL_PATH="$TOP_DIR"/"$KERNEL_SRC"
   OSDRV_PATH="$TOP_DIR"/osdrv
@@ -1009,7 +1039,11 @@ function cvi_setup_env()
   SCRIPTTOOL_PATH="$COMMON_TOOLS_PATH"/scripts
   ROOTFSTOOL_PATH="$COMMON_TOOLS_PATH"/rootfs_tool
   SPINANDTOOL_PATH="$COMMON_TOOLS_PATH"/spinand_tool
-  BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo/logo.jpg
+
+  BOOTLOGO_PATH="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/bootlogo/logo.jpg
+  if [ ! -f "$BOOTLOGO_PATH" ]; then
+    BOOTLOGO_PATH="$COMMON_TOOLS_PATH"/bootlogo/logo.jpg
+  fi
 
   # subfolder path for buidling, chosen accroding to .gitignore rules
   UBOOT_OUTPUT_FOLDER=build/"$PROJECT_FULLNAME"
@@ -1018,30 +1052,30 @@ function cvi_setup_env()
   RAMDISK_OUTPUT_FOLDER="$RAMDISK_OUTPUT_BASE"/workspace
 
   # toolchain
-  export CROSS_COMPILE_64=aarch64-none-linux-gnu-
-  export CROSS_COMPILE_32=arm-none-linux-gnueabihf-
-  export CROSS_COMPILE_MUSL=arm-none-linux-musleabihf-
+  export CROSS_COMPILE_GLIBC_ARM64=aarch64-none-linux-gnu-
+  export CROSS_COMPILE_GLIBC_ARM=arm-none-linux-gnueabihf-
+  export CROSS_COMPILE_MUSL_ARM=arm-none-linux-musleabihf-
   export CROSS_COMPILE_64_NONOS_RISCV64=riscv64-unknown-elf-
   export CROSS_COMPILE_GLIBC_RISCV64=riscv64-unknown-linux-gnu-
   export CROSS_COMPILE_MUSL_RISCV64=riscv64-unknown-linux-musl-
-  export CROSS_COMPILE="$CROSS_COMPILE_64"
+  export CROSS_COMPILE="$CROSS_COMPILE_GLIBC_ARM64"
 
   # toolchain path
-  CROSS_COMPILE_PATH_64="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu
-  CROSS_COMPILE_PATH_32="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-gnueabihf
-  CROSS_COMPILE_PATH_MUSL="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-musleabihf
+  CROSS_COMPILE_PATH_GLIBC_ARM64="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu
+  CROSS_COMPILE_PATH_GLIBC_ARM="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-gnueabihf
+  CROSS_COMPILE_PATH_MUSL_ARM="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-musleabihf
   CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
   CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
   CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
-  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64"
+  export CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM64"
 
   # add toolchain path
-  pathprepend "$CROSS_COMPILE_PATH_64"/bin
-  pathprepend "$CROSS_COMPILE_PATH_32"/bin
+  pathprepend "$CROSS_COMPILE_PATH_GLIBC_ARM64"/bin
+  pathprepend "$CROSS_COMPILE_PATH_GLIBC_ARM"/bin
   pathprepend "$CROSS_COMPILE_PATH_64_NONOS_RISCV64"/bin
   pathprepend "$CROSS_COMPILE_PATH_GLIBC_RISCV64"/bin
   pathprepend "$CROSS_COMPILE_PATH_MUSL_RISCV64"/bin
-  pathappend "$CROSS_COMPILE_PATH_MUSL"/bin
+  pathappend "$CROSS_COMPILE_PATH_MUSL_ARM"/bin
 
   # Check ccache is enable or not
   pathremove "$BUILD_PATH"/output/bin
@@ -1066,28 +1100,15 @@ function cvi_setup_env()
   fi
 
   # sysroot
-  SYSROOT_PATH_64="$CROSS_COMPILE_PATH_64"/aarch64-none-linux-gnu/libc
-  SYSROOT_PATH_32="$CROSS_COMPILE_PATH_32"/arm-none-linux-gnueabihf/libc
-  SYSROOT_PATH_MUSL="$CROSS_COMPILE_PATH_MUSL"/arm-none-linux-musleabihf/sysroot
+  SYSROOT_PATH_GLIBC_ARM64="$CROSS_COMPILE_PATH_GLIBC_ARM64"/aarch64-none-linux-gnu/libc
+  SYSROOT_PATH_GLIBC_ARM="$CROSS_COMPILE_PATH_GLIBC_ARM"/arm-none-linux-gnueabihf/libc
+  SYSROOT_PATH_MUSL_ARM="$CROSS_COMPILE_PATH_MUSL_ARM"/arm-none-linux-musleabihf/sysroot
   SYSROOT_PATH_GLIBC_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-glibc-riscv64
   SYSROOT_PATH_MUSL_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-musl-riscv64
-  SYSROOT_PATH="$SYSROOT_PATH_64"
+  SYSROOT_PATH="$SYSROOT_PATH_GLIBC_ARM64"
 
   # envs setup for specific ${SDK_VER}
   envs_sdk_ver
-
-  if [ "${STORAGE_TYPE}" == "spinand" ]; then
-    PAGE_SUFFIX=2k
-    if [ ${NANDFLASH_PAGESIZE} == 4096 ]; then
-      PAGE_SUFFIX=4k
-    fi
-
-    if [[ "$ENABLE_ALIOS" != "y" ]]; then
-      rm -rf "$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
-      ln -fs "$BUILD_PATH"/boards/default/partition/partition_spinand_page_"$PAGE_SUFFIX".xml \
-        "$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
-    fi
-  fi
 
   # configure flash partition table
   if [ -z "${STORAGE_TYPE}" ]; then

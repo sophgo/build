@@ -615,6 +615,36 @@ CVI_S32 CVI_VI_SetChnFlipMirror(VI_PIPE ViPipe, VI_CHN ViChn, CVI_BOOL bFlip, CV
 CVI_S32 CVI_VI_GetChnFlipMirror(VI_PIPE ViPipe, VI_CHN ViChn, CVI_BOOL *pbFlip, CVI_BOOL *pbMirror);
 
 /**
+ * @brief Enable single frame reception control for sleep/wake scenarios.
+ *        Only supports single sensor. Suggest using @CVI_VI_SetDevRxFrameCount instead.
+ *
+ * @param flag(In), Enable single frame control (true/false).
+ *
+ * @return CVI_S32 Return CVI_SUCCESS if succeed.
+ */
+CVI_S32 CVI_VI_SINGEL_FRAME_ENABLE(bool flag);
+
+/**
+ * @brief Set vi device receive frame count. only use for linux platform
+ *
+ * @param ViDev(In), Device ID.
+ * @param u32FrameCount(In), Frame count to receive.
+ *
+ * @return CVI_S32 Return CVI_SUCCESS if succeed.
+ */
+CVI_S32 CVI_VI_SetDevRxFrameCount(VI_DEV ViDev, CVI_U32 u32FrameCount);
+
+/**
+ * @brief Get vi device receive frame count. only use for linux platform
+ *
+ * @param ViDev(In), Device ID.
+ * @param pu32FrameCount(Out), Frame count to receive.
+ *
+ * @return CVI_S32 Return CVI_SUCCESS if succeed.
+ */
+CVI_S32 CVI_VI_GetDevRxFrameCount(VI_DEV ViDev, CVI_U32 *pu32FrameCount);
+
+/**
  * @deprecated
  *
  * @brief Register Power Management Callback

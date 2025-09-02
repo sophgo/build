@@ -21,6 +21,7 @@ extern "C" {
 #define BT_DEMUX_NUM	4
 #define MIPI_DEMUX_NUM	4
 #define SWITCH_GPIO_NUM	2
+#define MAX_SNS_IIC_NUM	5
 
 struct img_size_s {
 	unsigned int	width;
@@ -268,6 +269,26 @@ enum bt_demux_mode_e {
 	BT_DEMUX_4,
 };
 
+struct sns_i2c_attr {
+	unsigned char	i2c_dev;
+	unsigned char	dev_addr;
+	unsigned short	addr_bytes;
+	unsigned short	data_bytes;
+	int suspend_seq_length;
+	int resume_seq_length;
+};
+
+struct addr_data_seq {
+	int addr;
+	int data;
+};
+
+struct sns_ctrl_info {
+	struct sns_i2c_attr i2c_base_info;
+	struct addr_data_seq sns_suspend_info[MAX_SNS_IIC_NUM];
+	struct addr_data_seq sns_resume_info[MAX_SNS_IIC_NUM];
+};
+
 struct bt_demux_sync_s {
 	unsigned char		sav_vld;
 	unsigned char		sav_blk;
@@ -312,6 +333,7 @@ struct combo_dev_attr_s {
 	unsigned int						cif_mode;
 	struct img_size_s		img_size;
 	struct manual_wdr_attr_s	wdr_manu;
+	struct sns_ctrl_info		sns_resume_i2c_info;
 };
 
 enum clk_edge_e {

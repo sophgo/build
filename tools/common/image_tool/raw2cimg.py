@@ -95,11 +95,16 @@ class ImagerBuilder(object):
             total_size = part["file_size"]
             offset = part["offset"]
             part_sz = part["part_size"]
+            op_len = 0
             while total_size:
                 chunk_sz = min(MAX_LOAD_SIZE, total_size)
                 chunk = fd.read(chunk_sz)
                 crc = binascii.crc32(chunk) & 0xFFFFFFFF
-                chunk_header = self._getChunkHeader(chunk_sz, offset, part_sz, crc)
+                if chunk_sz == MAX_LOAD_SIZE:
+                    op_len = chunk_sz
+                else:
+                    op_len = part_sz % MAX_LOAD_SIZE
+                chunk_header = self._getChunkHeader(chunk_sz, offset, op_len, crc)
                 img.write(chunk_header)
                 img.write(chunk)
                 logging.debug("total_size:%d,chunk_sz:%d,offset:%d" % (total_size, chunk_sz, offset))

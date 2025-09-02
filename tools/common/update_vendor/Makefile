@@ -1,10 +1,10 @@
 SHELL = /bin/bash
 
-ifeq ($(SDK_VER), 32bit)
-  export CROSS_COMPILE = $(CROSS_COMPILE_32)
+ifeq ($(SDK_VER), glibc_arm)
+  export CROSS_COMPILE = $(CROSS_COMPILE_GLIBC_ARM)
   OPT_LEVEL := -O3
-else ifeq ($(SDK_VER), 64bit)
-  export CROSS_COMPILE = $(CROSS_COMPILE_64)
+else ifeq ($(SDK_VER), glibc_arm64)
+  export CROSS_COMPILE = $(CROSS_COMPILE_GLIBC_ARM64)
   OPT_LEVEL := -O3
 else ifeq ($(SDK_VER), uclibc)
   export CROSS_COMPILE = $(CROSS_COMPILE_UCLIBC)

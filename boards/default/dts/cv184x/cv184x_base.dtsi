@@ -110,7 +110,7 @@
 		clock-names = "clk_saradc";
 		resets = <&rst RST_SARADC>;
 		reset-names = "res_saradc";
-		#io-channel-cells = <0>;
+		#io-channel-cells = <1>;
 	};
 
 	rtc {
@@ -221,6 +221,7 @@
 		/* current work frequency in u-boot: */
 		spi-max-frequency = <75000000>;
 		rx-sample-delay-ns = <1>;
+		txd-drive-edge = <0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg-io-width = <4>;
@@ -540,6 +541,8 @@
 		reset_tx_rx_phy;
 		pll_reg = <0x30020a0>;
 		pll_index = <0x180>;
+		clocks = <&clk CV184X_CLK_EMMC_CARD>;
+		clock-names = "clk_emmc";
 	};
 
 	sd:cv-sd@4310000 {
@@ -559,6 +562,8 @@
 		reset-names = "sdhci";
 		pll_reg = <0x3002098>;
 		pll_index = <0x18>;
+		clocks = <&clk CV184X_CLK_SD0>;
+		clock-names = "clk_sd";
 	};
 
 	wifisd:wifi-sd@4320000 {
@@ -574,6 +579,8 @@
 		non-removable;
 		pll_index = <0x60>;
 		pll_reg = <0x300209C>;
+		clocks = <&clk CV184X_CLK_SD1>;
+		clock-names = "clk_wifisd";
 		no-mmc;
 		no-sd;
 		status = "disabled";
@@ -787,30 +794,8 @@
 		poweron-gpio = <&porte 9 GPIO_ACTIVE_HIGH>;
 	};
 
-	mipi_rx: cif {
-		compatible = "cvitek,cif";
-		reg = <0x0 0x0a0a0000 0x0 0x2000>, <0x0 0x0a0a6000 0x0 0x1000>,
-		      <0x0 0x0a0a2000 0x0 0x2000>, <0x0 0x0a0a4000 0x0 0x2000>;
-		reg-names = "csi_mac0", "csi_wrap0", "csi_mac1", "csi_mac2";
-	};
-
-	mipi_tx: mipi_tx {
-		compatible = "cvitek,mipi_tx";
-	};
-
-	fb {
-		compatible = "cvitek,fb";
-		reg =   <0x0 0x0a094000 0x0 0x2000>, <0x0 0x0a0aa000 0x0 0x100>;
-		reg-names = "disp", "oenc";
-	};
-
-	codec_vepu {
-		compatible = "cvitek,encoder-bke";
-		reg = <0x0 0x0B020000 0x0 0x10000>,<0x0 0x0B030000 0x0 0x100>,
-				<0x0 0x0B058000 0x0 0x100>,<0x0 0x0B050000 0x0 0x400>;
-		reg-names = "vepu","vc_ctrl","vc_sbm","vc_addr_remap";
-		clocks = <&clk CV184X_CLK_VC_SRC0>;
-		clock-names = "reg_vc_clk_vc_src0_en";
+	base {
+		compatible = "cvitek,base";
 	};
 
 	sys {
@@ -821,17 +806,23 @@
 		reg-names = "vi_sys", "top_base", "rtc_base";
 	};
 
-	base {
-		compatible = "cvitek,base";
+	mipi_rx: cif {
+		compatible = "cvitek,cif";
+		reg = <0x0 0x0a0a0000 0x0 0x2000>, <0x0 0x0a0a6000 0x0 0x1000>,
+		      <0x0 0x0a0a2000 0x0 0x2000>, <0x0 0x0a0a4000 0x0 0x2000>;
+		reg-names = "csi_mac0", "csi_wrap0", "csi_mac1", "csi_mac2";
 	};
 
-	vi {
-		compatible = "cvitek,vi";
-		reg = <0x0 0x0a000000 0x0 0x80000>;
-		clocks = <&clk CV184X_CLK_CSI_MAC0_VIP>, <&clk CV184X_CLK_CSI_MAC1_VIP>, <&clk CV184X_CLK_CSI_MAC2_VIP>,
-				<&clk CV184X_CLK_CSI_BE_VIP>, <&clk CV184X_CLK_ISP_TOP_VIP>;
-		clock-names = "reg_clk_csi_mac0_vip_en", "reg_clk_csi_mac1_vip_en", "reg_clk_csi_mac2_vip_en",
-				"reg_clk_csi_be_vip_en", "reg_clk_isp_top_vip_en";
+	mipi_tx: mipi_tx {
+		compatible = "cvitek,mipi_tx";
+		clocks = <&clk CV184X_CLK_DISP_VIP>, <&clk CV184X_CLK_DSI_MAC_VIP>;
+		clock-names = "reg_clk_disp_vip_en", "reg_clk_dsi_mac_vip_en";
+	};
+
+	fb {
+		compatible = "cvitek,fb";
+		reg =   <0x0 0x0a094000 0x0 0x2000>, <0x0 0x0a0aa000 0x0 0x100>;
+		reg-names = "disp", "oenc";
 	};
 
 	vpss {
@@ -844,37 +835,22 @@
 				"reg_clk_vpss2_vip_en", "reg_clk_vpss3_vip_en";
 	};
 
-	vo {
-		compatible = "cvitek,vo";
-		reg =   <0x0 0x0a094000 0x0 0x2000>,
-			<0x0 0x0a099000 0x0 0x1000>,
-			<0x0 0x0a098000 0x0 0x1000>,
-			<0x0 0x0a0a8000 0x0 0x1000>,
-			<0x0 0x0a090000 0x0 0x4000>;
-		reg-names = "disp", "dsi_mac", "dsi_phy", "vo_mac", "vi_sys";
-		reset-gpio = <&porte 2 GPIO_ACTIVE_LOW>;
-		pwm-gpio = <&porte 0 GPIO_ACTIVE_HIGH>;
-		power-ct-gpio = <&porte 1 GPIO_ACTIVE_HIGH>;
-
+	vi {
+		compatible = "cvitek,vi";
+		reg = <0x0 0x0a000000 0x0 0x80000>;
+		clocks = <&clk CV184X_CLK_CSI_MAC0_VIP>, <&clk CV184X_CLK_CSI_MAC1_VIP>, <&clk CV184X_CLK_CSI_MAC2_VIP>,
+				<&clk CV184X_CLK_CSI_BE_VIP>, <&clk CV184X_CLK_ISP_TOP_VIP>;
+		clock-names = "reg_clk_csi_mac0_vip_en", "reg_clk_csi_mac1_vip_en", "reg_clk_csi_mac2_vip_en",
+				"reg_clk_csi_be_vip_en", "reg_clk_isp_top_vip_en";
 	};
 
-	gdc {
-		compatible = "cvitek,gdc";
-		reg = <0x0 0x0a096000 0x0 0x2000>;
-		reg-names = "ldc0";
-		clocks = <&clk CV184X_CLK_LDC_VIP>;
-		clock-names = "reg_clk_ldc_vip_en";
-	};
-
-	tde {
-		compatible = "cvitek,tde";
-		reg = <0x0 0x0a0a9000 0x0 0x2000>;
-		clocks = <&clk CV184X_CLK_2DE_VIP>;
-		clock-names = "reg_clk_2de_vip_en";
-	};
-
-	rgn {
-		compatible = "cvitek,rgn";
+	codec_vepu {
+		compatible = "cvitek,encoder-bke";
+		reg = <0x0 0x0B020000 0x0 0x10000>,<0x0 0x0B030000 0x0 0x100>,
+				<0x0 0x0B058000 0x0 0x100>,<0x0 0x0B050000 0x0 0x400>;
+		reg-names = "vepu","vc_ctrl","vc_sbm","vc_addr_remap";
+		clocks = <&clk CV184X_CLK_VC_SRC0>;
+		clock-names = "reg_vc_clk_vc_src0_en";
 	};
 
 	codec_jpu {
@@ -888,6 +864,42 @@
 	vc_drv {
 		compatible = "cvitek,vc_drv";
 	};
+
+	vo {
+		compatible = "cvitek,vo";
+		reg =   <0x0 0x0a094000 0x0 0x2000>,
+			<0x0 0x0a099000 0x0 0x1000>,
+			<0x0 0x0a098000 0x0 0x1000>,
+			<0x0 0x0a0a8000 0x0 0x1000>,
+			<0x0 0x0a090000 0x0 0x4000>;
+		reg-names = "disp", "dsi_mac", "dsi_phy", "vo_mac", "vi_sys";
+		reset-gpio = <&porte 2 GPIO_ACTIVE_LOW>;
+		pwm-gpio = <&porte 0 GPIO_ACTIVE_HIGH>;
+		power-ct-gpio = <&porte 1 GPIO_ACTIVE_HIGH>;
+		clocks = <&clk CV184X_CLK_DISP_VIP>, <&clk CV184X_CLK_DSI_MAC_VIP>, <&clk CV184X_CLK_VO_MAC_VIP>;
+		clock-names = "reg_clk_disp_vip_en", "reg_clk_dsi_mac_vip_en", "reg_clk_vo_mac_vip_en";
+	};
+
+	rgn {
+		compatible = "cvitek,rgn";
+	};
+
+	gdc {
+		compatible = "cvitek,gdc";
+		reg = <0x0 0x0a096000 0x0 0x2000>;
+		reg-names = "ldc0";
+		clocks = <&clk CV184X_CLK_LDC_VIP>;
+		clock-names = "reg_clk_ldc_vip_en";
+	};
+
+	tde {
+		compatible = "cvitek,tde";
+		reg = <0x0 0x0a0a9000 0x0 0x2000>;
+		clocks = <&clk CV184X_CLK_2DE_VIP>, <&clk CV184X_CLK_ISP_TOP_VIP>;
+		clock-names = "reg_clk_2de_vip_en", "reg_clk_isp_top_vip_en";
+	};
+
+
 #if CVIMMAP_RTOS_SYS_TOTAL_SIZE > 0
 	rtos_cmdqu {
 		compatible = "cvitek,rtos_cmdqu";
@@ -968,12 +980,10 @@
 		};
 	};
 
-#if 0
 	cvipctrl: pinctrl@3001000 {
-		compatible = "cvitek,pinctrl-cv182x";
+		compatible = "cvitek,pinctrl-cv184x";
 		reg = <0 0x03001000 0 0x1000>;
 	};
-#endif
 
 	cviaudio_core {
 		compatible = "cvitek,audio";

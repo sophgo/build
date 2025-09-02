@@ -409,6 +409,7 @@ typedef struct _venc_attr_jpeg_s {
 typedef struct _venc_attr_h264_s {
 	unsigned char b_rcn_ref_share_buf; /* RW; Range:[0, 1]; Whether to enable the Share Buf of Rcn and Ref .*/
 	unsigned char b_single_luma_buf; /* Use single luma buffer*/
+	unsigned int u32_save_bw_level;  /*RW; Range:[0,10]; Save bandwidth level*/
 	// reserved
 } venc_attr_h264_s;
 
@@ -1055,7 +1056,6 @@ typedef struct _venc_svc_param_s {
 	int dqp_table[128];
 	unsigned char obj_tab[64];
 } venc_svc_param_s;
-
 #ifdef __cplusplus
 #if __cplusplus
 }

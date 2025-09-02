@@ -406,6 +406,7 @@ typedef struct _VENC_ATTR_JPEG_S {
 typedef struct _VENC_ATTR_H264_S {
 	CVI_BOOL bRcnRefShareBuf; /* RW; Range:[0, 1]; Whether to enable the Share Buf of Rcn and Ref .*/
 	CVI_BOOL bSingleLumaBuf; /* Use single luma buffer*/
+	CVI_U32 u32SaveBwLevel; /*RW; Range:[0,10]; Save bandwidth level*/
 	// reserved
 } VENC_ATTR_H264_S;
 
@@ -1039,8 +1040,6 @@ typedef struct _VENC_SVC_PARAM_S {
 	int dqp_table[128];
 	char obj_tab[64];
 } VENC_SVC_PARAM_S;
-
-
 #ifdef __cplusplus
 #if __cplusplus
 }

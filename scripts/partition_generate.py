@@ -144,6 +144,7 @@ def parse_kconfig(kconfig_file, config_file):
                         if storage_type == "spinor" and size_in_kb % 64 != 0:
                             raise ValueError(f"Error: {storage_type} Partition {i} size ({size_in_kb} KB) is not aligned to 64KB.")
                         if storage_type == "spinand" and size_in_kb % 128 != 0:
+                            # 128KB alignment contains 2KB/4KB alignment
                             raise ValueError(f"Error: {storage_type} Partition {i} size ({size_in_kb} KB) is not aligned to 128KB.")
                     except ValueError:
                         raise ValueError(f"Error: {partition_key}_SIZE must be an integer or empty, but got '{size_str}'")
@@ -156,6 +157,7 @@ def parse_kconfig(kconfig_file, config_file):
                     if storage_type == "spinor" and size_in_kb % 64 != 0:
                         raise ValueError(f"Error: {storage_type} Partition {i} size ({size_in_kb} KB) is not aligned to 64KB.")
                     if storage_type == "spinand" and size_in_kb % 128 != 0:
+                        # 128KB alignment contains 2KB/4KB alignment
                         raise ValueError(f"Error: {storage_type} Partition {i} size ({size_in_kb} KB) is not aligned to 128KB.")
                 except ValueError:
                     raise ValueError(f"Error: {partition_key}_SIZE must be an integer, but got '{size_str}'")

@@ -1,3 +1,4 @@
+.PHONY: rtt-clean rtt-build rtt-menuconfig
 rtos: memory-map
 	$(call print_target)
 ifeq ($(CHIP_ARCH_L),$(filter $(CHIP_ARCH_L), cv184x))
@@ -10,4 +11,29 @@ endif
 rtos-clean:
 ifeq (${CONFIG_ENABLE_FREERTOS},y)
 	$(call print_target)
+	cd ${FREERTOS_PATH}/cvitek && rm -rf build install
 endif
+
+RTT_C906L_PATH := ${RTT_PATH}/bsp/cvitek/c906_little
+rtt-build: memory-map
+	$(call print_target)
+	${Q}cp -f ${CVI_BOARD_MEMMAP_H_PATH} ${RTT_C906L_PATH}/board/script/memmap/cvi_board_memmap.h
+	${Q}cp -f ${CVI_BOARD_MEMMAP_LD_PATH} ${RTT_C906L_PATH}/board/script/memmap/cvi_board_memmap.ld
+	cd ${RTT_C906L_PATH} && scons -c && scons
+	${Q}cp ${RTT_C906L_PATH}/rtthread.bin ${RTT_C906L_PATH}/yoc.bin
+ifneq (${CONFIG_RTOS_BUILD_IN_FIP},y)
+	${Q}cp ${RTT_C906L_PATH}/yoc.bin ${OUTPUT_DIR}/rawimages/
+	$(call raw2cimg,yoc.bin)
+endif
+
+rtt-clean:
+ifeq (${CONFIG_ENABLE_RTT},y)
+	$(call print_target)
+	cd ${RTT_C906L_PATH} && scons -c && rm -rf ${RTT_C906L_PATH}/yoc.bin
+endif
+
+rtt-menuconfig:
+	$(call print_target)
+	cd ${RTT_C906L_PATH} && scons --menuconfig
+
+rtt: rtt-build

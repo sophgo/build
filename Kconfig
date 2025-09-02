@@ -33,7 +33,7 @@ config CROSS_COMPILE_KERNEL
 	string "Cross-compiler tool prefix for kernel"
 	default "aarch64-none-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
 	default "arm-none-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
-        default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
+	default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
 	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -185,9 +185,9 @@ config CROSS_COMPILE_SDK
 
 config SDK_VER
 	string
-	default "64bit" if TOOLCHAIN_GLIBC_ARM64
-	default "32bit" if TOOLCHAIN_GLIBC_ARM
-	default "musl" if TOOLCHAIN_MUSL_ARM
+	default "glibc_arm64" if TOOLCHAIN_GLIBC_ARM64
+	default "glibc_arm" if TOOLCHAIN_GLIBC_ARM
+	default "musl_arm" if TOOLCHAIN_MUSL_ARM
 	default "glibc_riscv64" if TOOLCHAIN_GLIBC_RISCV64
 	default "musl_riscv64" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -217,7 +217,7 @@ config BUILD_FOR_DEBUG
 config FASTBOOT_GENERAL
 	bool "Build SDK with general fastboot options"
 	default n
-	depends on !BUILD_FOR_DEBUG
+	depends on !BUILD_FOR_DEBUG && DUAL_OS
 	select FASTBOOT if FASTBOOT_GENERAL
 	select UBOOT_SPL_CUSTOM if FASTBOOT_GENERAL
 	select BOOT_TIME_OPTIMIZATION if FASTBOOT_GENERAL
@@ -230,7 +230,7 @@ config FASTBOOT_GENERAL
 config FASTBOOT
 	bool "Fast boot"
 	default n
-	depends on !BUILD_FOR_DEBUG
+	depends on !BUILD_FOR_DEBUG && DUAL_OS
 	help
 		This enables fast boot features.
 		1. activate linux funtion controlled by __FASTBOOT__
@@ -439,6 +439,30 @@ config IMPROVE_AXI_CLK
 	help
 		Improve aix clock while load image, imporve boottime
 
+menu "Burn Button Options"
+
+config ENABLE_BURN_BUTTON
+	bool "Enable burn button for update or not"
+	default n
+	help
+	  Enable burn button for update.
+
+config GPIO_GRP
+	int "from gpio0 to gpio4"
+	depends on ENABLE_BURN_BUTTON
+	default 1
+	help
+	  GPIO group number for button.
+
+config GPIO_PIN
+	int "GPIO pin number"
+	depends on ENABLE_BURN_BUTTON
+	default 3
+	help
+	  GPIO pin number for button.
+
+endmenu
+
 endmenu
 
 menu "Storage settings"
@@ -475,6 +499,22 @@ config IMPROVE_BL_NOR_SPEED
 		imporve bootloader spi nor speed by fip param
 		Enhance the speed of the bootloader SPI NOR by adjusting FIP parameters,
 		optimizing the boot process for faster system startup and responsiveness.
+		It depends STORAGE_TYPE_spinor=y
+
+config ENABLE_SPINOR_TUNING
+	bool "ENABLE SPINOR TUNING in Uboot"
+	depends on STORAGE_TYPE_spinor
+	default n
+	help
+		spinor Tuning
+		It depends STORAGE_TYPE_spinor=y
+
+config ENABLE_SPINOR_DTR
+	bool "ENABLE SPINOR using DTR"
+	depends on STORAGE_TYPE_spinor
+	default n
+	help
+		spinor using dtr
 		It depends STORAGE_TYPE_spinor=y
 
 config MMC_SKIP_TUNING
@@ -695,30 +735,49 @@ config DUAL_OS
 	help
 	  build double os, default "linux + alios"
 
+choice
+prompt "RTOS TYPE"
+default ENABLE_RTT if !DUAL_OS
+default ENABLE_ALIOS if DUAL_OS
+help
+	when DUAL_OS=n, can select freertos or rt-thread for RTOS
+	when DUAL_OS=y, only select alios or rt-thread for RTOS
+
 config ENABLE_FREERTOS
-	bool "Enable FREERTOS"
+	bool "FREERTOS"
 	depends on !DUAL_OS
-	default y if !DUAL_OS
 	help
 	  Enable freertos.
 
+config ENABLE_ALIOS
+	bool "ALIOS"
+	depends on DUAL_OS
+	help
+	  Enable alios.
+
+config ENABLE_RTT
+	bool "RT-Thread"
+	help
+	  Enable RT-Thread.
+endchoice
+
 config ENABLE_RTOS_DUMP_PRINT
 	bool "Enable FREE RTOS DUMP PRINT MSG"
-	depends on ENABLE_FREERTOS
-	default y if ENABLE_FREERTOS
+	depends on ENABLE_FREERTOS || ENABLE_RTT
+	default y if ENABLE_FREERTOS || ENABLE_RTT
 	help
 	  Enable freertos dump print msg.
 
 config DUMP_PRINT_SZ_IDX
 	int "Select dump print size idx"
-	depends on ENABLE_FREERTOS
-	default 17 if ENABLE_FREERTOS
+	depends on ENABLE_FREERTOS || ENABLE_RTT
+	default 17 if ENABLE_FREERTOS || ENABLE_RTT
 	help
 		dump print size will be 1 << IDX.
 
 config FAST_IMAGE_TYPE
 	int "Select fast image type"
-	depends on ENABLE_FREERTOS
+	depends on ENABLE_FREERTOS || ENABLE_RTT
 	default 0
 	help
 		default fast image type is 0.
@@ -726,13 +785,6 @@ config FAST_IMAGE_TYPE
 		E_FAST_JEPG : 1
 		E_FAST_H264 : 2
 		E_FAST_H265 : 3
-
-config ENABLE_ALIOS
-	bool "Enable ALIOS"
-	default n
-	depends on DUAL_OS
-	help
-	  Enable alios.
 
 config CHIP_BIG_ARM
 	bool
@@ -834,13 +886,19 @@ config RTOS_BUILD_IN_FIP
 
 choice
 	prompt "Rtos Image Compression Type"
-	default RTOS_COMPRESS_LZMA
+	default RTOS_COMPRESS_LZMA if ENABLE_ALIOS
+	default RTOS_COMPRESS_ORIG if ENABLE_FREERTOS
+	default RTOS_COMPRESS_ORIG if ENABLE_RTT
+	help
+		when ENABLE_FREERTOS=y, compression type is forced to "orig"
 
 	config RTOS_COMPRESS_ORIG
 	bool "orig"
 	config RTOS_COMPRESS_LZMA
+        depends on !ENABLE_FREERTOS
 	bool "lzma"
 	config RTOS_COMPRESS_LZ4
+        depends on !ENABLE_FREERTOS
 	bool "lz4"
 endchoice
 

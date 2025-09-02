@@ -222,6 +222,6 @@ struct rgn_mosaic_cfg {
 #define BASE_ION_FREE		_IOW(IOCTL_BASE_MAGIC, 0x05, struct sys_ion_data)
 #define BASE_CACHE_INVLD	_IOW(IOCTL_BASE_MAGIC, 0x06, struct sys_cache_op)
 #define BASE_CACHE_FLUSH	_IOW(IOCTL_BASE_MAGIC, 0x07, struct sys_cache_op)
-
+#define BASE_GET_TIMESTAMP	_IOR(IOCTL_BASE_MAGIC, 0x08, uint64_t)
 
 #endif

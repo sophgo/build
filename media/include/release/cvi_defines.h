@@ -290,7 +290,7 @@ enum ENUM_CHIP_ID {
 #define VI_DEV_MIN_WIDTH        128
 #define VI_DEV_MIN_HEIGHT       64
 #define VI_DEV_MAX_WIDTH        3840
-#define VI_DEV_MAX_HEIGHT       2160
+#define VI_DEV_MAX_HEIGHT       3333
 #define VI_FPN_MAX_WIDTH        VI_DEV_MAX_WIDTH
 #define VI_FPN_MAX_HEIGHT       VI_DEV_MAX_HEIGHT
 

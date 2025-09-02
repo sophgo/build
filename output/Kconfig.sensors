@@ -24,6 +24,12 @@ config SENSOR_GCORE_GC02M1
     help
       "y" Add sensor gcore_gc02m1 to libsns_full.so.
 
+config SENSOR_GCORE_GC0308
+    bool "Choose sensor gcore_gc0308"
+    default n
+    help
+      "y" Add sensor gcore_gc0308 to libsns_full.so.
+
 config SENSOR_GCORE_GC1054
     bool "Choose sensor gcore_gc1054"
     default n
@@ -252,6 +258,12 @@ config SENSOR_SMS_SC233HGS
     help
       "y" Add sensor sms_sc233hgs to libsns_full.so.
 
+config SENSOR_SMS_SC235HAI
+    bool "Choose sensor sms_sc235hai"
+    default n
+    help
+      "y" Add sensor sms_sc235hai to libsns_full.so.
+
 config SENSOR_SMS_SC1346_1L
     bool "Choose sensor sms_sc1346_1l"
     default n
@@ -431,6 +443,12 @@ config SENSOR_SOI_Q03
     default n
     help
       "y" Add sensor soi_q03 to libsns_full.so.
+
+config SENSOR_SONY_IMX135
+    bool "Choose sensor sony_imx135"
+    default n
+    help
+      "y" Add sensor sony_imx135 to libsns_full.so.
 
 config SENSOR_SONY_IMX290_2L
     bool "Choose sensor sony_imx290_2l"

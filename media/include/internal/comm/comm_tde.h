@@ -5,6 +5,7 @@
 #include "comm_video.h"
 
 #define TDE_INVALID_HANDLE (-1)
+#define TDE_ALIGN (16)
 
 typedef int tde_handle;
 
