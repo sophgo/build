@@ -224,7 +224,7 @@
 		reg = <0x0 0x29210000 0x0 0x10000>;
 		clocks = <&clk CV186X_CLK_SPI>;
 		#address-cells = <1>;
-		cs-gpios = <&porta 0 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&portd 15 GPIO_ACTIVE_HIGH>;
 		#size-cells = <0>;
 #if 1
 		dmas = <&dmac1 6 1 1
@@ -1563,7 +1563,8 @@
 		clock-names = "clk_cpu", "clk_tpu_axi";
 		dev-freqs = <1650000000 900000000>,
 			<1000000000 450000000>,
-			<1000000000 100000000>;
+			<1000000000 100000000>,
+			<0 0>; /* reboot when thermal_crtical */
 		compatible = "cvitek,cv186x-cooling";
 		#cooling-cells = <2>;
 	};
@@ -1571,8 +1572,12 @@
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
-		pwms = <&pwm3 3 1000000 0>; // default pwm0, 1ms period, normal polarity
+		pwm-names = "fan", "tach";
+		pwms = <&pwm0 0 1000000>, // default pwm0, 1ms period, normal polarity
+			<&pwm0 1 1000000>;
 		cooling-levels = <1 100 170 255>; // max 255
+
+		pulses-per-revolution = <2>;	//fan-tach PPR, default 2
 	};
 
 
@@ -1644,6 +1649,11 @@
 				map4 {
 					trip = <&soc_thermal_active_2>;
 					cooling-device = <&fan0 3 3>;
+				};
+
+				map5 {
+					trip = <&soc_thermal_crtical_0>;
+					cooling-device = <&sophgo_cooling 3 3>;
 				};
 			};
 		};
@@ -2084,10 +2094,11 @@
 		status = "okay";
 		compatible = "sophgon, veth";
 		reg = <0x00000000 0x05026F00 0x00000000 0x00000100>,
-			<0x00000000 0x28100000 0x00000000 0x00000100>,
+			<0x00000000 0x28100078 0x00000000 0x00000008>,
+			<0x00000000 0x281000f8 0x00000000 0x00000008>,
 			<0x00000000 0x27110000 0x00000000 0x00004000>,
 			<0x00000000 0x20be9000 0x00000000 0x00001000>;
-		reg-names = "shm_reg", "top_misc", "intc_cfg", "cdma_cfg";
+		reg-names = "shm_reg", "gp_clr", "gp_set","intc_cfg", "cdma_cfg";
 		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;  //gp31[2]
 		interrupt-names = "rx";
         };

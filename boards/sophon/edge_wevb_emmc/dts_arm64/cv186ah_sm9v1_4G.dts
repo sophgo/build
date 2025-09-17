@@ -43,9 +43,14 @@
 		reset-gpio = <&porte 2 GPIO_ACTIVE_HIGH>; //gpio 130
 	};
 
-	/delete-node/ cv-sd1;
+	/delete-node/ cv-sd1@29320000;
 	sd:cv-sd@29310000 {
 		pwr-gpios = <&portg 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	fan0: pwm-fan {
+		pwm-names = "fan";
+		pwms = <&pwm2 3 1000000>;
 	};
 
 	thermal-zones {
