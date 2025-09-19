@@ -350,31 +350,11 @@ function clean_v4l2_isp()
 	export V4L2_ISP_ENABLE=0
 }
 
-# 设置sophon-sdk信息
-function get_bm_sdk_info {
-    bm_root_dir=ftp://172.28.141.89/athena2
-    bm_user_name=AI
-    bm_user_psword=SophgoRelease2022
-    bm_date_ID=latest_release
-    bm_sdk_name=tpu_kernel
-    bm_chip_name=$1
-    bm_build_type=$2
-}
 
 # 拉取解压sophon-sdk
 function build_bm1686_sdk {
     # bm1686 tpu_kernel
-    get_bm_sdk_info 1686 daily_build
-    tpu_kernel_file_name=tpu-kernel-tpulv6_v*.tar.gz
-    tpu_kernel_full_path=$bm_root_dir/tpu-kernel/$bm_build_type/$bm_date_ID/$tpu_kernel_file_name
-
-    echo "Try to download ${tpu_kernel_file_name} ..."
-    wget -P ${TPU_SDK_PATH} ${tpu_kernel_full_path} --ftp-user $bm_user_name --ftp-password $bm_user_psword -q
-    mkdir -p ${TPU_SDK_PATH}/
-    tar -xzf ${TPU_SDK_PATH}/$tpu_kernel_file_name -C ${TPU_SDK_PATH}/ --strip-components 1
-    echo "Extract"
-
-    rm -rf ${TPU_SDK_PATH}/${tpu_kernel_file_name}
+    echo "build_bm1686_sdk"
 }
 function clean_bm1686_sdk {
 	rm -rf ${TPU_SDK_PATH}
@@ -729,16 +709,11 @@ function build_edge_rootfs()
         build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
     fi
   fi
+
 }
 
 function build_sophon_media(){
   if [ ! -d "${TOP_DIR}/sophon_media" ]; then
-    #only for gerrit compile,not for github
-    mkdir -p ${SDK_DEBS}
-    for _pattern in "ffmpeg" "opencv" "gstreamer" "sample"; do
-        rm -f "${SDK_DEBS}"/sophon-media-soc-sophon-${_pattern}_*_arm64.deb*
-        wget -q -P "${SDK_DEBS}" "${SOPHON_MEDIA_URL}/sophon-media-soc-sophon-${_pattern}_*_arm64.deb"
-    done
     return 0
   fi
 
@@ -854,30 +829,22 @@ function clean_nvr_edge(){
 
 function build_edge_env() {
   #export DISTRO=${DISTRO:-focal}
-  export DISTRO=jammy
+  #export DISTRO=jammy
   export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
   export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
   export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
   export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
-  if grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config; then
-    export DISTRO_URL="${DISTRO_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/distro/bookworm.tgz}"
+  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
+    export DISTRO=jammy
+    export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
   else
-    if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
-      export DISTRO=focal
-      export DISTRO_URL="${DISTRO_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/distro/distro_focal_f93ebbaa47adb3231aef80661e9d01bf.tgz}"
-      export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
-    elif grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
-      export DISTRO_URL="${DISTRO_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/distro/distro_jammy_c6d415287309d0f61f05186621e5bb58.tgz}"
-      export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
-    fi
+    export DISTRO=focal
+    export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
   fi
 
   export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
   export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
   export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
-
-  export SOPHLITEOS_URL="${SOPHLITEOS_URL:-ftp://AI:SophgoRelease2022@172.28.141.75/sophliteos/release_build/latest_release}"
-  export SOPHON_MEDIA_URL="${SOPHON_MEDIA_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/athena2/sophon_media/release_build/latest_release}"
 }
 
 function build_edge_overlay() {
@@ -896,14 +863,17 @@ function build_edge_overlay() {
     mkdir -p "${TOP_DIR}"/ubuntu/distro
     if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" ]; then
       echo "load distro_${DISTRO}.tgz ..."
-      wget -q --show-progress "${DISTRO_URL}" \
-        -O "${TOP_DIR}"/ubuntu/distro/distro_${DISTRO}.tgz
+      cd ${TOP_DIR}/ubuntu/distro
+      python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
+      mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
     else
         FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
         if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
             echo "update distro_${DISTRO}.tgz ..."
             rm -f "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz"
-            wget -q --show-progress "${DISTRO_URL}" -O "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz"
+	    cd ${TOP_DIR}/ubuntu/distro
+            python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
+	    mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
         fi
     fi
     FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
@@ -1035,6 +1005,8 @@ function build_cvi_rtsp()
   _build_cvi_rtsp_env
 
   cd "$CVI_RTSP_PATH" || return
+  mkdir -p prebuilt
+  cp ${OSS_TARBALL_PATH}/live555.tar.gz prebuilt/
   BUILD_SERVICE=1 MW_DIR=${MW_PATH} ./build.sh
   test $? -ne 0 && print_notice "build_cvi_rtsp failed !!" && return 1
   BUILD_SERVICE=1 make install DESTDIR="$(pwd)/install"
@@ -1084,6 +1056,16 @@ function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
 
+  if [ -d "${OSS_PATH}/oss_release_tarball" ]; then
+    echo "oss prebuilt tarball found!"
+  else
+    echo "Try to download oss_release_tarball.tar tarball ..."
+    #wget ...
+    #tar -xvf ${OSS_PATH}/oss_release_tarball.tar -C ${OSS_PATH}
+  fi
+  echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
+  cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
+
   local oss_list=(
     "zlib"
     "glog"
@@ -1107,20 +1089,14 @@ function build_3rd_party()
   do
     if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
       echo "$name found"
-    else
-      echo "Try to download $name tarball ..."
-      wget ftp://swftp:cvitek@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/${name}.tar.gz \
-          -T 3 -t 3 -q -P ${OSS_TARBALL_PATH}
-      if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
-        "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+      "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
         echo "$name successfully downloaded and untared."
-      else
-        echo "No prebuilt tarball, build oss $name"
-        "$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
-      fi
+    else
+      echo "$name not found"
     fi
   done
 }
+
 
 function clean_3rd_party()
 {
@@ -1275,7 +1251,7 @@ function build_update()
 	fi
 	echo packing update image...
 
-	./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
+    ./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
 	popd
 
 	pushd $OUTPUT_DIR/package_edge/$1
@@ -1940,7 +1916,6 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
-export FTP_SERVER_IP=${FTP_SERVER_IP:-10.80.0.5}
 
 # import common functions
 # shellcheck source=./common_functions.sh
