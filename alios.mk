@@ -24,6 +24,7 @@ alios-depends:
 	${Q}cp -f $(MEDIA_INCLUDE_DIR)/release/*.h $(ALIOS_MW_PATH)/include
 	${Q}cp -f $(MEDIA_INCLUDE_DIR)/internal/mpi_uapi/*.h $(ALIOS_MW_PATH)/uapi
 	${Q}cp -f $(MEDIA_INCLUDE_DIR)/internal/msg/*.h $(ALIOS_MSG_PATH)/internal_include/msg/
+	${Q}cp -af ${ALIOS_SOLUTIONS_DIR}/customization/${CONFIG_ALIOS_CUSTOMIZATION_PIPELINE}/package.yaml.turnkey ${ALIOS_SOLUTIONS_DIR}/package_yamls/
 
 alios-build: $(OUTPUT_DIR)/rawimages
 alios-build: memory-map alios-depends

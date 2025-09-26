@@ -27,6 +27,7 @@ SENSOR_LIST_PATH = join(BUILD_REPO_DIR, "sensors/sensor_list.json")
 SENSOR_KCONFIG_PATH = join(BUILD_REPO_DIR, "output/Kconfig.sensors")
 PANEL_LIST_PATH = join(BUILD_REPO_DIR, "panels/panel_list.json")
 PANEL_KCONFIG_PATH = join(BUILD_REPO_DIR, "output/Kconfig.panels")
+PIPELINE_KCONFIG_PATH = join(BUILD_REPO_DIR, "output/Kconfig.pipelines")
 
 
 def check_python_min_version():

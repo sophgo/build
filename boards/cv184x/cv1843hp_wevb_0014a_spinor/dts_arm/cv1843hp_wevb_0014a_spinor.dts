@@ -1,0 +1,18 @@
+/dts-v1/;
+#include "cv184x_base_arm.dtsi"
+#include "cv184x_asic_bga.dtsi"
+#include "cv184x_asic_spinor.dtsi"
+#include "cv184x_default_memmap.dtsi"
+
+/ {
+
+	sysdma_remap {
+		ch-remap = <CVI_I2S0_RX CVI_I2S2_TX CVI_I2S1_RX CVI_I2S1_TX
+			CVI_SPI_NOR_RX CVI_SPI_NOR_TX CVI_I2S2_RX CVI_I2S3_TX>;
+	};
+
+
+
+
+};
+

@@ -203,6 +203,8 @@
 
 	spinand:cv-spinf@4060000 {
 		compatible = "cvitek,cv1835-spinf";
+		clocks = <&clk CV184X_CLK_SPI_NAND>, <&clk CV184X_CLK_SPI_NAND_GATE>;
+		clock-names = "clk_nand", "clk_axi";
 		reg = <0x0 0x4060000 0x0 0x1000>;
 		reg-names = "core_mem";
 		bus-width = <4>;
@@ -214,7 +216,8 @@
 	spif:cvi-spif@10000000 {
 		u-boot,dm-spl;
 		compatible = "snps,dw-apb-ssi-4.04a";
-		clocks = <&clk CV184X_CLK_SPI_NOR>;
+		clocks = <&clk CV184X_CLK_SPI_NOR>, <&clk CV184X_CLK_AHB_SF>;
+		clock-names = "", "clk_sf";
 		reg = <0x0 0x10000000 0x0 0x1000>;
 		/* current work frequency in kernel: */
 		spi-work-frequency = <37500000>;
@@ -294,6 +297,8 @@
 	uart0: serial@04140000 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x0 0x04140000 0x0 0x1000>;
+		clocks = <&clk CV184X_CLK_UART0>;
+		clock-names = "baudclk";
 		clock-frequency = <25000000>;
 		current-speed = <115200>;
 		reg-shift = <2>;
@@ -304,6 +309,8 @@
 	uart1: serial@04150000 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x0 0x04150000 0x0 0x1000>;
+		clocks = <&clk CV184X_CLK_UART1>;
+		clock-names = "baudclk";
 		clock-frequency = <200000000>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
@@ -314,6 +321,8 @@
 		compatible = "snps,dw-apb-uart";
 		reg = <0x0 0x04160000 0x0 0x1000>;
 		clock-frequency = <200000000>;
+		clocks = <&clk CV184X_CLK_UART2>;
+		clock-names = "baudclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		status = "disabled";
@@ -323,6 +332,8 @@
 		compatible = "snps,dw-apb-uart";
 		reg = <0x0 0x04170000 0x0 0x1000>;
 		clock-frequency = <200000000>;
+		clocks = <&clk CV184X_CLK_UART3>;
+		clock-names = "baudclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		status = "disabled";
@@ -332,6 +343,8 @@
 		compatible = "snps,dw-apb-uart";
 		reg = <0x0 0x041C0000 0x0 0x1000>;
 		clock-frequency = <200000000>;
+		clocks = <&clk CV184X_CLK_UART4>;
+		clock-names = "baudclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		status = "disabled";
@@ -541,8 +554,8 @@
 		reset_tx_rx_phy;
 		pll_reg = <0x30020a0>;
 		pll_index = <0x180>;
-		clocks = <&clk CV184X_CLK_EMMC_CARD>;
-		clock-names = "clk_emmc";
+		clocks = <&clk CV184X_CLK_EMMC_CARD>, <&clk CV184X_CLK_AXI4_EMMC>;
+		clock-names = "clk_emmc", "clk_axi";
 	};
 
 	sd:cv-sd@4310000 {
@@ -562,8 +575,8 @@
 		reset-names = "sdhci";
 		pll_reg = <0x3002098>;
 		pll_index = <0x18>;
-		clocks = <&clk CV184X_CLK_SD0>;
-		clock-names = "clk_sd";
+		clocks = <&clk CV184X_CLK_SD0>, <&clk CV184X_CLK_AXI4_SD0>;
+		clock-names = "clk_sd", "clk_axi";
 	};
 
 	wifisd:wifi-sd@4320000 {
@@ -579,8 +592,8 @@
 		non-removable;
 		pll_index = <0x60>;
 		pll_reg = <0x300209C>;
-		clocks = <&clk CV184X_CLK_SD1>;
-		clock-names = "clk_wifisd";
+		clocks = <&clk CV184X_CLK_SD1>, <&clk CV184X_CLK_AXI4_SD1>;
+		clock-names = "clk_wifisd", "clk_axi";
 		no-mmc;
 		no-sd;
 		status = "disabled";
@@ -839,9 +852,9 @@
 		compatible = "cvitek,vi";
 		reg = <0x0 0x0a000000 0x0 0x80000>;
 		clocks = <&clk CV184X_CLK_CSI_MAC0_VIP>, <&clk CV184X_CLK_CSI_MAC1_VIP>, <&clk CV184X_CLK_CSI_MAC2_VIP>,
-				<&clk CV184X_CLK_CSI_BE_VIP>, <&clk CV184X_CLK_ISP_TOP_VIP>;
+				<&clk CV184X_CLK_CSI_BE_VIP>;
 		clock-names = "reg_clk_csi_mac0_vip_en", "reg_clk_csi_mac1_vip_en", "reg_clk_csi_mac2_vip_en",
-				"reg_clk_csi_be_vip_en", "reg_clk_isp_top_vip_en";
+				"reg_clk_csi_be_vip_en";
 	};
 
 	codec_vepu {
@@ -849,20 +862,22 @@
 		reg = <0x0 0x0B020000 0x0 0x10000>,<0x0 0x0B030000 0x0 0x100>,
 				<0x0 0x0B058000 0x0 0x100>,<0x0 0x0B050000 0x0 0x400>;
 		reg-names = "vepu","vc_ctrl","vc_sbm","vc_addr_remap";
-		clocks = <&clk CV184X_CLK_VC_SRC0>;
-		clock-names = "reg_vc_clk_vc_src0_en";
+		clocks = <&clk CV184X_CLK_VC_SRC0>, <&clk CV184X_CLK_APB_VE>;
+		clock-names = "reg_vc_clk_vc_src0_en", "reg_clk_apb_en_ve";
 	};
 
 	codec_jpu {
 		compatible = "cvitek,codec-jpeg";
 		reg = <0x0 0x0B000000 0x0 0x10000>;
 		reg-names = "jpeg_ctrl";
-		clocks = <&clk CV184X_CLK_VC_SRC1>;
-		clock-names = "reg_vc_clk_vc_src1_en";
+		clocks = <&clk CV184X_CLK_VC_SRC1>, <&clk CV184X_CLK_APB_JPEG>;
+		clock-names = "reg_vc_clk_vc_src1_en", "reg_clk_apb_en_jpeg";
 	};
 
 	vc_drv {
 		compatible = "cvitek,vc_drv";
+		clocks = <&clk CV184X_CLK_VIDEO_AXI>;
+		clock-names = "reg_vc_clk_video_axi_en";
 	};
 
 	vo {
@@ -895,8 +910,8 @@
 	tde {
 		compatible = "cvitek,tde";
 		reg = <0x0 0x0a0a9000 0x0 0x2000>;
-		clocks = <&clk CV184X_CLK_2DE_VIP>, <&clk CV184X_CLK_ISP_TOP_VIP>;
-		clock-names = "reg_clk_2de_vip_en", "reg_clk_isp_top_vip_en";
+		clocks = <&clk CV184X_CLK_2DE_VIP>;
+		clock-names = "reg_clk_2de_vip_en";
 	};
 
 
@@ -918,6 +933,11 @@
 		g-rx-fifo-size = <536>;
 		g-np-tx-fifo-size = <32>;
 		g-tx-fifo-size = <768 512 512 384 128 128>;
+		clocks = <&clk CV184X_CLK_USB20_BUS_EARLY>,
+				<&clk CV184X_CLK_USB20_SUSPEND>,
+				<&clk CV184X_CLK_USB20_REF>,
+				<&clk CV184X_CLK_USB20_CORECLKIN>;
+		clock-names = "clk_usb20_bus_early", "clk_usb20_suspend", "clk_usb20_ref", "clk_usb20_coreclkin";
 #if 0
 		clocks = <&clk CV184X_CLK_AXI4_USB>,
 				<&clk CV184X_CLK_APB_USB>,

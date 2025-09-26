@@ -95,7 +95,7 @@ else
 endif
 	${Q}cp ${OUTPUT_DIR}/fip* ${OUTPUT_DIR}/rawimages/
 
-fsbl-clean: rtos-clean
+fsbl-clean: rtos-clean rtt-clean
 	$(call print_target)
 	${Q}$(MAKE) -C ${FSBL_PATH} clean O=${FSBL_OUTPUT_PATH}
 	${Q}rm -rf ${BL2_CVIPART_DEP}

@@ -1020,25 +1020,25 @@ typedef struct _VENC_FRAME_PARAM_S {
 
 typedef struct _VENC_SVC_PARAM_S {
 	/*enable foreground protect according motion info*/
-	CVI_BOOL fg_protect_en;
-	CVI_S32  fg_dealt_qp;
+	CVI_BOOL bFgProtectEn;
+	CVI_S32  u32FgDealtQp;
 
 	/*static scene auto change bitrate according dci_lv threshold*/
-	CVI_BOOL complex_scene_detect_en;
+	CVI_BOOL bComplexSceneDetectEn;
 	/*dci_lv avg < threshold as simple scene*/
-	CVI_U32 complex_scene_low_th;
+	CVI_U32 u32ComplexSceneLowTh;
 	/*dci_lv avg > threshold as complex scene*/
-	CVI_U32 complex_scene_hight_th;
+	CVI_U32 u32ComplexSceneHightTh;
 	/*middle scene still case min bitrate*/
-	CVI_U32 middle_min_percent;
+	CVI_U32 u32MiddleMinPercent;
 	/*complex scene still case min bitrate*/
-	CVI_U32 complex_min_percent;
+	CVI_U32 u32ComplexMinPercent;
 	/*when smart_ai_en is 1, user show pass aimap used USER_FRAME_INFO_S*/
-	CVI_BOOL smart_ai_en;
-	unsigned int dqp_vaild;
-	unsigned int obj_tab_size;
-	int dqp_table[128];
-	char obj_tab[64];
+	CVI_BOOL bSmartAiEn;
+	CVI_U32 u32DqpVaild;
+	CVI_U32 u32ObjTabSize;
+	CVI_S32 s32DqpTable[128];
+	CVI_S8 s8ObjTab[64];
 } VENC_SVC_PARAM_S;
 #ifdef __cplusplus
 #if __cplusplus

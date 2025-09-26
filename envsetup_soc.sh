@@ -11,7 +11,7 @@ function _build_default_env()
   COMPRESSOR=${COMPRESSOR:-xz}
   COMPRESSOR_UBOOT=${COMPRESSOR_UBOOT:-lzma} # or none to disable
   MULTI_PROCESS_SUPPORT=${MULTI_PROCESS_SUPPORT:-0}
-  ENABLE_BOOTLOGO=${ENABLE_BOOTLOGO:-0}
+  PACK_BOOTLOGO=${PACK_BOOTLOGO:-n}
   TPU_REL=${TPU_REL:-0} # TPU release build
   SENSOR=${SENSOR:-sony_imx327}
   SCENES=${SCENES:-0} # scenes for dualos 0:normal  1:fastboot  2:low power
@@ -108,7 +108,7 @@ function _build_uboot_env()
   _build_atf_env
   _build_fsbl_env
   export UBOOT_OUTPUT_FOLDER IMGTOOL_PATH FLASH_PARTITION_XML FIP_BIN_PATH
-  export UBOOT_VBOOT RELEASE_VERSION ENABLE_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT
+  export UBOOT_VBOOT RELEASE_VERSION PACK_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT
   export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
 }
 
@@ -412,6 +412,8 @@ function build_sdk()
     HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_ARM"
   elif [ "$SDK_VER" = musl_arm ]; then
     HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL_ARM"
+  elif [ "$SDK_VER" = musl_arm64 ]; then
+    HOST_TOOL_PATH="$CROSS_COMPILE_PATH_MUSL_ARM64"
   elif [ "$SDK_VER" = glibc_riscv64 ]; then
     HOST_TOOL_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
   elif [ "$SDK_VER" = musl_riscv64 ]; then
@@ -561,7 +563,7 @@ function clean_osdrv()
 
 function _build_cvi_pipeline_env()
 {
-  export SYSTEM_OUT_DIR CROSS_COMPILE_PATH_GLIBC_ARM CROSS_COMPILE_PATH_GLIBC_ARM64 CROSS_COMPILE_PATH_MUSL_ARM
+  export SYSTEM_OUT_DIR CROSS_COMPILE_PATH_GLIBC_ARM CROSS_COMPILE_PATH_GLIBC_ARM64 CROSS_COMPILE_PATH_MUSL_ARM CROSS_COMPILE_PATH_MUSL_ARM64
 }
 
 function build_cvi_pipeline()
@@ -794,7 +796,7 @@ function build_libsophon()
 
   cmake -DPLATFORM=soc \
         -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$CHIP"_"$BOARD" \
-        -DLIB_DIR="$LIBSOPHON_PATH"/3rdparty/$ARCH/soc/ \
+        -DLIB_DIR="$LIBSOPHON_PATH"/3rdparty/$SDK_VER/soc/ \
         -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH" \
         -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE" \
         -DBUILD_STATIC_LIB=ON \
@@ -932,6 +934,10 @@ function envs_sdk_ver()
     CROSS_COMPILE="$CROSS_COMPILE_MUSL_ARM"
     CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_MUSL_ARM"
     SYSROOT_PATH="$SYSROOT_PATH_MUSL_ARM"
+  elif [ "$SDK_VER" = musl_arm64 ]; then
+    CROSS_COMPILE="$CROSS_COMPILE_MUSL_ARM64"
+    CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_MUSL_ARM64"
+    SYSROOT_PATH="$SYSROOT_PATH_MUSL_ARM64"
   elif [ "$SDK_VER" = glibc_riscv64 ]; then
     CROSS_COMPILE="$CROSS_COMPILE_GLIBC_RISCV64"
     CROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_GLIBC_RISCV64"
@@ -1055,6 +1061,7 @@ function cvi_setup_env()
   export CROSS_COMPILE_GLIBC_ARM64=aarch64-none-linux-gnu-
   export CROSS_COMPILE_GLIBC_ARM=arm-none-linux-gnueabihf-
   export CROSS_COMPILE_MUSL_ARM=arm-none-linux-musleabihf-
+  export CROSS_COMPILE_MUSL_ARM64=aarch64-none-linux-musl-
   export CROSS_COMPILE_64_NONOS_RISCV64=riscv64-unknown-elf-
   export CROSS_COMPILE_GLIBC_RISCV64=riscv64-unknown-linux-gnu-
   export CROSS_COMPILE_MUSL_RISCV64=riscv64-unknown-linux-musl-
@@ -1064,6 +1071,7 @@ function cvi_setup_env()
   CROSS_COMPILE_PATH_GLIBC_ARM64="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu
   CROSS_COMPILE_PATH_GLIBC_ARM="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-gnueabihf
   CROSS_COMPILE_PATH_MUSL_ARM="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-arm-none-linux-musleabihf
+  CROSS_COMPILE_PATH_MUSL_ARM64="$TOOLCHAIN_PATH"/gcc/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-musl
   CROSS_COMPILE_PATH_64_NONOS_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-elf-x86_64
   CROSS_COMPILE_PATH_GLIBC_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-x86_64
   CROSS_COMPILE_PATH_MUSL_RISCV64="$TOOLCHAIN_PATH"/gcc/riscv64-linux-musl-x86_64
@@ -1076,6 +1084,7 @@ function cvi_setup_env()
   pathprepend "$CROSS_COMPILE_PATH_GLIBC_RISCV64"/bin
   pathprepend "$CROSS_COMPILE_PATH_MUSL_RISCV64"/bin
   pathappend "$CROSS_COMPILE_PATH_MUSL_ARM"/bin
+  pathappend "$CROSS_COMPILE_PATH_MUSL_ARM64"/bin
 
   # Check ccache is enable or not
   pathremove "$BUILD_PATH"/output/bin
@@ -1103,6 +1112,7 @@ function cvi_setup_env()
   SYSROOT_PATH_GLIBC_ARM64="$CROSS_COMPILE_PATH_GLIBC_ARM64"/aarch64-none-linux-gnu/libc
   SYSROOT_PATH_GLIBC_ARM="$CROSS_COMPILE_PATH_GLIBC_ARM"/arm-none-linux-gnueabihf/libc
   SYSROOT_PATH_MUSL_ARM="$CROSS_COMPILE_PATH_MUSL_ARM"/arm-none-linux-musleabihf/sysroot
+  SYSROOT_PATH_MUSL_ARM64="$CROSS_COMPILE_PATH_MUSL_ARM64"/aarch64-none-linux-musl/sysroot
   SYSROOT_PATH_GLIBC_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-glibc-riscv64
   SYSROOT_PATH_MUSL_RISCV64="$RAMDISK_PATH"/sysroot/sysroot-musl-riscv64
   SYSROOT_PATH="$SYSROOT_PATH_GLIBC_ARM64"
@@ -1161,7 +1171,7 @@ cvi_print_env()
   echo -e "  Linux source folder:\e[34m$KERNEL_SRC\e[0m, Uboot source folder: \e[34m$UBOOT_SRC\e[0m"
   echo -e "  ENABLE_DUAL_OS: $DUAL_OS"
   echo -e "  CROSS_COMPILE_PREFIX: \e[34m$CROSS_COMPILE\e[0m"
-  echo -e "  ENABLE_BOOTLOGO: $ENABLE_BOOTLOGO"
+  echo -e "  PACK_BOOTLOGO: $PACK_BOOTLOGO"
   echo -e "  Flash layout xml: $FLASH_PARTITION_XML"
   echo -e "  Sensor tuning bin: $SENSOR_TUNING_PARAM"
   echo -e "  Output path: \e[33m$OUTPUT_DIR\e[0m"
@@ -1189,6 +1199,7 @@ export TOP_DIR BUILD_PATH
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
+[[ -d "${TOP_DIR}/cvi_alios" ]] && ""${BUILD_PATH}/scripts/gen_pipeline_config.py""
 
 # import common functions
 # shellcheck source=./common_functions.sh

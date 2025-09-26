@@ -645,6 +645,16 @@ CVI_S32 CVI_VI_SetDevRxFrameCount(VI_DEV ViDev, CVI_U32 u32FrameCount);
 CVI_S32 CVI_VI_GetDevRxFrameCount(VI_DEV ViDev, CVI_U32 *pu32FrameCount);
 
 /**
+ * @brief Set vi device bypass frame count.
+ *
+ * @param snr_num(In), Sensor number.
+ * @param bypass_num(In), Bypass frame count.
+ *
+ * @return CVI_S32 Return CVI_SUCCESS if succeed.
+ */
+CVI_S32 CVI_VI_SetBypassFrm(VI_PIPE ViPipe, CVI_U8 bypass_num);
+
+/**
  * @deprecated
  *
  * @brief Register Power Management Callback

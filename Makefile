@@ -94,13 +94,6 @@ ifeq (${RELEASE_VERSION},1)
 uboot_release_action := ${Q}sed -i "s/CONFIG_BOOTDELAY=1/CONFIG_BOOTDELAY=-2/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 endif
 
-# Set CONFIG_BOOTLOGO config in defconfig
-ifeq (${ENABLE_BOOTLOGO},1)
-uboot_bootlogo_action := ${Q}sed -i "s/CONFIG_BOOTLOGO=n/CONFIG_BOOTLOGO=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
-else
-uboot_bootlogo_action := ${Q}sed -i "s/CONFIG_BOOTLOGO=y/CONFIG_BOOTLOGO=n/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
-endif
-
 # Set CONFIG_USE_4K_ERASE_SIZE_FOR_JFFS2 config in defconfig
 ifeq (${CONFIG_USE_4K_ERASE_SIZE_FOR_JFFS2},y)
 uboot_erasesize_set := ${Q}sed -in "s/.*CONFIG_SPI_FLASH_USE_4K_SECTORS is not set/CONFIG_SPI_FLASH_USE_4K_SECTORS=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
@@ -435,6 +428,8 @@ else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 INITRAMFS_BASE := glibc_arm
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM),y)
 INITRAMFS_BASE := musl_arm
+else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM64),y)
+INITRAMFS_BASE := musl_arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_RISCV64),y)
 INITRAMFS_BASE := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)
@@ -567,6 +562,8 @@ else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 packages_arch := arm
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM),y)
 packages_arch := musl_arm
+else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM64),y)
+packages_arch := musl_arm64
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_RISCV64),y)
 packages_arch := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)

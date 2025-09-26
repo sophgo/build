@@ -34,6 +34,7 @@ config CROSS_COMPILE_KERNEL
 	default "aarch64-none-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
 	default "arm-none-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
 	default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
+        default "aarch64-none-linux-musl-" if TOOLCHAIN_MUSL_ARM64
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
 	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -158,6 +159,11 @@ config TOOLCHAIN_MUSL_ARM
 	help
 	  musl library for arm(AARCH32).
 
+config TOOLCHAIN_MUSL_ARM64
+	bool "musl library for user mode application on arm64"
+	help
+	  musl library for arm(AARCH64).
+
 config TOOLCHAIN_GLIBC_RISCV64
 	bool "glibc library for user mode application on riscv64"
 	help
@@ -177,6 +183,7 @@ config CROSS_COMPILE_SDK
 	default "aarch64-none-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
 	default "arm-none-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
 	default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
+	default "aarch64-none-linux-musl-" if TOOLCHAIN_MUSL_ARM64
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
 	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -188,6 +195,7 @@ config SDK_VER
 	default "glibc_arm64" if TOOLCHAIN_GLIBC_ARM64
 	default "glibc_arm" if TOOLCHAIN_GLIBC_ARM
 	default "musl_arm" if TOOLCHAIN_MUSL_ARM
+	default "musl_arm64" if TOOLCHAIN_MUSL_ARM64
 	default "glibc_riscv64" if TOOLCHAIN_GLIBC_RISCV64
 	default "musl_riscv64" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -378,6 +386,12 @@ config AUD_3A_SEL
 	default n
 	help
 	  Say "y/n" here to enable/disable 3a in alios.
+
+config PACK_BOOTLOGO
+    bool "Pack BOOTLOGO"
+    default n
+    help
+      Say "y" here to enable packing BOOTLOGO into firmware.
 endmenu
 
 menu "FIP setting"
@@ -895,10 +909,10 @@ choice
 	config RTOS_COMPRESS_ORIG
 	bool "orig"
 	config RTOS_COMPRESS_LZMA
-        depends on !ENABLE_FREERTOS
+        depends on !(ENABLE_FREERTOS|| ENABLE_RTT)
 	bool "lzma"
 	config RTOS_COMPRESS_LZ4
-        depends on !ENABLE_FREERTOS
+        depends on !(ENABLE_FREERTOS|| ENABLE_RTT)
 	bool "lz4"
 endchoice
 
@@ -912,32 +926,7 @@ config RTOS_COMPRESS_TYPE
 		default compress type is "lzma"
 		The choices of compress type are "lz4" and "lzma" or "orig"
 
-choice
-    prompt "Alios customization pipeline"
-	default CV180ZB_GC2053 if CHIP_ARCH_cv180x
-	default CV1811C_CV2003_1l_TRIPLE if (CHIP_ARCH_cv181x || CHIP_ARCH_cv184x)
-	depends on ENABLE_ALIOS
-
-config CV180ZB_SC2003_SC2003_1l_SWITCH
-        bool "CV180ZB_SC2003_SC2003_1l_SWITCH pipeline"
-        help
-          Select pipeline for CV180ZB_SC2003_SC2003_1l_SWITCH project.
-
-config CV180ZB_SC2331_SC2331_1l_SWITCH
-        bool "CV180ZB_SC2331_SC2331_1l_SWITCH pipeline"
-        help
-          Select pipeline for CV180ZB_SC2331_SC2331_1l_SWITCH project.
-
-config CV1811C_CV2003_1l_TRIPLE
-        bool "CV1811C_CV2003_1l_TRIPLE pipeline"
-        help
-          Select pipeline for CV1811C_CV2003_1l_TRIPLE project.
-
-config CV180ZB_GC2053
-        bool "CV180ZB_GC2053 pipeline"
-        help
-          Select pipeline for CV180ZB_GC2053 project.
-endchoice
+source "output/Kconfig.pipelines"
 
 endmenu
 

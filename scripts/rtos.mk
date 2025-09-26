@@ -15,7 +15,7 @@ ifeq (${CONFIG_ENABLE_FREERTOS},y)
 endif
 
 RTT_C906L_PATH := ${RTT_PATH}/bsp/cvitek/c906_little
-rtt-build: memory-map
+rtt-build: memory-map $(OUTPUT_DIR)/rawimages
 	$(call print_target)
 	${Q}cp -f ${CVI_BOARD_MEMMAP_H_PATH} ${RTT_C906L_PATH}/board/script/memmap/cvi_board_memmap.h
 	${Q}cp -f ${CVI_BOARD_MEMMAP_LD_PATH} ${RTT_C906L_PATH}/board/script/memmap/cvi_board_memmap.ld
