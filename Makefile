@@ -693,6 +693,9 @@ define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
 
+define mkjffs2image
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkjffs2.py $(COMMON_TOOLS_PATH)/mkfs.jffs2 $(OUTPUT_DIR)/data ${1} $(OUTPUT_DIR)/rawimages/${2} $(FLASH_PARTITION_XML)
+endef
 
 BR2_CONFIG_PATH := ${BUILDROOT_PATH}/.config
 ROOTFS_DEFAULT_CONFIG_PATH := ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/rootfs/${PROJECT_FULLNAME}_defconfig
