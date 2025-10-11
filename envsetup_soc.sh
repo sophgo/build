@@ -1083,6 +1083,7 @@ function build_3rd_party()
     "uv"
     "cvi-json-c"
     "cvi-miniz"
+    "opencv4.5"
   )
 
   for name in "${oss_list[@]}"
@@ -1251,7 +1252,7 @@ function build_update()
 	fi
 	echo packing update image...
 
-    ./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
+	./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
 	popd
 
 	pushd $OUTPUT_DIR/package_edge/$1

@@ -224,7 +224,7 @@
 		reg = <0x0 0x29210000 0x0 0x10000>;
 		clocks = <&clk CV186X_CLK_SPI>;
 		#address-cells = <1>;
-		cs-gpios = <&portd 15 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&porta 0 GPIO_ACTIVE_HIGH>;
 		#size-cells = <0>;
 #if 1
 		dmas = <&dmac1 6 1 1
