@@ -552,7 +552,7 @@ function build_libsophon()
     -DCMAKE_BUILD_TYPE=Release \
 
   cmake --build build --parallel "$(nproc)"
-  cmake --build build --target driver
+  cmake --build build --target driver --verbose
 
   cmake --build build --target package install --parallel "$(nproc)"
   if [ "${BUILD_DOC}" == "1" ]; then
