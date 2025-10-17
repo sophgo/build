@@ -682,6 +682,10 @@ for deb_dir in /debs /home/linaro/debs; do
   done
   rm -rf \${deb_dir}
 done
+systemctl disable apt-daily.timer apt-daily-upgrade.timer
+systemctl disable apt-daily.service apt-daily-upgrade.service
+systemctl disable unattended-upgrades.service
+systemctl mask unattended-upgrades.service apt-daily.service apt-daily-upgrade.service
 
 EOT
 
