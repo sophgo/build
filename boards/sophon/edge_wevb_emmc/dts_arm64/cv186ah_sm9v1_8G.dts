@@ -34,7 +34,7 @@
 		//0x2_0000_0000 - 0x3_0000_0000 for VPP (owner: kenneth.liu@sophgo.com)
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
-			reg = <0x2 0x00000000 0x1 0x00000000>; // 4G, for VPP
+			reg = <0x2 0x00400000 0x0 0xFFC00000>; // 4G, for VPP
 		};
 #endif
 	};
@@ -44,9 +44,14 @@
 		reset-gpio = <&porte 2 GPIO_ACTIVE_HIGH>; //gpio 130
 	};
 
-	/delete-node/ cv-sd1;
+	/delete-node/ cv-sd1@29320000;
 	sd:cv-sd@29310000 {
 		pwr-gpios = <&portg 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	fan0: pwm-fan {
+		pwm-names = "fan";
+		pwms = <&pwm2 3 1000000>;
 	};
 
 	thermal-zones {

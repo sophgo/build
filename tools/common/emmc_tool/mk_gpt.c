@@ -133,7 +133,7 @@ static void init_gpt(uint64_t total_size)
 	current_lba = 8192 * 1024 / LBA_SIZE;
 }
 
-static void write_partition(int fd, xmlNodePtr xml_node)
+static void write_partition(int fd, xmlNodePtr xml_node, uint64_t total_size)
 {
 	//PARTITION_BASIC_DATA_GUID
 	const struct guid_t type = { 0xEBD0A0A2, 0xB9E5, 0x4433, 0x87, 0xC0,
@@ -146,9 +146,26 @@ static void write_partition(int fd, xmlNodePtr xml_node)
 	uint64_t end;
 	uuid_t uuid;
 	int i;
+	char pname[(ENTRY_SIZE - 56) / 2] = { '\0' };
+	static uint64_t accumulated_size;
+
+	prop = xmlGetProp(xml_node, BAD_CAST"label");
+	if (prop != NULL) {
+		for (i = 0; i < (ENTRY_SIZE - 56) / 2; i++) {
+			entries[current_part].part_name[i] = (uint16_t)prop[i];
+			pname[i] = (uint8_t)prop[i];
+			if (entries[current_part].part_name[i] == 0)
+				break;
+		}
+		xmlFree(prop);
+	}
 	prop = xmlGetProp(xml_node, BAD_CAST"size_in_kb");
 	if (prop != NULL) {
-		size = (uint64_t)atoll((char *)prop) * 1024;
+		if (strncmp(pname, "DATA", 4)) {
+			size = (uint64_t)atoll((char *)prop) * 1024;
+			accumulated_size += size;
+		} else
+			size = total_size - accumulated_size;
 		xmlFree(prop);
 	}
 	prop = xmlGetProp(xml_node, BAD_CAST"readonly");
@@ -169,15 +186,6 @@ static void write_partition(int fd, xmlNodePtr xml_node)
 	entries[current_part].ending_lba = end;
 	if (readonly) {
 		entries[current_part].attributes = (uint64_t)1 << 60;
-	}
-	prop = xmlGetProp(xml_node, BAD_CAST"label");
-	if (prop != NULL) {
-		for (i = 0; i < (ENTRY_SIZE - 56) / 2; i++) {
-			entries[current_part].part_name[i] = (uint16_t)prop[i];
-			if (entries[current_part].part_name[i] == 0)
-				break;
-		}
-		xmlFree(prop);
 	}
 	current_part++;
 	current_lba = end + 1;
@@ -229,7 +237,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "open %s error\n", update_dev);
 		goto RETURN;
 	}
-	
+
 	snprintf(file_name, PATH_MAX, "%s", xml_file);
 	xml_doc = xmlReadFile(file_name, "UTF-8", XML_PARSE_RECOVER);
 	if (xml_doc == NULL) {
@@ -267,7 +275,7 @@ int main(int argc, char **argv)
 	while (xml_node != NULL) {
 		if (xml_node->type == XML_ELEMENT_NODE) {
 			if (strcmp("partition", (char *)xml_node->name) == 0)
-				write_partition(fd, xml_node);
+				write_partition(fd, xml_node, size);
 			else
 				printf("unknown node %s\n", xml_node->name);
 		}

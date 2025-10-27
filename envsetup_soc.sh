@@ -329,6 +329,10 @@ function clean_middleware()
 function build_v4l2_isp()
 {
   source ${TOP_DIR}/middleware/${MW_VER}/modules/isp/cv186x/v4l2_adapter/build_v4l2_isp.sh
+  if [ ! "$?" -eq 0 ]; then
+	  echo "build_v4l2_isp fail! Exit ..."
+	  return 1
+  fi
   if [ -d "$TOP_DIR/buildroot" ]; then
     mkdir -p "$TOP_DIR/buildroot/dl/sglib"
     update_files_if_newer "sophon-soc-libisp_*_arm64.tar.gz" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "$TOP_DIR/buildroot/dl/sglib"
@@ -548,7 +552,7 @@ function build_libsophon()
     -DCMAKE_BUILD_TYPE=Release \
 
   cmake --build build --parallel "$(nproc)"
-  cmake --build build --target driver
+  cmake --build build --target driver --verbose
 
   cmake --build build --target package install --parallel "$(nproc)"
   if [ "${BUILD_DOC}" == "1" ]; then
@@ -678,6 +682,10 @@ for deb_dir in /debs /home/linaro/debs; do
   done
   rm -rf \${deb_dir}
 done
+systemctl disable apt-daily.timer apt-daily-upgrade.timer
+systemctl disable apt-daily.service apt-daily-upgrade.service
+systemctl disable unattended-upgrades.service
+systemctl mask unattended-upgrades.service apt-daily.service apt-daily-upgrade.service
 
 EOT
 
@@ -1079,6 +1087,7 @@ function build_3rd_party()
     "uv"
     "cvi-json-c"
     "cvi-miniz"
+    "opencv4.5"
   )
 
   for name in "${oss_list[@]}"
@@ -1247,7 +1256,7 @@ function build_update()
 	fi
 	echo packing update image...
 
-    ./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
+	./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
 	popd
 
 	pushd $OUTPUT_DIR/package_edge/$1

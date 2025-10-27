@@ -1,0 +1,6 @@
+config BR2_PACKAGE_SGLIB
+    bool "Use sglib"
+	default y
+    help
+        Use pre-downloaded sglib from local directory
+

@@ -224,6 +224,7 @@
 		reg = <0x0 0x29210000 0x0 0x10000>;
 		clocks = <&clk CV186X_CLK_SPI>;
 		#address-cells = <1>;
+		cs-gpios = <&porta 0 GPIO_ACTIVE_HIGH>;
 		#size-cells = <0>;
 #if 1
 		dmas = <&dmac1 6 1 1
@@ -233,9 +234,10 @@
 #endif
 		status = "okay";
 		num-cs = <1>;
-		spidev@0 {
-			compatible = "rohm,dh2228fv";
+		ms41929@0 {
+			compatible = "ms41929";
 			spi-max-frequency = <1000000>;
+			spi-cs-high;
 			reg = <0>;
 		};
 	};
@@ -489,6 +491,15 @@
 		#address-cells = <0x1>;
 		resets = <&rst RST_I2C0>;
 		reset-names = "i2c0";
+	#if 0
+		/* pinmux reg config, example. pinmux_base func_val gpio_val */
+		scl,pinmux = <0x28104C28 0x1 0x3>;	// IIC0_SCL/IIC0_SCL/GPIO96
+		sda,pinmux = <0x28104C24 0x1 0x3>;	// IIC0_SDA/IIC0_SDA/GPIO95
+
+		/* recovery gpio port */
+		scl-gpios = <&portd 0 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&portc 31 GPIO_ACTIVE_HIGH>;
+	#endif
 	};
 
 	i2c1: i2c@29010000 {
@@ -1119,8 +1130,8 @@
 			      "gdma1", "tc906b0", "tc906b1", "hau";
 		clocks = <&clk CV186X_TPU_CLK_TPU>, <&clk CV186X_TPU_CLK_TOP_FAB0>,
 			 <&clk CV186X_TPU_CLK_TC906B>, <&clk CV186X_TPU_CLK_TIMER_50M>,
-			 <&clk CV186X_TPU_CLK_GDMA>;
-		clock-names = "tpu", "top_fab0", "tc906b", "timer", "gdma";
+			 <&clk CV186X_TPU_CLK_GDMA> , <&clk CV186X_SSPERI_ACLK_DDR>;
+		clock-names = "tpu", "top_fab0", "tc906b", "timer", "gdma", "cdma";
 	};
 
 	gdc {
@@ -1386,12 +1397,12 @@
 		serial5 = &uart5;
 		serial6 = &uart6;
 		serial7 = &uart7;
-#ifndef __UBOOT__
+
 		spi0 = &spi0;
 		spi1 = &spi1;
 		spi2 = &spi2;
 		spi3 = &spi3;
-#endif
+
 		ethernet0 = &ethernet0;
 		ethernet1 = &ethernet1;
 	};
@@ -1400,7 +1411,9 @@
 		stdout-path = "serial0";
 	};
 
+#ifndef CONFIG_SD_BOOT
 	emmc:cv-emmc@29300000 {
+		u-boot,dm-spl;
 		compatible = "cvitek,cv186x-emmc";
 		reg = <0x0 0x29300000 0x0 0x10000>;
 		reg-names = "core_mem";
@@ -1414,6 +1427,7 @@
 		64_addressing;
 		reset_tx_rx_phy;
 	};
+#endif
 
 	sd:cv-sd@29310000 {
 		compatible = "cvitek,cv186x-sd";
@@ -1549,7 +1563,8 @@
 		clock-names = "clk_cpu", "clk_tpu_axi";
 		dev-freqs = <1650000000 900000000>,
 			<1000000000 450000000>,
-			<1000000000 100000000>;
+			<1000000000 100000000>,
+			<0 0>; /* reboot when thermal_crtical */
 		compatible = "cvitek,cv186x-cooling";
 		#cooling-cells = <2>;
 	};
@@ -1557,8 +1572,12 @@
 	fan0: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
-		pwms = <&pwm3 3 1000000 0>; // default pwm0, 1ms period, normal polarity
+		pwm-names = "fan", "tach";
+		pwms = <&pwm0 0 1000000>, // default pwm0, 1ms period, normal polarity
+			<&pwm0 1 1000000>;
 		cooling-levels = <1 100 170 255>; // max 255
+
+		pulses-per-revolution = <2>;	//fan-tach PPR, default 2
 	};
 
 
@@ -1630,6 +1649,11 @@
 				map4 {
 					trip = <&soc_thermal_active_2>;
 					cooling-device = <&fan0 3 3>;
+				};
+
+				map5 {
+					trip = <&soc_thermal_crtical_0>;
+					cooling-device = <&sophgo_cooling 3 3>;
 				};
 			};
 		};
@@ -2070,10 +2094,11 @@
 		status = "okay";
 		compatible = "sophgon, veth";
 		reg = <0x00000000 0x05026F00 0x00000000 0x00000100>,
-			<0x00000000 0x28100000 0x00000000 0x00000100>,
+			<0x00000000 0x28100078 0x00000000 0x00000008>,
+			<0x00000000 0x281000f8 0x00000000 0x00000008>,
 			<0x00000000 0x27110000 0x00000000 0x00004000>,
 			<0x00000000 0x20be9000 0x00000000 0x00001000>;
-		reg-names = "shm_reg", "top_misc", "intc_cfg", "cdma_cfg";
+		reg-names = "shm_reg", "gp_clr", "gp_set","intc_cfg", "cdma_cfg";
 		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;  //gp31[2]
 		interrupt-names = "rx";
         };

@@ -1,5 +1,5 @@
 <!-- set emmc size to default 28GiB -->
-<physical_partition type="emmc" size_in_kb="29360128">
+<physical_partition type="emmc" size_in_kb="3670016">
 	<partition label="GPT" size_in_kb="8192" file="gpt.img" />
 	<partition label="BOOT" size_in_kb="20480" file="boot.emmc" />
 	<partition label="MISC" size_in_kb="1280" file="soph_logo.bmp" />
@@ -8,6 +8,6 @@
 	<partition label="ROOTFS" size_in_kb="524288" file="rootfs.emmc" />
 	<partition label="SYSTEM" size_in_kb="40960" file="system.emmc" type="ext4" />
 	<partition label="CFG" size_in_kb="15360" file="cfg.emmc" mountpoint="/mnt/cfg" type="ext4" />
-	<partition label="DATA" size_in_kb="3145728" file="" mountpoint="/mnt/data" type="ext4"/>
+	<partition label="DATA" size_in_kb="1024" file="" mountpoint="/mnt/data" type="ext4"/>
 </physical_partition>
 

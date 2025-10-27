@@ -200,6 +200,14 @@ u-boot-build: ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER} ${UBOOT_CVIPART_DEP} ${UBOOT_
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvi_board_init.c ${UBOOT_CVI_BOARD_INIT_PATH}
 	${Q}rm -f ${UBOOT_CVITEK_PATH}
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvitek.h ${UBOOT_CVITEK_PATH}
+
+ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
+	${Q}sed -i "s/CONFIG_ROOTFS_UBUNTU=n/CONFIG_ROOTFS_UBUNTU=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
+	${Q}sed -i "s/CONFIG_ROOTFS_DEBIAN=n/CONFIG_ROOTFS_DEBIAN=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endif
+
+	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} olddefconfig
 ifeq ($(STORAGE_TYPE),sd)
 	${Q}sed -i "s/.*CONFIG_SD_BOOT is not set/CONFIG_SD_BOOT=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 endif
@@ -207,16 +215,13 @@ endif
 ifeq ($(KERNEL_BOOT_TYPE), nvme)
 	${Q}sed -i "s/.*CONFIG_NVME_BOOT is not set/CONFIG_NVME_BOOT=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
 endif
-
-ifeq ($(CONFIG_ROOTFS_UBUNTU),y)
-	${Q}sed -i "s/CONFIG_ROOTFS_UBUNTU=n/CONFIG_ROOTFS_UBUNTU=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
-else ifeq ($(CONFIG_ROOTFS_DEBIAN),y)
-	${Q}sed -i "s/CONFIG_ROOTFS_DEBIAN=n/CONFIG_ROOTFS_DEBIAN=y/g" ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
-endif
-	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} olddefconfig
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} all
 	${Q}cat ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin > ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot-raw.bin
 	${Q} ${CROSS_COMPILE}objdump -S ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot > ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.dis
+
+ifeq (${CONFIG_UBOOT_SPL_CUSTOM},y)
+	${Q}cat ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/spl/u-boot-spl.bin > ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/spl/u-boot-spl-raw.bin
+endif
 
 u-boot: u-boot-dep
 
@@ -330,7 +335,11 @@ ifneq ($(CONFIG_TPU_DEBUG_PORT),y)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG=SERIAL_EARLYCON_RISCV_SBI=n'
 endif
 endif
+
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} olddefconfig
+ifeq ($(STORAGE_TYPE),sd)
+	${Q}sed -i "s/.*CONFIG_SD_BOOT is not set/CONFIG_SD_BOOT=y/g" ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/.config
+endif
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image modules
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} modules_install headers_install INSTALL_HDR_PATH=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/$(ARCH)/usr
 	${Q} ln -sf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/$(ARCH)/usr/include ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/usr/include
@@ -684,28 +693,59 @@ define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
 
-menuconfig-br2:
+define mkjffs2image
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkjffs2.py $(COMMON_TOOLS_PATH)/mkfs.jffs2 $(OUTPUT_DIR)/data ${1} $(OUTPUT_DIR)/rawimages/${2} $(FLASH_PARTITION_XML)
+endef
+
+BR2_CONFIG_PATH := ${BUILDROOT_PATH}/.config
+ROOTFS_DEFAULT_CONFIG_PATH := ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/rootfs/${PROJECT_FULLNAME}_defconfig
+
+${BR2_CONFIG_PATH}: ${ROOTFS_DEFAULT_CONFIG_PATH}
+	$(call print_target)
+	${Q}cmp -s ${ROOTFS_DEFAULT_CONFIG_PATH} ${BR2_CONFIG_PATH} || \
+		${Q}cp -vb ${ROOTFS_DEFAULT_CONFIG_PATH} ${BR2_CONFIG_PATH}
+
+menuconfig-br2: ${BR2_CONFIG_PATH}
 	${Q}$(MAKE) -C ${BUILDROOT_PATH} menuconfig
 
 savedefconfig-br2:
 	${Q}$(MAKE) -C ${BUILDROOT_PATH} savedefconfig
 
+BR2_COMMON_OVERLAY_PATH := ${BR2_OVERLAY_PATH}/common/overlay
+BR2_SGLIB_PATH := ${BUILDROOT_PATH}/package/sglib
+ROOTFS_SGLIB_PATH := ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/rootfs/sglib
+
 $(ROOTFS_DIR)/mnt:
 	${Q}mkdir -p $@
-
-BR2_COMMON_OVERLAY_PATH := ${BR2_OVERLAY_PATH}/common/overlay
-BR2_CONFIG_PATH := ${BUILDROOT_PATH}/.config
 
 rootfs_prepare_br2:$(ROOTFS_DIR)/mnt
 	# Copy project data
 	${Q}cp -r $(ROOTFS_DIR)/mnt/* ${BR2_COMMON_OVERLAY_PATH}/mnt
-
-rootfs-br2-pack:rootfs_prepare_br2
-ifeq ($(wildcard ${BR2_CONFIG_PATH}), ${BR2_CONFIG_PATH})
-	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} olddefconfig
-else
-	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} soph_bm1688_defconfig
+ifeq ($(PROJECT_FULLNAME), device_buildroot)
+	# Generate S10_automount
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/create_automount.py $(FLASH_PARTITION_XML) $(BR2_COMMON_OVERLAY_PATH)/etc/init.d/
+	# Generate /etc/fw_env.config
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkcvipart.py $(FLASH_PARTITION_XML) $(BR2_COMMON_OVERLAY_PATH)/etc/ --fw_env
 endif
+
+rootfs-br2-pack:rootfs_prepare_br2 ${BR2_CONFIG_PATH}
+	$(call print_target)
+ifneq ($(PROJECT_FULLNAME), device_buildroot)
+	${Q}rm -rf ${BR2_SGLIB_PATH}
+	${Q}cp -r ${ROOTFS_SGLIB_PATH} ${BUILDROOT_PATH}/package/
+	${Q}sed -i "/source \"package\/sglib\/Config.in\"/d" ${BUILDROOT_PATH}/package/Config.in
+	${Q}sed -i "/luajit/a\\\tsource \"package/sglib/Config.in\"" ${BUILDROOT_PATH}/package/Config.in
+else
+	${Q}printf '\033[1;36;40m  Striping rootfs \033[0m\n'
+ifeq (${FLASH_SIZE_SHRINK},y)
+	${Q}printf 'remove unneeded files'
+	${Q}${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/rootfs_script/clean_rootfs.sh $(ROOTFS_DIR)
+endif
+	${Q}find $(BR2_COMMON_OVERLAY_PATH) -name "*.ko" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-unneeded {} \;
+	${Q}find $(BR2_COMMON_OVERLAY_PATH) -name "*.so*" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} \;
+	${Q}find $(BR2_COMMON_OVERLAY_PATH) -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
+endif
+	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH} olddefconfig
 	${Q}$(MAKE) -j${NPROC} -C ${BUILDROOT_PATH}
 	${Q}cp ${BUILDROOT_PATH}/output/images/rootfs.squashfs $(OUTPUT_DIR)/rawimages/rootfs.${STORAGE_TYPE}
 

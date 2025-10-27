@@ -1,5 +1,5 @@
 {
-    "sensor_list": [
+	"sensor_list": [
 		"BRIGATES_BG0808",
 		"GCORE_GC02M1",
 		"GCORE_GC1054",
@@ -28,6 +28,7 @@
 		"OV_OS08B10",
 		"OV_OV2736",
 		"OV_OV4689",
+		"OV_OV48B2Q",
 		"OV_OV6211",
 		"OV_OV7251",
 		"OV_OV9282",
@@ -48,6 +49,8 @@
 		"SMS_SC500AI",
 		"SMS_SC501AI_2L",
 		"SMS_SC531AI_2L",
+		"SMS_SC635AI",
+		"SMS_SC831HAI",
 		"SMS_SC850SL",
 		"SMS_SC1330",
 		"SMS_SC3332",
@@ -98,8 +101,7 @@
 		"LONTIUM_LT6911",
 		"NUC_NC021"
 	],
-
-	"lens_list" : [
+	"lens_list": [
 		"f10",
 		"f18"
 	]

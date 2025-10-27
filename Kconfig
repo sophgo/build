@@ -346,7 +346,11 @@ config VC_CLK_OVERDRIVE
 	default n
 	help
 	  "y" Select to build fip.bin with VC clock overdrived setting
-
+config FSBL_FASTBOOT_SUPPORT
+	bool "Enable fsbl fastboot support"
+	default n
+	help
+	  "y" Enable fsbl fastboot support
 endmenu
 
 menu "Storage settings"
@@ -433,6 +437,14 @@ config UBOOT_SRC
 	string
 	default "u-boot" if UBOOT_2017_07
 	default "u-boot-2021.10" if UBOOT_2021_10
+
+config UBOOT_SPL_CUSTOM
+	bool "Generate the fip_spl.bin contain u-boot-spl"
+	default n
+	depends on UBOOT_2021_10
+	help
+	  Set fip_spl.bin contain u-boot-spl or u-boot.
+
 endmenu
 
 menu "Kernel options"
