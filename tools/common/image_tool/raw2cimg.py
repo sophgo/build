@@ -97,9 +97,9 @@ class ImagerBuilder(object):
                 chunk = fd.read(chunk_sz)
                 crc = binascii.crc32(chunk) & 0xFFFFFFFF
                 if chunk_sz == MAX_LOAD_SIZE:
-                    op_len += chunk_sz
+                    op_len = chunk_sz
                 else:
-                    op_len = part_sz - op_len
+                    op_len = part_sz % MAX_LOAD_SIZE
                 chunk_header = self._getChunkHeader(chunk_sz, offset, op_len, crc)
                 img.write(chunk_header)
                 img.write(chunk)

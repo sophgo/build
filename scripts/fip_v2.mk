@@ -22,6 +22,11 @@ fsbl%: export RTOS_FAST_IMAGE_TYPE=${CONFIG_FAST_IMAGE_TYPE}
 fsbl%: export RTOS_ENABLE_FREERTOS=${CONFIG_ENABLE_FREERTOS}
 endif
 fsbl%: export FSBL_SECURE_BOOT_SUPPORT=${CONFIG_FSBL_SECURE_BOOT_SUPPORT}
+## Export absolute keys dir for FSBL (handle relative like fsbl/plat/keys)
+## Strip quotes from CONFIG_FSBL_KEYS_DIR first
+FSBL_KEYS_DIR_NQ := $(shell echo $(CONFIG_FSBL_KEYS_DIR) | tr -d '"')
+FSBL_KEYS_DIR_ABS := $(if $(filter fsbl/%,$(FSBL_KEYS_DIR_NQ)),$(FSBL_PATH)/$(patsubst fsbl/%,%,$(FSBL_KEYS_DIR_NQ)),$(if $(filter /%,$(FSBL_KEYS_DIR_NQ)),$(FSBL_KEYS_DIR_NQ),$(FSBL_PATH)/$(FSBL_KEYS_DIR_NQ)))
+fsbl%: export FSBL_KEYS_DIR=${FSBL_KEYS_DIR_ABS}
 fsbl%: export ARCH=$(call qstrip,${CONFIG_ARCH})
 fsbl%: export OD_CLK_SEL=${CONFIG_OD_CLK_SEL}
 fsbl%: export VC_CLK_OVERDRIVE=${CONFIG_VC_CLK_OVERDRIVE}
@@ -37,6 +42,11 @@ fsbl%: export LOG_LEVEL=0
 else
 fsbl%: export LOG_LEVEL=2
 endif
+ifeq (${CONFIG_ENABLE_BURN_BUTTON},y)
+fsbl%: export ENABLE_BURN_BUTTON=${CONFIG_ENABLE_BURN_BUTTON}
+fsbl%: export GPIO_GRP=${CONFIG_GPIO_GRP}
+fsbl%: export GPIO_PIN=${CONFIG_GPIO_PIN}
+endif
 
 ifeq (${CONFIG_ENABLE_BOOT0},y)
 fsbl-build: u-boot-build memory-map
@@ -44,7 +54,7 @@ fsbl-build: u-boot-build memory-map
 	${Q}mkdir -p ${FSBL_PATH}/build
 	${Q}ln -snrf -t ${FSBL_PATH}/build ${CVI_BOARD_MEMMAP_H_PATH}
 	${Q}$(MAKE) -j${NPROC} -C ${FSBL_PATH} O=${FSBL_OUTPUT_PATH} LOG_LEVEL=${LOG_LEVEL}
-	${Q}cp ${FSBL_OUTPUT_PATH}/boot0 ${OUTPUT_DIR}/
+	${Q}cp ${FSBL_OUTPUT_PATH}/boot0* ${OUTPUT_DIR}/
 else
 fsbl-build: u-boot-build memory-map
 	$(call print_target)
@@ -52,7 +62,7 @@ fsbl-build: u-boot-build memory-map
 	${Q}ln -snrf -t ${FSBL_PATH}/build ${CVI_BOARD_MEMMAP_H_PATH}
 	${Q}$(MAKE) -j${NPROC} -C ${FSBL_PATH} O=${FSBL_OUTPUT_PATH} LOG_LEVEL=${LOG_LEVEL} BLCP_2ND_PATH=${BLCP_2ND_PATH} \
 		LOADER_2ND_PATH=${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot-raw.bin
-	${Q}cp ${FSBL_OUTPUT_PATH}/fip.bin ${OUTPUT_DIR}/
+	${Q}cp ${FSBL_OUTPUT_PATH}/fip*.bin ${OUTPUT_DIR}/
 ifeq (${CONFIG_UBOOT_SPL_CUSTOM},y)
 	${Q}$(MAKE) -C ${FSBL_PATH} clean O=${FSBL_OUTPUT_PATH}
 	${Q}$(MAKE) -j${NPROC} -C ${FSBL_PATH} O=${FSBL_OUTPUT_PATH} LOG_LEVEL=${LOG_LEVEL} BLCP_2ND_PATH=${BLCP_2ND_PATH} \

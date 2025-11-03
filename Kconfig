@@ -325,6 +325,14 @@ config FSBL_SECURE_BOOT_SUPPORT
 	  "y" only build FSBL with authentication and decryption function.
 	  Still need to program eFuse to enable authentication or decryption.
 
+config FSBL_KEYS_DIR
+	string "FSBL keys directory"
+	depends on FSBL_SECURE_BOOT_SUPPORT
+	default "fsbl/plat/keys"
+	help
+	  Directory containing signing and encryption keys for FSBL FIP signing.
+	  Default is fsbl/plat/keys. Key filenames are fixed.
+
 choice
   prompt "Select Encryption Key of ATF"
   config ATF_KEY_SEL_default
@@ -377,6 +385,31 @@ config VC_CLK_OVERDRIVE
 	default n
 	help
 	  "y" Select to build fip.bin with VC clock overdrived setting
+
+menu "Burn Button Options"
+
+config ENABLE_BURN_BUTTON
+	bool "Enable burn button for update or not"
+	default n
+	depends on UBOOT_SPL_CUSTOM
+	help
+	  Enable burn button for update.
+
+config GPIO_GRP
+	int "from gpio0 to gpio4"
+	depends on ENABLE_BURN_BUTTON
+	default 1
+	help
+	  GPIO group number for button.
+
+config GPIO_PIN
+	int "GPIO pin number"
+	depends on ENABLE_BURN_BUTTON
+	default 3
+	help
+	  GPIO pin number for button.
+
+endmenu
 
 endmenu
 
@@ -580,6 +613,12 @@ config USE_4K_ERASE_SIZE_FOR_JFFS2
 	default n
 	help
 	  Enable use 4K erase size for jffs2 filesystem, it's only for nor flash
+
+config ROOTFS_RW
+	bool "Enable rootfs with rw"
+	default n
+	help
+	  Enable rootfs with rw.
 
 endmenu
 
