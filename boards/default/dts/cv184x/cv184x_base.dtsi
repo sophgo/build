@@ -25,10 +25,17 @@
 		clock-output-names = "osc";
 	};
 
+	rtc_32k: rtc_32k_clk {
+		clock-output-names = "rtc_32k";
+		clock-frequency = <32000>;
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+	};
+
 	clk: clock-controller {
 		compatible = "cvitek,cv184x-clk";
-		reg = <0x0 0x03002000 0x0 0x1000>;
-		clocks = <&osc>;
+		reg = <0x0 0x03002000 0x0 0x1000>, <0x0 0x05025000 0 0x100>;
+		clocks = <&osc>, <&rtc_32k>;
 		#clock-cells = <1>;
 	};
 
@@ -74,8 +81,8 @@
 		compatible = "cvitek,wiegand";
 		reg-names = "wiegand";
 		reg = <0x0 0x03030000 0x0 0x1000>;
-		clocks = <&clk CV184X_CLK_WGN_XCLK>;
-		clock-names = "clk_wgn_xclk";
+		clocks = <&clk CV184X_CLK_WGN0>;
+		clock-names = "clk_wgn0";
 		resets = <&rst RST_WGN0>;
 		reset-names = "res_wgn";
 	};
@@ -84,8 +91,8 @@
 		compatible = "cvitek,wiegand";
 		reg-names = "wiegand";
 		reg = <0x0 0x03031000 0x0 0x1000>;
-		clocks = <&clk CV184X_CLK_WGN_XCLK>;
-		clock-names = "clk_wgn_xclk";
+		clocks = <&clk CV184X_CLK_WGN1>;
+		clock-names = "clk_wgn1";
 		resets = <&rst RST_WGN1>;
 		reset-names = "res_wgn";
 	};
@@ -94,8 +101,8 @@
 		compatible = "cvitek,wiegand";
 		reg-names = "wiegand";
 		reg = <0x0 0x03032000 0x0 0x1000>;
-		clocks = <&clk CV184X_CLK_WGN_XCLK>;
-		clock-names = "clk_wgn_xclk";
+		clocks = <&clk CV184X_CLK_WGN2>;
+		clock-names = "clk_wgn2";
 		resets = <&rst RST_WGN2>;
 		reset-names = "res_wgn";
 	};
@@ -106,8 +113,8 @@
 		reg = <0x0 0x030F0000 0x0 0x1000>, <0x0 0x030F1000 0x0 0x1000>,
 		      <0x0 0x030F2000 0x0 0x1000>, <0x0 0x0502C000 0x0 0x1000>,
 		      <0x0 0x0502F000 0x0 0x1000>;
-		clocks = <&clk CV184X_CLK_SARADC>;
-		clock-names = "clk_saradc";
+		clocks = <&clk CV184X_CLK_SARADC>, <&clk CV184X_CLK_RTC_SYS_SARADC>;
+		clock-names = "clk_saradc","clk_rtc_sys_saradc";
 		resets = <&rst RST_SARADC>;
 		reset-names = "res_saradc";
 		#io-channel-cells = <1>;
@@ -167,6 +174,8 @@
 	spacc: cvi_spacc@02060000 {
 		reg = <0x0 0x02060000 0x0 0x1000>;
 		compatible = "cvitek,spacc";
+		clocks = <&clk CV184X_CLK_EFUSE>, <&clk CV184X_CLK_EFUSE_PCLK>;
+		clock-names = "tclk","pclk";
 	};
 
 	trng: dw_trng@0x02070000 {
@@ -220,7 +229,7 @@
 		clock-names = "", "clk_sf";
 		reg = <0x0 0x10000000 0x0 0x1000>;
 		/* current work frequency in kernel: */
-		spi-work-frequency = <37500000>;
+		spi-work-frequency = <75000000>;
 		/* current work frequency in u-boot: */
 		spi-max-frequency = <75000000>;
 		rx-sample-delay-ns = <1>;
@@ -246,7 +255,7 @@
 	spi0:spi0@04180000 {
 		compatible = "snps,dw-apb-ssi";
 		reg = <0x0 0x04180000 0x0 0x10000>;
-		clocks = <&clk CV184X_CLK_SPI>;
+		clocks = <&clk CV184X_CLK_APB_SPI0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 #if 0
@@ -267,7 +276,7 @@
 	spi1:spi1@04190000 {
 		compatible = "snps,dw-apb-ssi";
 		reg = <0x0 0x04190000 0x0 0x10000>;
-		clocks = <&clk CV184X_CLK_SPI>;
+		clocks = <&clk CV184X_CLK_APB_SPI1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -275,7 +284,7 @@
 	spi2:spi2@041A0000 {
 		compatible = "snps,dw-apb-ssi";
 		reg = <0x0 0x041A0000 0x0 0x10000>;
-		clocks = <&clk CV184X_CLK_SPI>;
+		clocks = <&clk CV184X_CLK_APB_SPI2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -283,7 +292,7 @@
 	spi3:spi3@041B0000 {
 		compatible = "snps,dw-apb-ssi";
 		reg = <0x0 0x041B0000 0x0 0x10000>;
-		clocks = <&clk CV184X_CLK_SPI>;
+		clocks = <&clk CV184X_CLK_APB_SPI3>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 #if 0
@@ -432,7 +441,7 @@
 
 	i2c0: i2c@04000000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&clk CV184X_CLK_I2C>;
+		clocks = <&clk CV184X_CLK_APB_I2C0>;
 		reg = <0x0 0x04000000 0x0 0x1000>;
 		clock-frequency = <400000>;
 
@@ -444,7 +453,7 @@
 
 	i2c1: i2c@04010000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&clk CV184X_CLK_I2C>;
+		clocks = <&clk CV184X_CLK_APB_I2C1>;
 		reg = <0x0 0x04010000 0x0 0x1000>;
 		clock-frequency = <400000>;
 
@@ -456,7 +465,7 @@
 
 	i2c2: i2c@04020000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&clk CV184X_CLK_I2C>;
+		clocks = <&clk CV184X_CLK_APB_I2C2>;
 		reg = <0x0 0x04020000 0x0 0x1000>;
 		clock-frequency = <400000>;
 		resets = <&rst RST_I2C2>;
@@ -465,7 +474,7 @@
 
 	i2c3: i2c@04030000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&clk CV184X_CLK_I2C>;
+		clocks = <&clk CV184X_CLK_APB_I2C3>;
 		reg = <0x0 0x04030000 0x0 0x1000>;
 		clock-frequency = <400000>;
 
@@ -477,7 +486,7 @@
 
 	i2c4: i2c@04040000 {
 		compatible = "snps,designware-i2c";
-		clocks = <&clk CV184X_CLK_I2C>;
+		clocks = <&clk CV184X_CLK_APB_I2C4>;
 		reg = <0x0 0x04040000 0x0 0x1000>;
 		clock-frequency = <400000>;
 		resets = <&rst RST_I2C4>;
@@ -517,8 +526,11 @@
 	ethernet0: ethernet@4070000 {
 		compatible = "cvitek,ethernet";
 		reg = <0x0 0x04070000 0x0 0x10000>;
-		clock-names = "stmmaceth", "ptp_ref";
-		clocks = <&eth_csrclk>, <&eth_ptpclk>;
+		clock-names = "clk_500m_eth", "clk_axi4_eth", "stmmaceth", "ptp_ref";
+		clocks = <&clk CV184X_CLK_ETHER0_ETH_PLL>,
+			<&clk CV184X_CLK_AXI4_ETH0>,
+			<&eth_csrclk>,
+			<&eth_ptpclk>;
 		//phy-reset-gpios = <&porta 26 0>;
 		ephy_base_reg = <0x3009000>;
 		ephy_top_reg = <0x3009800>;
@@ -599,29 +611,23 @@
 		status = "disabled";
 	};
 
-	i2s_mclk: i2s_mclk {
-		clock-output-names = "i2s_mclk";
-		clock-frequency = <24576000>;
-		#clock-cells = <0x0>;
-		compatible = "fixed-clock";
-	};
-
 	i2s_subsys {
 		compatible = "cvitek,i2s_tdm_subsys";
 		reg = <0x0 0x04108000 0x0 0x100>;
-		clocks = <&i2s_mclk>, <&clk CV184X_CLK_A0PLL>,
+		clocks = <&clk CV184X_CLK_A0PLL>, <&clk CV184X_CLK_A24K>,
 			<&clk CV184X_CLK_AUD0>, <&clk CV184X_CLK_AUD1>,
 			<&clk CV184X_CLK_AUD2>, <&clk CV184X_CLK_AUD3>;
-		clock-names = "i2sclk", "clk_a0pll",
+		clock-names = "clk_a0pll", "a24k",
 			"clk_aud0", "clk_aud1",
 			"clk_aud2", "clk_aud3";
+		default-freq = <24576000>;
 	};
 
 	i2s0: i2s@4100000 {
 		compatible = "cvitek,cvitek-i2s";
 		reg = <0x0 0x04100000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV184X_CLK_AUD0>;
+		clock-names = "clk_aud0";
 		dev-id = <0>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 0 1 1>; /* read channel */
@@ -633,8 +639,8 @@
 	i2s1: i2s@4110000 {
 		compatible = "cvitek,cvitek-i2s";
 		reg = <0x0 0x04110000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV184X_CLK_AUD1>;
+		clock-names = "clk_aud1";
 		dev-id = <1>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 2 1 1 /* read channel */
@@ -647,8 +653,8 @@
 	i2s2: i2s@4120000 {
 		compatible = "cvitek,cvitek-i2s";
 		reg = <0x0 0x04120000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV184X_CLK_AUD2>;
+		clock-names = "clk_aud2";
 		dev-id = <2>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 6 1 1 /* read channel */
@@ -662,8 +668,8 @@
 	i2s3: i2s@4130000 {
 		compatible = "cvitek,cvitek-i2s";
 		reg = <0x0 0x04130000 0x0 0x2000>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV184X_CLK_AUD3>;
+		clock-names = "clk_aud3";
 		dev-id = <3>;
 		#sound-dai-cells = <0>;
 		dmas = <&dmac 7 1 1>; /* write channel */
@@ -675,8 +681,8 @@
 	adc: adc@300A100 {
 		compatible = "cvitek,cvitek_adc";
 		reg = <0x0 0x0300A100 0x0 0x100>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV184X_CLK_AUD0>;
+		clock-names = "clk_aud0";
 
 
 		dev_id = <0>;
@@ -689,8 +695,8 @@
 	dac: dac@300A000 {
 		compatible = "cvitek,cvitek_dac";
 		reg = <0x0 0x0300A000 0x0 0x100>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV184X_CLK_AUD3>;
+		clock-names = "clk_aud3";
 
 		dev_id = <0>;
 		bind_i2s = <3>;
@@ -701,8 +707,8 @@
 	pdm: pdm@41D0C00 {
 		compatible = "cvitek,cvitek_pdm";
 		reg = <0x0 0x041D0C00 0x0 0x100>;
-		clocks = <&i2s_mclk 0>;
-		clock-names = "i2sclk";
+		clocks = <&clk CV184X_CLK_AUD1>;
+		clock-names = "clk_aud1";
 	};
 
 	sound_adc {
@@ -770,9 +776,9 @@
 		dai@0 {
 			dai_name = "ext_record";
 			stream_name = "record_stream";
-			cpu_dai_name = "4110000.i2s";
+			cpu_dai_name = "4120000.i2s";
 			codec_dai_name = "dummy_codec";
-			platform_name = "4110000.i2s";
+			platform_name = "4120000.i2s";
 			codec_name = "dummy_codec-aif";
 			stream_type = "capture";
 			mode = "I2S";
@@ -784,9 +790,9 @@
 		dai@1 {
 			dai_name = "ext_playback";
 			stream_name = "play_stream";
-			cpu_dai_name = "4120000.i2s";
+			cpu_dai_name = "4110000.i2s";
 			codec_dai_name = "dummy_codec";
-			platform_name = "4120000.i2s";
+			platform_name = "4110000.i2s";
 			codec_name = "dummy_codec-aif";
 			stream_type = "playback";
 			mode = "I2S";
@@ -876,8 +882,8 @@
 
 	vc_drv {
 		compatible = "cvitek,vc_drv";
-		clocks = <&clk CV184X_CLK_VIDEO_AXI>;
-		clock-names = "reg_vc_clk_video_axi_en";
+		clocks = <&clk CV184X_CLK_VIDEO_AXI>, <&clk CV184X_CLK_APB_VCSYS>;
+		clock-names = "reg_vc_clk_video_axi_en", "reg_clk_apb_en_vcsys";
 	};
 
 	vo {
@@ -1005,22 +1011,10 @@
 		reg = <0 0x03001000 0 0x1000>;
 	};
 
-	cviaudio_core {
-		compatible = "cvitek,audio";
-	};
-
-	audio_clock: audio_clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-#if 0
-		clock-frequency = <12288000>;
-#else
-		clock-frequency = <24576000>;
-#endif
-		};
-
     irrx:irrx@0502E000 {
 		compatible = "cvitek,irrx";
+		clocks = <&clk CV184X_CLK_RTC_SYS_IRRX>;
+		clock-names = "clk_rtc_sys_irrx";
 		reg = <0x0 0x0502E000 0x0 0x1000>;
 	};
 

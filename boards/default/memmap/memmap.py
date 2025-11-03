@@ -37,19 +37,20 @@ class MemoryMap:
     RTOS_SYS_SIZE = 4 * SIZE_1M
     RTOS_LOG_SIZE = 128 * SIZE_1K
     SHARE_MEM_SIZE = 128 * SIZE_1K
-    SHARE_PARAM_SIZE = 64 * SIZE_1K
+    SHARE_PARAM_SIZE = 128 * SIZE_1K
     PQBIN_SIZE = 512 * SIZE_1K
+    RTOS_LOGO_SIZE = 0 * SIZE_1K
     RTOS_SYS_TOTAL_SIZE = RTOS_SYS_SIZE + RTOS_LOG_SIZE + SHARE_MEM_SIZE + \
-        (SHARE_PARAM_SIZE * 2) + PQBIN_SIZE
+        (SHARE_PARAM_SIZE * 2) + PQBIN_SIZE + RTOS_LOGO_SIZE
     FREERTOS_SYS_SIZE = 1 * SIZE_1M
-    
+
     RTOS_LOG_ADDR = FSBL_C906L_START_ADDR + RTOS_SYS_SIZE
     SHARE_MEM_ADDR = RTOS_LOG_ADDR + RTOS_LOG_SIZE
     SHARE_PARAM_ADDR = SHARE_MEM_ADDR + SHARE_MEM_SIZE
     SHARE_PARAM_ADDR_BAK = SHARE_PARAM_ADDR + SHARE_PARAM_SIZE
     PQBIN_ADDR = SHARE_PARAM_ADDR_BAK + SHARE_PARAM_SIZE
     RTOS_COMPRESS_BIN_ADDR = FSBL_C906L_START_ADDR + 30 * SIZE_1M
-    RTOS_LOGO_ADDR = FSBL_C906L_START_ADDR + RTOS_SYS_TOTAL_SIZE
+    RTOS_LOGO_ADDR = PQBIN_ADDR + PQBIN_SIZE
     # RTOS ION memory
     RTOS_ION_SIZE = 100 * SIZE_1M
     RTOS_ION_ADDR = DRAM_BASE + 256 * SIZE_1M - RTOS_ION_SIZE
@@ -135,15 +136,16 @@ class MemoryMap:
         ion_size = kconfig.get('CONFIG_ION_SIZE', '')
         rtos_sys_size = kconfig.get('CONFIG_RTOS_SYS_SIZE', '0x00000000')
         rtos_ion_size = kconfig.get('CONFIG_RTOS_ION_SIZE', '0x00000000')
+        rtos_logo_size = kconfig.get('CONFIG_RTOS_LOGO_SIZE', '0x00000000')
         enable_freertos = kconfig.get('CONFIG_ENABLE_FREERTOS', 'n')
+        enable_rtt = kconfig.get('CONFIG_ENABLE_RTT', 'n')
         enable_alios = kconfig.get('CONFIG_ENABLE_ALIOS', 'n')
         # modify private attribute values
         setattr(MemoryMap, 'DRAM_SIZE', int(dram_size, 16))
         setattr(MemoryMap, 'KERNEL_MEMORY_SIZE', int(dram_size, 16))
 
+        setattr(MemoryMap, 'RTOS_SYS_ADDR', getattr(MemoryMap, 'FSBL_C906L_START_ADDR'))
         setattr(MemoryMap, 'RTOS_SYS_SIZE', int(rtos_sys_size, 16))
-        setattr(MemoryMap, 'RTOS_LOG_ADDR',
-                getattr(MemoryMap, 'FSBL_C906L_START_ADDR') + getattr(MemoryMap, 'RTOS_SYS_SIZE'))
         setattr(MemoryMap, 'SHARE_MEM_ADDR',
                 getattr(MemoryMap, 'RTOS_LOG_ADDR') + getattr(MemoryMap, 'RTOS_LOG_SIZE'))
         setattr(MemoryMap, 'SHARE_PARAM_ADDR',
@@ -152,22 +154,26 @@ class MemoryMap:
                 getattr(MemoryMap, 'SHARE_PARAM_ADDR') + getattr(MemoryMap, 'SHARE_PARAM_SIZE'))
         setattr(MemoryMap, 'PQBIN_ADDR',
                 getattr(MemoryMap, 'SHARE_PARAM_ADDR_BAK') + getattr(MemoryMap, 'SHARE_PARAM_SIZE'))
+        setattr(MemoryMap, 'RTOS_LOGO_ADDR',
+                getattr(MemoryMap, 'PQBIN_ADDR') + getattr(MemoryMap, 'PQBIN_SIZE'))
+        setattr(MemoryMap, 'RTOS_LOGO_SIZE', int(rtos_logo_size, 16))
 
+        setattr(MemoryMap, 'RTOS_SYS_TOTAL_ADDR', getattr(MemoryMap, 'FSBL_C906L_START_ADDR'))
         if rtos_sys_size == '0x00000000' or enable_freertos == 'y':
             setattr(MemoryMap, 'RTOS_SYS_TOTAL_SIZE', getattr(MemoryMap, 'FREERTOS_SYS_SIZE'))
+        elif enable_rtt == 'y':
+            setattr(MemoryMap, 'RTOS_SYS_TOTAL_SIZE', getattr(MemoryMap, 'RTOS_SYS_SIZE'))
         else:
             setattr(MemoryMap, 'RTOS_SYS_TOTAL_SIZE',
                     (getattr(MemoryMap, 'RTOS_SYS_SIZE') + getattr(MemoryMap, 'RTOS_LOG_SIZE') +
                      getattr(MemoryMap, 'SHARE_MEM_SIZE')+ (getattr(MemoryMap, 'SHARE_PARAM_SIZE') * 2) +
-                     getattr(MemoryMap, 'PQBIN_SIZE')))
+                     getattr(MemoryMap, 'PQBIN_SIZE') + (getattr(MemoryMap, 'RTOS_LOGO_SIZE'))))
 
         if enable_alios == 'y':
             assert getattr(MemoryMap, 'PQBIN_ADDR') + getattr(MemoryMap, 'PQBIN_SIZE') <= \
                 getattr(MemoryMap, 'FSBL_C906L_START_ADDR') + getattr(MemoryMap, 'RTOS_SYS_TOTAL_SIZE')
 
         setattr(MemoryMap, 'RTOS_ION_SIZE', int(rtos_ion_size, 16))
-        setattr(MemoryMap, 'RTOS_LOGO_ADDR',
-                getattr(MemoryMap, 'FSBL_C906L_START_ADDR') + getattr(MemoryMap, 'RTOS_SYS_TOTAL_SIZE'))
         setattr(MemoryMap, 'RTOS_ION_ADDR',
                 getattr(MemoryMap, 'DRAM_BASE') + getattr(MemoryMap, 'DRAM_SIZE') - getattr(MemoryMap, 'RTOS_ION_SIZE'))
 

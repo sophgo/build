@@ -3,10 +3,30 @@ config DRAM_SIZE
     hex "DRAM size"
     default 0x20000000
 
+# we can choice multi default values or set other value
+choice
+    prompt "Select RTOS SYS size"
+    default RTOS_SYS_4M if ENABLE_ALIOS
+    default RTOS_SYS_1M if ENABLE_FREERTOS
+    default RTOS_SYS_1M if ENABLE_RTT
+
+config RTOS_SYS_4M
+    bool "0x00400000"
+    depends on ENABLE_ALIOS
+
+config RTOS_SYS_1M
+    bool "0x00100000"
+    depends on ENABLE_FREERTOS || ENABLE_RTT
+
+config RTOS_SYS_OTHER
+    bool "other"
+
+endchoice
+
 config RTOS_SYS_SIZE
-    hex "RTOS SYS size"
-    default 0x00400000 if ENABLE_ALIOS || ENABLE_FREERTOS
-    depends on ENABLE_ALIOS || ENABLE_FREERTOS
+    hex "RTOS SYS size" if RTOS_SYS_OTHER
+    default 0x00400000 if RTOS_SYS_4M
+    default 0x00100000 if RTOS_SYS_1M
 
 config RTOS_ION_SIZE
     hex "RTOS ION size"
@@ -16,5 +36,10 @@ config RTOS_ION_SIZE
 config ION_SIZE
     hex "ION size"
     default 0x00600000
+
+config RTOS_LOGO_SIZE
+    hex "RTOS LOGO size"
+    default 0x00000000 if ENABLE_ALIOS
+    depends on ENABLE_ALIOS
 
 endmenu

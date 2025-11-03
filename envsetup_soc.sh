@@ -624,6 +624,20 @@ function clean_pqtool_server()
   make clean
 )}
 
+function build_isp_tuning()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$ISP_TUNING_PATH" || return
+  make || { print_notice "build_isp_tuning failed !!"; return 1; }
+)}
+
+function clean_isp_tuning()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  cd "$ISP_TUNING_PATH" || return
+  make clean
+)}
+
 function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
@@ -763,9 +777,58 @@ function clean_libsophon()
   rm -rf "$SYSTEM_OUT_DIR"/ko/bmtpu.ko
 }
 
+function generate_kernel_module()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  pushd $TPU1686_PATH
+    source scripts/envsetup.sh mars3
+    update_kernel_module $SDK_VER
+  popd
+)}
+
+function build_kernel_header()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+  local BUILD_DIR="$LIBSOPHON_PATH/tpu-kernel/include/$SDK_VER/"
+  local KERNEL_MODULE_PATH_CV184X="$LIBSOPHON_PATH/tpu-kernel/lib/$SDK_VER/libtpu_kernel_module.so"
+  local KERNEL_HEADER_FILE="$BUILD_DIR/kernel_module.h"
+
+  if [ ! -d "$BUILD_DIR" ]; then
+    mkdir -p "$BUILD_DIR"
+  fi
+
+  echo "CHIP_ARCH :'$CHIP_ARCH'"
+  echo "Generating kernel header..."
+  echo "// Auto-generated kernel header" > "$KERNEL_HEADER_FILE"
+  echo "#ifndef KERNEL_MODULE_H" >> "$KERNEL_HEADER_FILE"
+  echo "#define KERNEL_MODULE_H" >> "$KERNEL_HEADER_FILE"
+  echo "" >> "$KERNEL_HEADER_FILE"
+
+  if [ -f "$KERNEL_MODULE_PATH_CV184X" ]; then
+    echo "static const unsigned char kernel_module_data_cv184x[] = {" >> "$KERNEL_HEADER_FILE"
+    hexdump -v -e '8/1 "0x%02x," "\n"' "$KERNEL_MODULE_PATH_CV184X" >> "$KERNEL_HEADER_FILE"
+    echo "};" >> "$KERNEL_HEADER_FILE"
+  else
+    echo "Warning: CV184x kernel module not found: $KERNEL_MODULE_PATH_CV184X"
+  fi
+
+  echo "" >> "$KERNEL_HEADER_FILE"
+  echo "#endif // KERNEL_MODULE_H" >> "$KERNEL_HEADER_FILE"
+  echo "Kernel header generated: $KERNEL_HEADER_FILE"
+
+  if [ -f "$KERNEL_HEADER_FILE" ]; then
+    echo "Success: Kernel header file created successfully"
+  else
+    echo "Error: Failed to generate kernel header file"
+    return 1
+  fi
+)}
+
 function build_libsophon()
-{
+{(
   clean_libsophon
+  [ -d $TPU1686_PATH ] && generate_kernel_module
+  [ -d $TPU1686_PATH ] && build_kernel_header
   print_notice "Run ${FUNCNAME[0]}() function"
 
   # pushd "$LIBSOPHON_PATH" || return
@@ -826,7 +889,7 @@ function build_libsophon()
   cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/data/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
 
   popd
-}
+)}
 
 function build_tpu_kernel()
 {(
@@ -868,6 +931,7 @@ function build_all()
       build_ivs_sdk || return $?
       build_tdl_sdk || return $?
     fi
+    build_isp_tuning || return $?
     build_pqtool_server || return $?
     build_access_guard_turnkey_app || return $?
     build_ipc_app || return $?
@@ -905,6 +969,7 @@ function clean_all()
   clean_libsophon
   clean_cvi_rtsp
   clean_pqtool_server
+  clean_isp_tuning
   cd "$TOP_DIR" || return
 }
 
@@ -1045,6 +1110,7 @@ function cvi_setup_env()
   SCRIPTTOOL_PATH="$COMMON_TOOLS_PATH"/scripts
   ROOTFSTOOL_PATH="$COMMON_TOOLS_PATH"/rootfs_tool
   SPINANDTOOL_PATH="$COMMON_TOOLS_PATH"/spinand_tool
+  TPU1686_PATH="$TOP_DIR"/TPU1686
 
   BOOTLOGO_PATH="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/bootlogo/logo.jpg
   if [ ! -f "$BOOTLOGO_PATH" ]; then

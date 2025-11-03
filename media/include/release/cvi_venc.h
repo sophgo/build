@@ -578,6 +578,22 @@ CVI_S32 CVI_VENC_SetDataFifoLen(VENC_CHN VeChn, CVI_U32 u32Len);
  */
 CVI_S32 CVI_VENC_GetDataFifoLen(VENC_CHN VeChn, CVI_U32 *pu32Len);
 
+/* Set Debreath effect Param
+ *
+ * @param VeChn(In): channel number
+ * @param pstDebreathEffect(Out): pointer to VENC_DEBREATH_EFFECT_S
+ * @return Error code (0 if successful)
+ */
+CVI_S32 CVI_VENC_SetDebreathEffect(VENC_CHN VeChn, const VENC_DEBREATHEFFECT_S *pstDebreathEffect);
+
+/* Get Debreath effect Param
+ *
+ * @param VeChn(In): channel number
+ * @param pstDebreathEffect(Out): pointer to VENC_DEBREATH_EFFECT_S
+ * @return Error code (0 if successful)
+ */
+CVI_S32 CVI_VENC_GetDebreathEffect(VENC_CHN VeChn, VENC_DEBREATHEFFECT_S *pstDebreathEffect);
+
 
 #define CVI_H264_PROFILE_DEFAULT	H264E_PROFILE_HIGH
 #define CVI_H264_PROFILE_MIN		0

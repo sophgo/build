@@ -120,6 +120,8 @@
 #define DRV_VC_VENC_ENABLE_SVC                 _IOW(VC_DRV_IOCTL_MAGIC, 107, unsigned char)
 #define DRV_VC_VENC_SET_SVC_PARAM              _IOW(VC_DRV_IOCTL_MAGIC, 108, venc_svc_param_s)
 #define DRV_VC_VENC_GET_SVC_PARAM              _IOR(VC_DRV_IOCTL_MAGIC, 109, venc_svc_param_s)
+#define DRV_VC_VENC_SET_DEBREATH_EFFECT        _IOW(VC_DRV_IOCTL_MAGIC, 110, venc_debreatheffect_s)
+#define DRV_VC_VENC_GET_DEBREATH_EFFECT        _IOR(VC_DRV_IOCTL_MAGIC, 111, venc_debreatheffect_s)
 #define DRV_VC_VENC_SET_BACKHOE_HWCFG          _IO(VC_DRV_IOCTL_MAGIC, 114)
 #define DRV_VC_VENC_GET_BACKHOE_HWCFG          _IO(VC_DRV_IOCTL_MAGIC, 115)
 

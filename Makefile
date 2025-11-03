@@ -623,11 +623,12 @@ endif
 ifneq ("$(wildcard $(CHIP_FOLDER_PATH))", "")
 	${Q}cp -r $(CHIP_FOLDER_PATH)/* $(OUTPUT_DIR)/rootfs
 endif
+	# Copy ramdisk/rootfs/public tools
+	$(call TARGET_PACKAGE_INSTALL_CMD)
 	# Copy project overlay rootfs
 ifneq ("$(wildcard $(CUST_FOLDER_PATH))", "")
 	${Q}cp -r $(CUST_FOLDER_PATH)/* $(OUTPUT_DIR)/rootfs
 endif
-	$(call TARGET_PACKAGE_INSTALL_CMD)
 	${Q}${BUILD_PATH}/boards/default/rootfs_script/prepare_rootfs.sh $(OUTPUT_DIR)/rootfs
 	# Generate S10_automount
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/create_automount.py $(FLASH_PARTITION_XML) $(OUTPUT_DIR)/rootfs/etc/init.d/
