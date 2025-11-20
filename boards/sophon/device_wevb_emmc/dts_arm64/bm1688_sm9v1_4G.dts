@@ -77,40 +77,6 @@
 		};
 	};
 
-	cpus {
-		#size-cells = <0x0>;
-		#address-cells = <0x1>;
-
-		/delete-node/ cpu-map;
-		cpu-map {
-			cluster0 {
-				core0 {
-					cpu = <&cpu0>;
-				};
-				core1 {
-					cpu = <&cpu1>;
-				};
-				core2 {
-					cpu = <&cpu2>;
-				};
-				core3 {
-					cpu = <&cpu3>;
-				};
-			};
-
-			cluster1 {
-				core0 {
-					cpu = <&cpu4>;
-				};
-				core1 {
-					cpu = <&cpu5>;
-				};
-			};
-		};
-		/delete-node/ cpu@102;
-		/delete-node/ cpu@103;
-	};
-
 	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
@@ -127,7 +93,7 @@
 
 		sys_led {
 			gpios = <&portg 1 GPIO_ACTIVE_HIGH>;
-			label = "status";
+			label = "system-green";
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
 		};
@@ -267,11 +233,13 @@
 			<10 0x0000 0x0080 0x8FF4>;
 };
 
+
 &usbdrd3_0 {
 	usbdrd_dwc3_0: usb@39010000 {
 		role-switch-default-mode = "host";
 	};
 };
+
 
 &i2c6 {
 	rtc@51 {
@@ -282,7 +250,7 @@
 };
 
 &gpio_leds {
-	status = "disabled";
+	status = "disable";
 };
 
 &uart3 {
@@ -295,4 +263,184 @@
 
 &uart6 {
 	status = "okay";
+};
+
+&cif_v4l2 {
+    ports {
+    #address-cells = <1>;
+        #size-cells = <0>;
+        cif_in: port@0 {
+            reg = <0>;
+        cif_in_ep0: endpoint@0 {
+                remote-endpoint = <&sensor0_out>;
+        };
+        cif_in_ep1: endpoint@1 {
+                remote-endpoint = <&sensor1_out>;
+        };
+        cif_in_ep2: endpoint@2 {
+                remote-endpoint = <&sensor2_out>;
+        };
+        cif_in_ep3: endpoint@3 {
+                remote-endpoint = <&sensor3_out>;
+        };
+        cif_in_ep4: endpoint@4 {
+                remote-endpoint = <&sensor4_out>;
+        };
+        cif_in_ep5: endpoint@5 {
+                remote-endpoint = <&sensor5_out>;
+        };
+        cif_in_ep6: endpoint@6 {
+                remote-endpoint = <&sensor6_out>;
+        };
+        cif_in_ep7: endpoint@7 {
+                remote-endpoint = <&sensor7_out>;
+        };
+        cif_in_ep8: endpoint@8 {
+            	remote-endpoint = <&sensor8_out>;
+        };
+        cif_in_ep9: endpoint@9 {
+                remote-endpoint = <&sensor9_out>;
+        };
+        cif_in_ep10: endpoint@10 {
+                remote-endpoint = <&sensor10_out>;
+        };
+        cif_in_ep11: endpoint@11 {
+                remote-endpoint = <&sensor11_out>;
+        };
+    };
+    };
+};
+
+&i2c1 {
+    sensor0@1{
+            status = "okay";
+            compatible = "v4l2,sensor0";
+            reg = <0x01>;
+            port {
+                    sensor0_out: endpoint {
+                        remote-endpoint = <&cif_in_ep0>;
+                };
+            };
+       };
+
+    sensor1@2{
+            status = "okay";
+            compatible = "v4l2,sensor1";
+             reg = <0x02>;
+            port {
+                    sensor1_out: endpoint {
+                        remote-endpoint = <&cif_in_ep1>;
+                };
+            };
+       };
+
+    sensor2@3{
+               status = "okay";
+               compatible = "v4l2,sensor2";
+               reg = <0x03>;
+               port {
+                       sensor2_out: endpoint {
+                               remote-endpoint = <&cif_in_ep2>;
+                       };
+               };
+       };
+
+    sensor3@4{
+               status = "okay";
+               compatible = "v4l2,sensor3";
+               reg = <0x04>;
+               port {
+                       sensor3_out: endpoint {
+                               remote-endpoint = <&cif_in_ep3>;
+                       };
+               };
+       };
+
+    sensor4@5{
+               status = "okay";
+               compatible = "v4l2,sensor4";
+               reg = <0x05>;
+               port {
+                       sensor4_out: endpoint {
+                               remote-endpoint = <&cif_in_ep4>;
+                       };
+               };
+       };
+
+    sensor5@6{
+            	status = "okay";
+               compatible = "v4l2,sensor5";
+               reg = <0x06>;
+               port {
+                       sensor5_out: endpoint {
+                               remote-endpoint = <&cif_in_ep5>;
+                       };
+               };
+       };
+
+    sensor6@7{
+               status = "okay";
+               compatible = "v4l2,sensor6";
+               reg = <0x07>;
+               port {
+                       sensor6_out: endpoint {
+                               remote-endpoint = <&cif_in_ep6>;
+                       };
+               };
+       };
+
+    sensor7@8{
+               status = "okay";
+               compatible = "v4l2,sensor7";
+               reg = <0x08>;
+               port {
+                       sensor7_out: endpoint {
+                               remote-endpoint = <&cif_in_ep7>;
+                       };
+               };
+       };
+
+    sensor8@9{
+               status = "okay";
+               compatible = "v4l2,sensor8";
+               reg = <0x09>;
+               port {
+                       sensor8_out: endpoint {
+                               remote-endpoint = <&cif_in_ep8>;
+                       };
+               };
+       };
+
+    sensor9@a{
+               status = "okay";
+               compatible = "v4l2,sensor9";
+               reg = <0x0a>;
+               port {
+                       sensor9_out: endpoint {
+                               remote-endpoint = <&cif_in_ep9>;
+                       };
+               };
+       };
+
+    sensor10@b{
+               status = "okay";
+               compatible = "v4l2,sensor10";
+               reg = <0x0b>;
+               port {
+                       sensor10_out: endpoint {
+                               remote-endpoint = <&cif_in_ep10>;
+                       };
+               };
+       };
+
+    sensor11@c{
+               status = "okay";
+               compatible = "v4l2,sensor11";
+               reg = <0x0c>;
+               port {
+                       sensor11_out: endpoint {
+                               remote-endpoint = <&cif_in_ep11>;
+                       };
+               };
+       };
 };

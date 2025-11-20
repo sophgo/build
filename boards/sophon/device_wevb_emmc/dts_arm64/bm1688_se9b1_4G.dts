@@ -30,10 +30,19 @@
 			reg = <0x1 0x24000000 0x0 0x30000000>; // 768MB, for TPU
 		};
 
-		//0x1_5c00_0000 - 0x1_C000_0000 for VPP (owner: zhuolin.li@sophgo.com)
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x10000000>; // 256m for cma
+			alloc-ranges = <0x1 0x54000000 0x0 0x10000000>;
+			alignment = <0x0 0x100000>; // 1MB
+			linux,cma-default;
+		};
+
+		//0x1_6400_0000 - 0x1_B400_0000 for VPP
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
-			reg = <0x1 0x5c000000 0x0 0x60000000>; // 1.5GB, for VPP
+			reg = <0x1 0x64000000 0x0 0x50000000>; // 1280MB, for VPP
 		};
 #endif
 	};
@@ -77,40 +86,6 @@
 		};
 	};
 
-	cpus {
-		#size-cells = <0x0>;
-		#address-cells = <0x1>;
-
-		/delete-node/ cpu-map;
-		cpu-map {
-			cluster0 {
-				core0 {
-					cpu = <&cpu0>;
-				};
-				core1 {
-					cpu = <&cpu1>;
-				};
-				core2 {
-					cpu = <&cpu2>;
-				};
-				core3 {
-					cpu = <&cpu3>;
-				};
-			};
-
-			cluster1 {
-				core0 {
-					cpu = <&cpu4>;
-				};
-				core1 {
-					cpu = <&cpu5>;
-				};
-			};
-		};
-		/delete-node/ cpu@102;
-		/delete-node/ cpu@103;
-	};
-
 	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
@@ -127,7 +102,7 @@
 
 		sys_led {
 			gpios = <&portg 1 GPIO_ACTIVE_HIGH>;
-			label = "status";
+			label = "system-green";
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
 		};
@@ -267,11 +242,13 @@
 			<10 0x0000 0x0080 0x8FF4>;
 };
 
+
 &usbdrd3_0 {
 	usbdrd_dwc3_0: usb@39010000 {
 		role-switch-default-mode = "host";
 	};
 };
+
 
 &i2c6 {
 	rtc@51 {
@@ -282,7 +259,7 @@
 };
 
 &gpio_leds {
-	status = "disabled";
+	status = "disable";
 };
 
 &uart3 {

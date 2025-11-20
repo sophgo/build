@@ -2,7 +2,7 @@
 #include "soph_base_arm64.dtsi"
 //#include "soph_asic_bga.dtsi"
 #include "soph_asic_emmc.dtsi"
-#include "soph_default_memmap_4G.dtsi"
+#include "soph_default_memmap.dtsi"
 
 / {
 	aliases {
@@ -13,27 +13,40 @@
 		stdout-path = "serial2"; // "serial0:115200n8", no arguments means no re-initialization
 	};
 
+	memory@100000000 {
+		device_type = "memory";
+		reg = <0x1 0x00000000 0x4 0x00000000>;	//16G
+	};
+
 	reserved-memory {
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
 		ranges;
 #ifndef __UBOOT__
 		//0x1_0400_0000 - 0x1_2400_0000 for TPU (owner: zhuolin.li@sophgo.com)
+		//Don't move the TPU address
 		scalar_reserved: scalar_mem {
 			reg = <0x1 0x04000000 0x0 0x10000000>;  //512MB for TPU firmware
 			no-map;
 		};
 
-		//0x1_2c00_0000 - 0x1_5c00_0000 for TPU (owner: zhuolin.li@sophgo.com)
-		ion_for_npu: ion_npu_mem {
-			compatible = "npu-region";
-			reg = <0x1 0x24000000 0x0 0x30000000>; // 768MB, for TPU
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x10000000>; // 256m for drm 0x7C00000->0x10000000
+			alloc-ranges = <0x1 0x30000000 0x0 0x10000000>;   // to fix hdmi audio bug 0x7C00000->0x10000000 0x40400000->0x30000000
+			alignment = <0x0 0x100000>; // 1MB
+			linux,cma-default;
 		};
 
-		//0x1_5c00_0000 - 0x1_C000_0000 for VPP (owner: zhuolin.li@sophgo.com)
+		ion_for_npu: ion_npu_mem {
+			compatible = "npu-region";
+			reg = <0x2 0x00000000 0x1 0x00000000>; // 4G, for npu
+		};
+
 		ion_for_vpp: ion_vpp_mem {
 			compatible = "vpp-region";
-			reg = <0x1 0x5c000000 0x0 0x60000000>; // 1.5GB, for VPP
+			reg = <0x3 0x00400000 0x0 0xFFC00000>; // 4G, for TPU
 		};
 #endif
 	};
@@ -77,40 +90,6 @@
 		};
 	};
 
-	cpus {
-		#size-cells = <0x0>;
-		#address-cells = <0x1>;
-
-		/delete-node/ cpu-map;
-		cpu-map {
-			cluster0 {
-				core0 {
-					cpu = <&cpu0>;
-				};
-				core1 {
-					cpu = <&cpu1>;
-				};
-				core2 {
-					cpu = <&cpu2>;
-				};
-				core3 {
-					cpu = <&cpu3>;
-				};
-			};
-
-			cluster1 {
-				core0 {
-					cpu = <&cpu4>;
-				};
-				core1 {
-					cpu = <&cpu5>;
-				};
-			};
-		};
-		/delete-node/ cpu@102;
-		/delete-node/ cpu@103;
-	};
-
 	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
@@ -127,7 +106,7 @@
 
 		sys_led {
 			gpios = <&portg 1 GPIO_ACTIVE_HIGH>;
-			label = "status";
+			label = "system-green";
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
 		};
@@ -267,11 +246,13 @@
 			<10 0x0000 0x0080 0x8FF4>;
 };
 
+
 &usbdrd3_0 {
 	usbdrd_dwc3_0: usb@39010000 {
 		role-switch-default-mode = "host";
 	};
 };
+
 
 &i2c6 {
 	rtc@51 {
@@ -282,7 +263,7 @@
 };
 
 &gpio_leds {
-	status = "disabled";
+	status = "disable";
 };
 
 &uart3 {
