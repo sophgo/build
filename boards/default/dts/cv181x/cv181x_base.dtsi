@@ -563,13 +563,14 @@
 	i2s_subsys {
 		compatible = "cvitek,i2s_tdm_subsys";
 		reg = <0x0 0x04108000 0x0 0x100>;
-		clocks = <&i2s_mclk>, <&clk CV181X_CLK_A0PLL>,
+		clocks = <&clk CV181X_CLK_A0PLL>, <&clk CV181X_CLK_A24K>,
 			<&clk CV181X_CLK_SDMA_AUD0>, <&clk CV181X_CLK_SDMA_AUD1>,
 			<&clk CV181X_CLK_SDMA_AUD2>, <&clk CV181X_CLK_SDMA_AUD3>;
-		clock-names = "i2sclk", "clk_a0pll",
+		clock-names = "clk_a0pll", "clk_a24k",
 			"clk_sdma_aud0", "clk_sdma_aud1",
 			"clk_sdma_aud2", "clk_sdma_aud3";
 		master_base = <0x04110000>; /* I2S1 is master, only useful while using multi I2S IPs work on same IO */
+		default-freq = <22579200>;
 	};
 
 	i2s0: i2s@04100000 {
@@ -903,16 +904,6 @@
 	cviaudio_core {
 		compatible = "cvitek,audio";
 	};
-
-	audio_clock: audio_clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-#if 0
-		clock-frequency = <12288000>;
-#else
-		clock-frequency = <24576000>;
-#endif
-		};
 
 	cvipctrl: pinctrl@3001000 {
 		compatible = "cvitek,pinctrl-cv181x";

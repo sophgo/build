@@ -167,6 +167,7 @@ u-boo%: export CONFIG_USE_DEFAULT_ENV:=${CONFIG_USE_DEFAULT_ENV}
 u-boo%: export MULTI_FIP=$(if ${CONFIG_MULTI_FIP},1,0)
 u-boo%: export CROSS_COMPILE=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE))
 u-boo%: export ARCH=$(patsubst "%",%,$(CONFIG_ARCH))
+u-boo%: export CONFIG_SUP_LARGE_PART_SIZE=${SUP_LARGE_PART_SIZE}
 
 u-boot-menuconfig: ${UBOOT_OUTPUT_CONFIG_PATH}
 	$(call print_target)
@@ -563,6 +564,11 @@ define pack_image
 	${Q}$(COMMON_TOOLS_PATH)/prebuild/make_ext4fs -l ${3}  -L $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') $(OUTPUT_DIR)/rawimages/${1}.emmc ${2}
 	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.emmc
 endef
+else ifeq (${STORAGE_TYPE},sd)
+define pack_image
+	${Q}$(COMMON_TOOLS_PATH)/prebuild/make_ext4fs -l ${3}  -L $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') $(OUTPUT_DIR)/rawimages/${1}.sd ${2}
+	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.sd
+endef
 else ifeq (${STORAGE_TYPE},spinor)
 # TODO:
 define pack_image
@@ -610,6 +616,10 @@ define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
 
+define raw2cimg_lps
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg_lps.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
+endef
+
 
 # BR_OVERLAY_DIR
 # BR_ROOTFS_RAWIMAGE
@@ -636,8 +646,12 @@ br-rootfs-pack:
 	${Q}$(MAKE) -j${NPROC} -C $(BR_DIR)
 	# ${Q}rm -rf $(BR_ROOTFS_DIR)/*
 	# copy rootfs to rawimg dir
-	${Q}cp $(TARGET_OUTPUT_DIR)/images/rootfs.ext4 $(OUTPUT_DIR)/rawimages/rootfs_ext4.$(STORAGE_TYPE)
-	$(call raw2cimg ,rootfs_ext4.$(STORAGE_TYPE))
+	${Q}cp $(TARGET_OUTPUT_DIR)/images/rootfs.ext4 $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE)
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	$(call raw2cimg_lps ,rootfs.$(STORAGE_TYPE))
+else
+	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
+endif
 
 # TODO A/B boot is currently not supported when CONFIG_BUILDROOT_FS is enabled
 ifeq ($(CONFIG_BUILDROOT_FS),y)
@@ -650,13 +664,21 @@ rootfs:
 ifneq ($(STORAGE_TYPE), sd)
 ifeq ($(CONFIG_AB_SYSTEM),y)
 	${Q}cp $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE) $(OUTPUT_DIR)/rawimages/rootfs_b.$(STORAGE_TYPE)
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	$(call raw2cimg_lps ,rootfs_b.$(STORAGE_TYPE))
+else
 	$(call raw2cimg ,rootfs_b.$(STORAGE_TYPE))
-endif
+endif # CONFIG_SUP_LARGE_PART_SIZE
+endif # CONFIG_AB_SYSTEM
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	$(call raw2cimg_lps ,rootfs.$(STORAGE_TYPE))
+else
 	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
-endif
-endif
+endif # CONFIG_SUP_LARGE_PART_SIZE
+endif # CONFIG_AB_SYSTEM
+endif # CONFIG_BUILDROOT_FS
 
-jffs2:
+data:
 	$(call print_target)
 ifeq ($(STORAGE_TYPE),spinor)
 	chmod 777 $(COMMON_TOOLS_PATH)/mkfs.jffs2
@@ -665,8 +687,19 @@ ifeq (${CONFIG_USE_4K_ERASE_SIZE_FOR_JFFS2},y)
 else
 	${Q}$(COMMON_TOOLS_PATH)/mkfs.jffs2 -d $(OUTPUT_DIR)/data -l -e 0x10000 --squash -o $(OUTPUT_DIR)/rawimages/data.spinor
 endif
+else ifeq (${STORAGE_TYPE},spinand)
+	$(call pack_image,data,$(OUTPUT_DIR)/data/,40M)
+else ifeq (${STORAGE_TYPE},emmc)
+	$(call pack_image,data,$(OUTPUT_DIR)/data/,72M)
+else ifeq (${STORAGE_TYPE},sd)
+	$(call pack_image,data,$(OUTPUT_DIR)/data/,72M)
+endif
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	$(call raw2cimg_lps,data.$(STORAGE_TYPE))
+else
 	$(call raw2cimg ,data.$(STORAGE_TYPE))
 endif
+
 
 rootfs-clean:
 	$(call print_target)
@@ -682,7 +715,11 @@ $(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE):$(OUTPUT_DIR)/system
 system:$(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE)
 system:
 	$(call print_target)
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	$(call raw2cimg_lps,system.$(STORAGE_TYPE))
+else
 	$(call raw2cimg ,system.$(STORAGE_TYPE))
+endif
 
 $(ROOTFS_DIR)/mnt/cfg:
 	${Q}mkdir -p $@
@@ -699,7 +736,11 @@ cfg-build:
 
 cfg:cfg-build
 	$(call print_target)
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	$(call raw2cimg_lps,cfg.$(STORAGE_TYPE))
+else
 	$(call raw2cimg ,cfg.$(STORAGE_TYPE))
+endif
 
 -include riscv.mk
 -include alios.mk

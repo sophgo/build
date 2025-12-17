@@ -903,6 +903,7 @@ cvi_print_env()
   echo -e "  CROSS_COMPILE_PREFIX: \e[34m$CROSS_COMPILE\e[0m"
   echo -e "  ENABLE_BOOTLOGO: $ENABLE_BOOTLOGO"
   echo -e "  Flash layout xml: $FLASH_PARTITION_XML"
+  echo -e "  Support MMC large part size: $SUP_LARGE_PART_SIZE"
   echo -e "  Sensor tuning bin: $SENSOR_TUNING_PARAM"
   echo -e "  Output path: \e[33m$OUTPUT_DIR\e[0m"
   echo -e ""

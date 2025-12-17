@@ -7,6 +7,6 @@
     <partition label="ROOTFS" size_in_kb="71680" file="rootfs.spinand" />
     <partition label="SYSTEM" size_in_kb="20480" file="system.spinand" mountpoint="" type="ubifs" />
     <partition label="CFG" size_in_kb="4096" file="cfg.spinand" mountpoint="/mnt/cfg" type="ubifs" />
-    <partition label="DATA" file="" mountpoint="/mnt/data" type="ubifs" />
+    <partition label="DATA" size_in_kb="4096" file="data.spinand" mountpoint="/mnt/data" type="ubifs" />
 </physical_partition>
 

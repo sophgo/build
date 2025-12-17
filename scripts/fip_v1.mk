@@ -71,7 +71,11 @@ ifeq (${CONFIG_MULTI_FIP},y)
 		${FIP_PRE_BIN_DIR}/fip_pre.bin \
 		--fastboot=${FREERTOS_PATH}/cvirtos.bin \
 		--bl33 ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin --output ${FIP_PRE_BIN_DIR}/fip.bin
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	${Q}python3 ${IMGTOOL_PATH}/raw2cimg_lps.py ${FIP_PRE_BIN_DIR}/fip_2nd.bin ${OUTPUT_DIR} ${FLASH_PARTITION_XML}
+else
 	${Q}python3 ${IMGTOOL_PATH}/raw2cimg.py ${FIP_PRE_BIN_DIR}/fip_2nd.bin ${OUTPUT_DIR} ${FLASH_PARTITION_XML}
+endif
 	${Q}cp ${FIP_PRE_BIN_DIR}/fip_1st.bin ${OUTPUT_DIR}/fip.bin
 else
 	${Q}python3 ${TOOLS_PATH}/${CHIP_ARCH_L}/pack_fip/pack_fip.py ${FIP_PRE_BIN_DIR}/fip_pre.bin \

@@ -451,6 +451,13 @@ config NANDFLASH_PAGESIZE
 	help
 	  The page size of nand flash
 
+config SUP_LARGE_PART_SIZE
+	bool "Support large part size"
+	depends on STORAGE_TYPE_emmc || STORAGE_TYPE_sd
+	default n
+	help
+	  This config can make your flash part size large than 4GB
+
 config ENABLE_EMMC_SET_RESET_OTP
 	bool "Enable eMMC set OTP bit for hardware reset"
 	default N
