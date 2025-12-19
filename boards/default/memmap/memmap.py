@@ -146,6 +146,8 @@ class MemoryMap:
 
         setattr(MemoryMap, 'RTOS_SYS_ADDR', getattr(MemoryMap, 'FSBL_C906L_START_ADDR'))
         setattr(MemoryMap, 'RTOS_SYS_SIZE', int(rtos_sys_size, 16))
+        setattr(MemoryMap, 'RTOS_LOG_ADDR',
+                getattr(MemoryMap, 'RTOS_SYS_ADDR') + getattr(MemoryMap, 'RTOS_SYS_SIZE'))
         setattr(MemoryMap, 'SHARE_MEM_ADDR',
                 getattr(MemoryMap, 'RTOS_LOG_ADDR') + getattr(MemoryMap, 'RTOS_LOG_SIZE'))
         setattr(MemoryMap, 'SHARE_PARAM_ADDR',

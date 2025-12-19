@@ -42,7 +42,7 @@
 	rst: reset-controller {
 		#reset-cells = <1>;
 		compatible = "cvitek,reset";
-		reg = <0x0 0x03003000 0x0 0x30>;
+		reg = <0x0 0x03003000 0x0 0x30>, <0x0 0x05025018 0 0x4>;
 	};
 
 	restart: restart-controller {
@@ -168,7 +168,8 @@
 		reg = <0x0 0x03010000 0x0 0x1000>;
 		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&rst RST_WDT0>;
-		clocks = <&pclk>;
+		clocks = <&clk CV184X_CLK_APB_WDT>, <&clk CV184X_CLK_WDT_PCLK>;
+		clock-names = "pclk", "tclk";
 	};
 
 	spacc: cvi_spacc@02060000 {
@@ -202,12 +203,6 @@
 		reg = <0x0 0x3062000 0x0 0x1000>;
 		clocks = <&clk CV184X_CLK_PWM>;
 		#pwm-cells = <3>;
-	};
-
-	pclk: pclk {
-		#clock-cells = <0>;
-		compatible = "fixed-clock";
-		clock-frequency = <25000000>;
 	};
 
 	spinand:cv-spinf@4060000 {
@@ -491,6 +486,18 @@
 		clock-frequency = <400000>;
 		resets = <&rst RST_I2C4>;
 		reset-names = "i2c4";
+	};
+
+	i2c5: i2c@0502B000 {
+		compatible = "snps,designware-i2c";
+		clocks = <&clk CV184X_CLK_RTC_SYS_I2C>;
+		reg = <0x0 0x0502B000 0x0 0x1000>;
+		clock-frequency = <400000>;
+
+		#size-cells = <0x0>;
+		#address-cells = <0x1>;
+		resets = <&rst RST_RTC_I2C>;
+		reset-names = "i2c5";
 	};
 
 	eth_csrclk: eth_csrclk {
@@ -1075,6 +1082,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
+		i2c5 = &i2c5;
 		//spi0 = &spi0;
 		//spi1 = &spi1;
 		//spi2 = &spi2;

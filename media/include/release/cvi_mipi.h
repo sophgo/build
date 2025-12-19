@@ -11,6 +11,13 @@
 #include "cvi_comm_cif.h"
 #include "cvi_type.h"
 
+#ifdef __cplusplus
+#if __cplusplus
+extern "C" {
+#endif
+#endif /* End of #ifdef __cplusplus */
+
+
 CVI_S32 CVI_MIPI_SetMipiReset(CVI_S32 devno, CVI_U32 reset);
 CVI_S32 CVI_MIPI_SetSensorClock(CVI_S32 devno, CVI_U32 enable);
 CVI_S32 CVI_MIPI_SetSensorReset(CVI_S32 devno, CVI_U32 reset_port, CVI_U32 reset_pin,
@@ -20,4 +27,11 @@ CVI_S32 CVI_MIPI_SetClkEdge(CVI_S32 devno, CVI_U32 is_up);
 CVI_S32 CVI_MIPI_SetSnsMclk(struct mclk_pll_s *mclk);
 
 
+#ifdef __cplusplus
+#if __cplusplus
+}
 #endif
+#endif /* End of #ifdef __cplusplus */
+
+#endif
+

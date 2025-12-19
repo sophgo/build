@@ -294,11 +294,12 @@ CVI_S32 CVI_SNS_GetConfigInfo(SENSOR_CFG_S *sensor_cfg);
  *
  * This function allows the user to register a callback function for handling events.
  *
+ * @param ViPipe The identifier for the video input pipe.
  * @param CB The callback for the ahd trig.
  *
  * @return CVI_S32 Returns 0 on success, or a negative error code on failure.
  */
-CVI_S32 CVI_SNS_AHDRegisterDetect(AHD_Callback CB);
+CVI_S32 CVI_SNS_AHDRegisterDetect(VI_PIPE ViPipe, AHD_Callback CB);
 
 
 /**

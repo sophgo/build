@@ -382,7 +382,7 @@ enum ENUM_CHIP_ID {
 /* For VPSS */
 #define VPSS_DEVICE_NUM          2
 #define VPSS_IP_NUM              4
-#define VPSS_MAX_GRP_NUM         16
+#define VPSS_MAX_GRP_NUM         32
 #define VPSS_ONLINE_NUM          3
 #define VPSS_MAX_PHY_CHN_NUM     4
 #define VPSS_MAX_CHN_NUM         (VPSS_MAX_PHY_CHN_NUM)

@@ -130,7 +130,7 @@ function pack_rootfs
 
   export ROOTFS_DIR COMMON_TOOLS_PATH FLASH_PARTITION_XML STORAGE_TYPE
   export CHIP_FOLDER_PATH SDK_VER_FOLDER_PATH CUST_FOLDER_PATH
-
+  $BUILD_PATH/tools/common/pack_commit/pack_commit.sh
   cd "$BUILD_PATH" || return
   make rootfs
 )}
