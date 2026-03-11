@@ -1,0 +1,29 @@
+<!-- 
+  物理分区配置说明
+  - 每个扇区(sector)大小为 512 bytes
+  - 总容量计算：61,079,552 sectors × 512 bytes = 31,272,730,624 bytes (约 29.12 GB)
+  
+  分区布局：
+  BOOT:       262,144 sectors  × 512 = 134,217,728 bytes (128 MB)      - 启动分区
+  RECOVERY:   262,144 sectors  × 512 = 134,217,728 bytes (128 MB)      - 恢复分区
+  MISC:        20,480 sectors  × 512 = 10,485,760 bytes (10 MB)        - 杂项配置分区
+  ROOTFS:    6,291,456 sectors  × 512 = 3,221,225,472 bytes (3 GB)     - 只读根文件系统
+  ROOTFS_RW: 18,582,912 sectors × 512 = 9,514,450,944 bytes (8.86 GB)  - 可读写根文件系统
+  DATA:      35,652,191 sectors × 512 = 18,253,921,792 bytes (16.99 GB)- 用户数据分区
+  
+  文件系统格式说明：
+  "0" - 原始格式/无文件系统
+  "1" - FAT32文件系统
+  "2" - EXT4文件系统
+  注意：请不要随便更改此文件，尽量只修改分区大小，如果OTA要修改非用户data分区外的大小，请确保data分区起始扇区保持与原来一致
+  DATA 起始位置= 8192 + 262144 + 262144 + 20480 + 6291456 + 18582912 = 25427328
+-->
+
+<physical_partition size_in_sectors="35943040">
+        <partition label="BOOT"       size_in_sectors="262144"  readonly="false"  format="1" />
+        <partition label="RECOVERY"   size_in_sectors="262144"  readonly="false" format="2" />
+        <partition label="MISC"       size_in_sectors="20480"  readonly="false"   format="0" />
+        <partition label="ROOTFS"     size_in_sectors="6291456" readonly="true"   format="2" />
+        <partition label="ROOTFS_RW"  size_in_sectors="18582912" readonly="false"  format="2" />
+        <partition label="DATA"       size_in_sectors="8388608" readonly="false"  format="2" />
+</physical_partition>

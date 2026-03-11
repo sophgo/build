@@ -455,7 +455,6 @@ function add_source_to_sdk_package()
   cp -a "$BUILD_PATH"/scripts "$sdk_path"/build/
   [[ -f "$sdk_path"/build/scripts/rtos.mk ]] && sed -i "s/install//g" "$sdk_path"/build/scripts/rtos.mk
   cp -a "$BUILD_PATH"/boards "$sdk_path"/build/
-  cp -a "$BUILD_PATH"/sensors "$sdk_path"/build/
   cp -a "$BUILD_PATH"/panels "$sdk_path"/build/
 
   cp -a "$KERNEL_PATH" "$sdk_path"/

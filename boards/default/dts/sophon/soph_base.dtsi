@@ -727,7 +727,7 @@
 	};
 
 	sata: sata@20bc0000 {
-		compatible = "snps,dwc-ahci";
+		compatible = "ahci,cv186x-sata";
 		reg = <0x0 0x20bc0000 0x0 0x1000>;
 		clocks = <&clk CV186X_SATA_CLK>;
 		status = "okay";
@@ -895,9 +895,10 @@
 
 		dev-id = <6>;
 		#sound-dai-cells = <0>;
-		dmas = <&dmac0 4 1 1>; /* read channel */
-		dma-names = "tx";
-		capability = "tx"; /* I2S0 connect to internal ADC as RX */
+		dmas = <&dmac0 4 1 1    /* read channel */
+				&dmac0 5 1 1>;  /* write channel */
+		dma-names = "rx","tx";
+		capability = "txrx"; /* I2S0 connect to internal ADC as RX */
 		mclk_out = "true";
 	};
 
@@ -954,6 +955,31 @@
 			//dacc0:28109000 - i2s5:29160000;
 		};
 	};
+
+	dummy_codec:dummy_codec {
+		compatible = "cvitek,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	sound: sound {
+        compatible = "simple-audio-card";
+        simple-audio-card,name = "dummy_card";
+        simple-audio-card,format = "i2s";
+        simple-audio-card,bitclock-master = <&i2s6>; /* SCLK is from cpu. */
+        simple-audio-card,frame-master = <&i2s6>;   /* FCLK is from cpu. */
+
+        simple-audio-card,cpu {
+            sound-dai = <&i2s6>;
+			clocks = <&i2s_mclk>;
+			clock-names = "i2sclk";
+			role = "master";
+        };
+
+        simple-audio-card,codec {
+            sound-dai = <&dummy_codec>;
+			#sound-dai-cells = <0>;
+        };
+    };
 
 	sound_ext1 {
 		compatible = "cvitek,cv1835-adau1372";
@@ -1305,6 +1331,12 @@
 		reg-names = "mailbox";
 	};
 
+	suspend_clk: suspend-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <200000>;
+	};
+
 	usbdrd3_0: usb@39010000 {
 		compatible = "sophgo,cv186x-dwc3";
 		reg = <0x0 0x39000100 0x0 0x100>,
@@ -1327,6 +1359,8 @@
 			maximum-speed="super-speed";
 			usb-role-switch;
 			// extcon = <&extcon_dwc3_0>;
+			clocks = <&suspend_clk>;
+			clock-names = "suspend_clk";
 			status = "okay";
 		};
 
@@ -1358,6 +1392,8 @@
 			maximum-speed="super-speed";
 			usb-role-switch;
 			// extcon = <&extcon_dwc3_1>;
+			clocks = <&suspend_clk>;
+			clock-names = "suspend_clk";
 			status = "okay";
 		};
 

@@ -41,6 +41,41 @@
 		compatible = "arm,psci-0.2", "arm,psci";
 	};
 
+	cpu_opp_table: opp_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-25000000 {
+			opp-hz = /bits/ 64 <25000000>;
+			clock-latency-ns = <20000000>;
+		};
+
+		opp-150000000 {
+			opp-hz = /bits/ 64 <150000000>;
+			clock-latency-ns = <20000000>;
+		};
+
+		opp-330000000 {
+			opp-hz = /bits/ 64 <330000000>;
+			clock-latency-ns = <20000000>;
+		};
+
+		opp-550000000 {
+			opp-hz = /bits/ 64 <550000000>;
+			clock-latency-ns = <20000000>;
+		};
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			clock-latency-ns = <20000000>;
+		};
+
+		opp-1650000000 {
+			opp-hz = /bits/ 64 <1650000000>;
+			clock-latency-ns = <20000000>;
+		};
+	};
+
 	cpus {
 		#size-cells = <0x0>;
 		#address-cells = <0x1>;
@@ -85,6 +120,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_0>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu1: cpu@1 {
@@ -94,6 +132,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_0>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu2: cpu@2 {
@@ -103,6 +144,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_0>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu3: cpu@3 {
@@ -112,6 +156,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_0>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu4: cpu@100 {
@@ -121,6 +168,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_1>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu5: cpu@101 {
@@ -130,6 +180,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_1>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu6: cpu@102 {
@@ -139,6 +192,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_1>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu7: cpu@103 {
@@ -148,6 +204,9 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			next-level-cache = <&L2_1>;
+			clocks = <&clk CV186X_AP_CPU_CLK>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		L2_0: l2-cache0 {

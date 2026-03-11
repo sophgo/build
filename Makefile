@@ -271,8 +271,8 @@ define copy_header_action
 	#${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
 	#${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/common/uapi/linux/* ${1}/linux/
 	${Q}cp ${OSDRV_PATH}/interdrv/${MW_VER}/usb/gadget/function/f_cvg.h ${1}/linux/
-	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/
-	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/
+	$(if $(filter y,${CONFIG_KERNEL_SRC_5.10}),${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/)
+	$(if $(filter y,${CONFIG_KERNEL_SRC_5.10}),${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/)
 	${Q}cp ${KERNEL_PATH}/include/uapi/linux/dma-buf.h ${1}/linux/
 endef
 else
@@ -281,8 +281,8 @@ define copy_header_action
 	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/base/uapi/* ${1}/linux/
 	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/uapi/* ${1}/linux/
 	${Q}cp ${OSDRV_PATH}/interdrv/${MW_VER}/usb/gadget/function/f_cvg.h ${1}/linux/
-	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/
-	${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/
+	$(if $(filter y,${CONFIG_KERNEL_SRC_5.10}),${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/)
+	$(if $(filter y,${CONFIG_KERNEL_SRC_5.10}),${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/)
 	${Q}cp ${KERNEL_PATH}/include/uapi/linux/dma-buf.h ${1}/linux/
 endef
 endif
@@ -309,7 +309,12 @@ ifeq ($(STORAGE_TYPE), spinor)
 endif
 
 kerne%: export LOCALVERSION=-sophon-custom
+ifeq (${CONFIG_KERNEL_SRC_6.12},y)
+kerne%: export KERNELRELEASE=6.12.61
+kerne%: export KDEB_PKGVERSION=${KERNELRELEASE}${LOCALVERSION}
+else
 kerne%: export KERNELRELEASE=5.10.4
+endif
 # kerne%: export KDEB_PKGVERSION=${KERNELRELEASE}${LOCALVERSION}
 kerne%: export CVIBOARD=${BOARD}
 kerne%: export CROSS_COMPILE=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
@@ -372,9 +377,15 @@ ifneq ($(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)),)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
 
 	# Add postinst for linux-headers
-	${Q}dpkg-deb -x ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../linux-headers*.deb ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+	${Q}dpkg-deb -R ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../linux-headers*.deb ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+ifeq (${CONFIG_KERNEL_SRC_6.12},y)
+	${Q}cp -r ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/debian/linux-headers*/DEBIAN ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
+	${Q}printf "make -C /usr/src/linux-headers-\$$(uname -r) olddefconfig scripts" > ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
+else 
 	${Q}cp -r ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/debian/linux-headers/DEBIAN ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
 	${Q}printf "make -C /usr/src/linux-headers-\$$(uname -r) olddefconfig prepare0" > ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
+endif
 	${Q}chmod +x ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
 	${Q}find ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../ -name 'linux-headers*.deb' -exec dpkg -b ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/ {} \;
 	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/
@@ -760,16 +771,25 @@ rootfs:
 	$(call print_target)
 	$(call raw2cimg ,rootfs.$(STORAGE_TYPE))
 
-jffs2:
+data:
 	$(call print_target)
 ifeq ($(STORAGE_TYPE),spinor)
-	chmod 777 $(COMMON_TOOLS_PATH)/mkfs.jffs2
+	chmod +x $(COMMON_TOOLS_PATH)/mkfs.jffs2
 ifeq (${CONFIG_USE_4K_ERASE_SIZE_FOR_JFFS2},y)
-	${Q}$(COMMON_TOOLS_PATH)/mkfs.jffs2 -d $(OUTPUT_DIR)/data -l -e 0x1000 --squash -o $(OUTPUT_DIR)/rawimages/data.spinor
+	$(call mkjffs2image ,4096,data.spinor)
 else
-	${Q}$(COMMON_TOOLS_PATH)/mkfs.jffs2 -d $(OUTPUT_DIR)/data -l -e 0x10000 --squash -o $(OUTPUT_DIR)/rawimages/data.spinor
+	# can not have space before param
+	$(call mkjffs2image ,65536,data.spinor)
 endif
-	$(call raw2cimg ,data.$(STORAGE_TYPE))
+else ifeq (${STORAGE_TYPE},spinand)
+	$(call pack_image,data,$(OUTPUT_DIR)/data/)
+else ifeq (${STORAGE_TYPE},emmc)
+	$(call pack_image,data,$(OUTPUT_DIR)/data/,72M)
+endif
+ifeq ($(CONFIG_SUP_LARGE_PART_SIZE),y)
+	$(call raw2cimg_lps,data.$(STORAGE_TYPE))
+else
+	$(call raw2cimg,data.$(STORAGE_TYPE))
 endif
 
 rootfs-clean:

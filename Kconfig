@@ -456,6 +456,8 @@ choice
 		bool "linux 4.9.38"
 	config KERNEL_SRC_5.10
 		bool "linux 5.10"
+	config KERNEL_SRC_6.12
+		bool "linux 6.12"
 endchoice
 
 config KERNEL_SRC
@@ -463,6 +465,7 @@ config KERNEL_SRC
 	default "linux-linaro-stable" if KERNEL_SRC_4_9
 	default "linux" if KERNEL_SRC_4_19
 	default "linux_5.10" if KERNEL_SRC_5.10
+	default "linux-common" if KERNEL_SRC_6.12
 	help
 	  Set kernel source code.
 
@@ -515,50 +518,63 @@ config KERNEL_COMPRESS
 endmenu
 
 menu "ROOTFS options"
+choice
+        prompt "Root filesystem selection"
+        config ROOTFS_JAMMY_UBUNTU
+                bool "jammy (ubuntu 22.04)"
+        config ROOTFS_FOCAL_UBUNTU
+                bool "focal (ubuntu 20.04)"
+        config ROOTFS_BOOKWORM_DEBIAN
+                bool "debian 12 (bookworm)"
+        config ROOTFS_BUILD_FROM_BR2
+                bool "buildroot"
+                select SKIP_RAMDISK 
+        config ROOTFS_BUSYBOX
+                bool "busybox"
+                select SKIP_RAMDISK  
+endchoice
+
+config BUILD_ROOTFS_NAME
+        string
+        default "jammy" if ROOTFS_JAMMY_UBUNTU
+        default "focal" if ROOTFS_FOCAL_UBUNTU
+        default "debian" if ROOTFS_BOOKWORM_DEBIAN
+        default "buildroot" if ROOTFS_BUILD_FROM_BR2
+        default "busybox" if ROOTFS_BUSYBOX
+        help
+          Set root filesystem name (jammy/focal/bookworm/buildroot/busybox).
+
+
+config ROOTFS_UBUNTU
+        bool
+        default y if ROOTFS_JAMMY_UBUNTU || ROOTFS_FOCAL_UBUNTU || ROOTFS_BOOKWORM_DEBIAN
+        default n
+        help
+          Unified flag for Debian/Ubuntu root filesystem (required for edge tar support).
 
 config SKIP_RAMDISK
-    bool "Skiping mounting initramfs"
+    bool "Skip mounting initramfs"
     default n
     help
-      Skiping mountpoint initramfs can decrease boot time and
+      Skipping mount of initramfs can decrease boot time and
       boot image size.
 
       If unsure say N.
 
 config ROOTFS_OVERLAYFS
-	bool "Enable rootfs with overlayfs"
-	default y
-	help
-	  Enable rootfs with overlayfs.
-
-config ROOTFS_UBUNTU
-	bool "Enable ubuntu file system"
-	default n
-        depends on SIDE_TYPE_edge
-	help
-	  Enable ubuntu file system.
-
-config ROOTFS_DEBIAN
-	bool "Enable debian file system"
-	default n
-	help
-	  Enable debian file system.
-
-config ROOTFS_BUILD_FROM_BR2
-	bool "Enable rootfs build from buildroot"
-	default n
-	depends on !(ROOTFS_DEBIAN || ROOTFS_UBUNTU)
-	select SKIP_RAMDISK
-	help
-	  Enable rootfs build from buildroot.
+        bool "Enable rootfs with overlayfs"
+        default y
+        help
+          Enable rootfs with overlayfs.
 
 config USE_4K_ERASE_SIZE_FOR_JFFS2
-	bool "Use 4K erase size for jffs2 filesystem"
-	default n
-	help
-	  Enable use 4K erase size for jffs2 filesystem, it's only for nor flash
+        bool "Use 4K erase size for jffs2 filesystem"
+        default n
+        help
+          Enable use of 4K erase size for jffs2 filesystem (only for NOR flash).
 
 endmenu
+
 
 menu "Turnkey options"
 
