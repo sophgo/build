@@ -1,0 +1,1409 @@
+/*
+ * U-Boot uImage source file with multiple kernels, ramdisks and FDT blobs
+ */
+
+/dts-v1/;
+
+/ {
+	description = "Various kernels, ramdisks and FDT blobs";
+	#address-cells = <2>;
+
+	images {
+		kernel-1 {
+			description = "cvitek kernel";
+			data = /incbin/("./Image.lzma");
+			type = "kernel";
+			arch = "arm64";
+			os = "linux";
+			compression = "lzma";
+			load = <0x1 0x00200000>;
+			entry = <0x1 0x00200000>;
+			hash-2 {
+				algo = "sha256";
+			};
+		};
+
+		ramdisk-1 {
+			description = "cvitek ramdisk";
+			data = /incbin/("./boot.cpio.gz");
+			type = "ramdisk";
+			arch = "arm64";
+			os = "linux";
+			compression = "lzma";
+			load = <00000000>;
+			entry = <00000000>;
+			hash-1 {
+				algo = "crc32";
+			};
+		};
+
+		/*FDT*/
+		fdt-bm1688_se9v1 {
+			description = "cvitek device tree - bm1688_se9v1";
+			data = /incbin/("./bm1688_se9v1_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9v1_8G {
+			description = "cvitek device tree - bm1688_se9v1_8G";
+			data = /incbin/("./bm1688_se9v1_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9v1_12G {
+			description = "cvitek device tree - bm1688_se9v1_12G";
+			data = /incbin/("./bm1688_se9v1_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9v1_16G {
+			description = "cvitek device tree - bm1688_se9v1_16G";
+			data = /incbin/("./bm1688_se9v1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b1_4G {
+			description = "cvitek device tree - bm1688_se9b1_4G";
+			data = /incbin/("./bm1688_se9b1_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b1_8G {
+			description = "cvitek device tree - bm1688_se9b1_8G";
+			data = /incbin/("./bm1688_se9b1_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b1_12G {
+			description = "cvitek device tree - bm1688_se9b1_12G";
+			data = /incbin/("./bm1688_se9b1_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b1_16G {
+			description = "cvitek device tree - bm1688_se9b1_16G";
+			data = /incbin/("./bm1688_se9b1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b2_4G {
+			description = "cvitek device tree - bm1688_se9b2_4G";
+			data = /incbin/("./bm1688_se9b2_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b2_8G {
+			description = "cvitek device tree - bm1688_se9b2_8G";
+			data = /incbin/("./bm1688_se9b2_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b2_12G {
+			description = "cvitek device tree - bm1688_se9b2_12G";
+			data = /incbin/("./bm1688_se9b2_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b2_16G {
+			description = "cvitek device tree - bm1688_se9b2_16G";
+			data = /incbin/("./bm1688_se9b2_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b3_4G {
+			description = "cvitek device tree - bm1688_se9b3_4G";
+			data = /incbin/("./bm1688_se9b3_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b3_8G {
+			description = "cvitek device tree - bm1688_se9b3_8G";
+			data = /incbin/("./bm1688_se9b3_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b3_12G {
+			description = "cvitek device tree - bm1688_se9b3_12G";
+			data = /incbin/("./bm1688_se9b3_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b3_16G {
+			description = "cvitek device tree - bm1688_se9b3_16G";
+			data = /incbin/("./bm1688_se9b3_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b4_4G {
+			description = "cvitek device tree - bm1688_se9b4_4G";
+			data = /incbin/("./bm1688_se9b4_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b4_8G {
+			description = "cvitek device tree - bm1688_se9b4_8G";
+			data = /incbin/("./bm1688_se9b4_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b4_12G {
+			description = "cvitek device tree - bm1688_se9b4_12G";
+			data = /incbin/("./bm1688_se9b4_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_se9b4_16G {
+			description = "cvitek device tree - bm1688_se9b4_16G";
+			data = /incbin/("./bm1688_se9b4_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+
+		fdt-bm1688_sm9v1_4G {
+			description = "cvitek device tree - bm1688_sm9v1_4G";
+			data = /incbin/("./bm1688_sm9v1_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_sm9v1_8G {
+			description = "cvitek device tree - bm1688_sm9v1_8G";
+			data = /incbin/("./bm1688_sm9v1_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_sm9v1_12G {
+			description = "cvitek device tree - bm1688_sm9v1_12G";
+			data = /incbin/("./bm1688_sm9v1_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_sm9v1_16G {
+			description = "cvitek device tree - bm1688_sm9v1_16G";
+			data = /incbin/("./bm1688_sm9v1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_sm9v2_8G {
+			description = "cvitek device tree - bm1688_sm9v2_8G";
+			data = /incbin/("./bm1688_sm9v2_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_sm9v2_16G {
+			description = "cvitek device tree - bm1688_sm9v2_16G";
+			data = /incbin/("./bm1688_sm9v2_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_wevb_emmc {
+			description = "cvitek device tree - bm1688_wevb_emmc";
+			data = /incbin/("./bm1688_wevb_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_wevb_emmc_4G {
+			description = "cvitek device tree - bm1688_wevb_4G";
+			data = /incbin/("./bm1688_wevb_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_wevb_emmc_8G {
+			description = "cvitek device tree - bm1688_wevb_8G";
+			data = /incbin/("./bm1688_wevb_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_wevb_emmc_12G {
+			description = "cvitek device tree - bm1688_wevb_12G";
+			data = /incbin/("./bm1688_wevb_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_wevb_emmc_16G {
+			description = "cvitek device tree - bm1688_wevb_16G";
+			data = /incbin/("./bm1688_wevb_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_wevb_emmc_4G {
+			description = "cvitek device tree - cv186ah_wevb_4G";
+			data = /incbin/("./cv186ah_wevb_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_wevb_emmc_8G {
+			description = "cvitek device tree - cv186ah_wevb_8G";
+			data = /incbin/("./cv186ah_wevb_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_wevb_emmc_12G {
+			description = "cvitek device tree - cv186ah_wevb_12G";
+			data = /incbin/("./cv186ah_wevb_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_wevb_emmc_16G {
+			description = "cvitek device tree - cv186ah_wevb_16G";
+			data = /incbin/("./cv186ah_wevb_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-bm1688_nvrv1_4G {
+				description = "cvitek device tree - bm1688_nvrv1_4G";
+				data = /incbin/("./bm1688_nvrv1_4G.dtb");
+				type = "flat_dt";
+				arch = "arm64";
+				compression = "none";
+				hash-1 {
+						algo = "sha256";
+				};
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+
+		fdt-bm1688_nvrv1_8G {
+				description = "cvitek device tree - bm1688_nvrv1_8G";
+				data = /incbin/("./bm1688_nvrv1_8G.dtb");
+				type = "flat_dt";
+				arch = "arm64";
+				compression = "none";
+				hash-1 {
+						algo = "sha256";
+				};
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+
+		fdt-bm1688_nvrv1_12G {
+				description = "cvitek device tree - bm1688_nvrv1_12G";
+				data = /incbin/("./bm1688_nvrv1_12G.dtb");
+				type = "flat_dt";
+				arch = "arm64";
+				compression = "none";
+				hash-1 {
+						algo = "sha256";
+				};
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+
+		fdt-bm1688_nvrv1_16G {
+				description = "cvitek device tree - bm1688_nvrv1_16G";
+				data = /incbin/("./bm1688_nvrv1_16G.dtb");
+				type = "flat_dt";
+				arch = "arm64";
+				compression = "none";
+				hash-1 {
+						algo = "sha256";
+				};
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+
+		fdt-cv186ah_se9v1_4G {
+			description = "cvitek device tree - cv186ah_se9v1_4G";
+			data = /incbin/("./cv186ah_se9v1_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9v1_8G {
+			description = "cvitek device tree - cv186ah_se9v1_8G";
+			data = /incbin/("./cv186ah_se9v1_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9v1_12G {
+			description = "cvitek device tree - cv186ah_se9v1_12G";
+			data = /incbin/("./cv186ah_se9v1_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9v1_16G {
+			description = "cvitek device tree - cv186ah_se9v1_16G";
+			data = /incbin/("./cv186ah_se9v1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+		fdt-cv186ah_se9b1_4G {
+			description = "cvitek device tree - cv186ah_se9b1_4G";
+			data = /incbin/("./cv186ah_se9b1_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b1_8G {
+			description = "cvitek device tree - cv186ah_se9b1_8G";
+			data = /incbin/("./cv186ah_se9b1_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b1_12G {
+			description = "cvitek device tree - cv186ah_se9b1_12G";
+			data = /incbin/("./cv186ah_se9b1_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b1_16G {
+			description = "cvitek device tree - cv186ah_se9b1_16G";
+			data = /incbin/("./cv186ah_se9b1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b2_4G {
+			description = "cvitek device tree - cv186ah_se9b2_4G";
+			data = /incbin/("./cv186ah_se9b2_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b2_8G {
+			description = "cvitek device tree - cv186ah_se9b2_8G";
+			data = /incbin/("./cv186ah_se9b2_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b2_12G {
+			description = "cvitek device tree - cv186ah_se9b2_12G";
+			data = /incbin/("./cv186ah_se9b2_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b2_16G {
+			description = "cvitek device tree - cv186ah_se9b2_16G";
+			data = /incbin/("./cv186ah_se9b2_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b3_4G {
+			description = "cvitek device tree - cv186ah_se9b3_4G";
+			data = /incbin/("./cv186ah_se9b3_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b3_8G {
+			description = "cvitek device tree - cv186ah_se9b3_8G";
+			data = /incbin/("./cv186ah_se9b3_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b3_12G {
+			description = "cvitek device tree - cv186ah_se9b3_12G";
+			data = /incbin/("./cv186ah_se9b3_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b3_16G {
+			description = "cvitek device tree - cv186ah_se9b3_16G";
+			data = /incbin/("./cv186ah_se9b3_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_4G {
+			description = "cvitek device tree - cv186ah_se9b4_4G";
+			data = /incbin/("./cv186ah_se9b4_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_8G {
+			description = "cvitek device tree - cv186ah_se9b4_8G";
+			data = /incbin/("./cv186ah_se9b4_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_12G {
+			description = "cvitek device tree - cv186ah_se9b4_12G";
+			data = /incbin/("./cv186ah_se9b4_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_se9b4_16G {
+			description = "cvitek device tree - cv186ah_se9b4_16G";
+			data = /incbin/("./cv186ah_se9b4_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_sm9v1_4G {
+			description = "cvitek device tree - cv186ah_sm9v1_4G";
+			data = /incbin/("./cv186ah_sm9v1_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_sm9v1_8G {
+			description = "cvitek device tree - cv186ah_sm9v1_8G";
+			data = /incbin/("./cv186ah_sm9v1_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_sm9v1_12G {
+			description = "cvitek device tree - cv186ah_sm9v1_12G";
+			data = /incbin/("./cv186ah_sm9v1_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_sm9v1_16G {
+			description = "cvitek device tree - cv186ah_sm9v1_16G";
+			data = /incbin/("./cv186ah_sm9v1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_sm9v2_4G {
+			description = "cvitek device tree - cv186ah_sm9v2_4G";
+			data = /incbin/("./cv186ah_sm9v2_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_sm9v2_8G {
+			description = "cvitek device tree - cv186ah_sm9v2_8G";
+			data = /incbin/("./cv186ah_sm9v2_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_nvrv1_4G {
+			description = "cvitek device tree - cv186ah_nvrv1_4G";
+			data = /incbin/("./cv186ah_nvrv1_4G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_nvrv1_8G {
+			description = "cvitek device tree - cv186ah_nvrv1_8G";
+			data = /incbin/("./cv186ah_nvrv1_8G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_nvrv1_12G {
+			description = "cvitek device tree - cv186ah_nvrv1_12G";
+			data = /incbin/("./cv186ah_nvrv1_12G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv186ah_nvrv1_16G {
+			description = "cvitek device tree - cv186ah_nvrv1_16G";
+			data = /incbin/("./cv186ah_nvrv1_16G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+	};
+
+	/*CFG*/
+	configurations {
+		default = "config-cv186ah_wevb_4G";
+
+		config-bm1688_se9v1_4G {
+			description = "boot cvitek system with board bm1688_se9v1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9v1";
+		};
+
+		config-bm1688_se9v1_8G {
+			description = "boot cvitek system with board bm1688_se9v1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9v1_8G";
+		};
+
+		config-bm1688_se9v1_12G {
+			description = "boot cvitek system with board bm1688_se9v1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9v1_12G";
+		};
+
+		config-bm1688_se9v1_16G {
+			description = "boot cvitek system with board bm1688_se9v1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9v1_16G";
+		};
+
+		config-bm1688_se9b1_4G {
+			description = "boot cvitek system with board bm1688_se9b1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b1_4G";
+		};
+
+		config-bm1688_se9b1_8G {
+			description = "boot cvitek system with board bm1688_se9b1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b1_8G";
+		};
+
+		config-bm1688_se9b1_12G {
+			description = "boot cvitek system with board bm1688_se9b1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b1_12G";
+		};
+
+		config-bm1688_se9b1_16G {
+			description = "boot cvitek system with board bm1688_se9b1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b1_16G";
+		};
+
+		config-bm1688_se9b2_4G {
+			description = "boot cvitek system with board bm1688_se9b2_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b2_4G";
+		};
+
+		config-bm1688_se9b2_8G {
+			description = "boot cvitek system with board bm1688_se9b2_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b2_8G";
+		};
+
+		config-bm1688_se9b2_12G {
+			description = "boot cvitek system with board bm1688_se9b2_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b2_12G";
+		};
+
+		config-bm1688_se9b2_16G {
+			description = "boot cvitek system with board bm1688_se9b2_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b2_16G";
+		};
+
+		config-bm1688_se9b3_4G {
+			description = "boot cvitek system with board bm1688_se9b3_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b3_4G";
+		};
+
+		config-bm1688_se9b3_8G {
+			description = "boot cvitek system with board bm1688_se9b3_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b3_8G";
+		};
+
+		config-bm1688_se9b3_12G {
+			description = "boot cvitek system with board bm1688_se9b3_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b3_12G";
+		};
+
+		config-bm1688_se9b3_16G {
+			description = "boot cvitek system with board bm1688_se9b3_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b3_16G";
+		};
+
+		config-bm1688_se9b4_4G {
+			description = "boot cvitek system with board bm1688_se9b4_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b4_4G";
+		};
+
+		config-bm1688_se9b4_8G {
+			description = "boot cvitek system with board bm1688_se9b4_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b4_8G";
+		};
+
+		config-bm1688_se9b4_12G {
+			description = "boot cvitek system with board bm1688_se9b4_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b4_12G";
+		};
+
+		config-bm1688_se9b4_16G {
+			description = "boot cvitek system with board bm1688_se9b4_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9b4_16G";
+		};
+
+		config-bm1688_sm9v1_4G {
+			description = "boot cvitek system with board bm1688_sm9v1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v1_4G";
+		};
+
+		config-bm1688_sm9v1_8G {
+			description = "boot cvitek system with board bm1688_sm9v1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v1_8G";
+		};
+
+		config-bm1688_sm9v1_12G {
+			description = "boot cvitek system with board bm1688_sm9v1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v1_12G";
+		};
+
+		config-bm1688_sm9v1_16G {
+			description = "boot cvitek system with board bm1688_sm9v1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v1_16G";
+		};
+
+		config-bm1688_sm9v2_8G {
+			description = "boot cvitek system with board bm1688_sm9v2_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v2_8G";
+		};
+
+		config-bm1688_sm9v2_16G {
+			description = "boot cvitek system with board bm1688_sm9v2_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_sm9v2_16G";
+		};
+
+		config-bm1688_wevb_emmc {
+			description = "boot cvitek system with board bm1688_wevb_emmc";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_wevb_emmc";
+		};
+
+		config-bm1688_wevb_4G {
+			description = "boot cvitek system with board bm1688_wevb_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_wevb_emmc_4G";
+		};
+
+		config-bm1688_wevb_8G {
+			description = "boot cvitek system with board bm1688_wevb_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_wevb_emmc_8G";
+		};
+
+		config-bm1688_wevb_12G {
+			description = "boot cvitek system with board bm1688_wevb_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_wevb_emmc_12G";
+		};
+
+		config-bm1688_wevb_16G {
+			description = "boot cvitek system with board bm1688_wevb_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_wevb_emmc_16G";
+		};
+
+		config-bm1688_nvrv1_4G {
+				description = "boot cvitek system with board bm1688_nvrv1_4G";
+				kernel = "kernel-1";
+				fdt = "fdt-bm1688_nvrv1_4G";
+				ramdisk = "ramdisk-1";
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+
+		config-bm1688_nvrv1_8G {
+				description = "boot cvitek system with board bm1688_nvrv1_8G";
+				kernel = "kernel-1";
+				fdt = "fdt-bm1688_nvrv1_8G";
+				ramdisk = "ramdisk-1";
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+
+		config-bm1688_nvrv1_12G {
+				description = "boot cvitek system with board bm1688_nvrv1_12G";
+				kernel = "kernel-1";
+				fdt = "fdt-bm1688_nvrv1_12G";
+				ramdisk = "ramdisk-1";
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+
+		config-bm1688_nvrv1_16G {
+				description = "boot cvitek system with board bm1688_nvrv1_16G";
+				kernel = "kernel-1";
+				fdt = "fdt-bm1688_nvrv1_16G";
+				ramdisk = "ramdisk-1";
+				signature {
+						algo = "sha256,rsa2048";
+						padding = "pss";
+						key-name-hint = "cfg";
+				};
+		};
+		config-cv186ah_wevb_4G {
+			description = "boot cvitek system with board cv186ah_wevb_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_wevb_emmc_4G";
+		};
+
+		config-cv186ah_wevb_8G {
+			description = "boot cvitek system with board cv186ah_wevb_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_wevb_emmc_8G";
+		};
+
+		config-cv186ah_wevb_12G {
+			description = "boot cvitek system with board cv186ah_wevb_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_wevb_emmc_12G";
+		};
+
+		config-cv186ah_wevb_16G {
+			description = "boot cvitek system with board cv186ah_wevb_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_wevb_emmc_16G";
+		};
+
+		config-cv186ah_se9v1_4G {
+			description = "boot cvitek system with board cv186ah_se9v1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9v1_4G";
+		};
+
+		config-cv186ah_se9v1_8G {
+			description = "boot cvitek system with board cv186ah_se9v1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9v1_8G";
+		};
+
+		config-cv186ah_se9v1_12G {
+			description = "boot cvitek system with board cv186ah_se9v1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9v1_12G";
+		};
+
+		config-cv186ah_se9v1_16G {
+			description = "boot cvitek system with board cv186ah_se9v1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9v1_16G";
+		};
+
+		config-cv186ah_se9b1_4G {
+			description = "boot cvitek system with board cv186ah_se9b1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b1_4G";
+		};
+
+		config-cv186ah_se9b1_8G {
+			description = "boot cvitek system with board cv186ah_se9b1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b1_8G";
+		};
+
+		config-cv186ah_se9b1_12G {
+			description = "boot cvitek system with board cv186ah_se9b1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b1_12G";
+		};
+
+		config-cv186ah_se9b1_16G {
+			description = "boot cvitek system with board cv186ah_se9b1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b1_16G";
+		};
+
+		config-cv186ah_se9b2_4G {
+			description = "boot cvitek system with board cv186ah_se9b2_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b2_4G";
+		};
+
+		config-cv186ah_se9b2_8G {
+			description = "boot cvitek system with board cv186ah_se9b2_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b2_8G";
+		};
+
+		config-cv186ah_se9b2_12G {
+			description = "boot cvitek system with board cv186ah_se9b2_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b2_12G";
+		};
+
+		config-cv186ah_se9b2_16G {
+			description = "boot cvitek system with board cv186ah_se9b2_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b2_16G";
+		};
+
+		config-cv186ah_se9b3_4G {
+			description = "boot cvitek system with board cv186ah_se9b3_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b3_4G";
+		};
+
+		config-cv186ah_se9b3_8G {
+			description = "boot cvitek system with board cv186ah_se9b3_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b3_8G";
+		};
+
+		config-cv186ah_se9b3_12G {
+			description = "boot cvitek system with board cv186ah_se9b3_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b3_12G";
+		};
+
+		config-cv186ah_se9b3_16G {
+			description = "boot cvitek system with board cv186ah_se9b3_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b3_16G";
+		};
+
+		config-cv186ah_se9b4_4G {
+			description = "boot cvitek system with board cv186ah_se9b4_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b4_4G";
+		};
+
+		config-cv186ah_se9b4_8G {
+			description = "boot cvitek system with board cv186ah_se9b4_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b4_8G";
+		};
+
+		config-cv186ah_se9b4_12G {
+			description = "boot cvitek system with board cv186ah_se9b4_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b4_12G";
+		};
+
+		config-cv186ah_se9b4_16G {
+			description = "boot cvitek system with board cv186ah_se9b4_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9b4_16G";
+		};
+
+		config-bm1688_se9k1_4G {
+			description = "boot cvitek system with board bm1688_se9k1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_4G";
+		};
+		config-bm1688_se9k1_8G {
+			description = "boot cvitek system with board bm1688_se9k1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_8G";
+		};
+		config-bm1688_se9k1_12G {
+			description = "boot cvitek system with board bm1688_se9k1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_12G";
+		};
+		config-bm1688_se9k1_16G {
+			description = "boot cvitek system with board bm1688_se9k1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9k1_16G";
+		};
+		config-cv186ah_se9k1_4G {
+			description = "boot cvitek system with board cv186ah_se9k1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_4G";
+		};
+		config-cv186ah_se9k1_8G {
+			description = "boot cvitek system with board cv186ah_se9k1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_8G";
+		};
+		config-cv186ah_se9k1_12G {
+			description = "boot cvitek system with board cv186ah_se9k1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_12G";
+		};
+		config-cv186ah_se9k1_16G {
+			description = "boot cvitek system with board cv186ah_se9k1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_se9k1_16G";
+		};
+		config-cv186ah_sm9v1_4G {
+			description = "boot cvitek system with board cv186ah_sm9v1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v1_4G";
+		};
+
+		config-cv186ah_sm9v1_8G {
+			description = "boot cvitek system with board cv186ah_sm9v1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v1_8G";
+		};
+
+		config-cv186ah_sm9v1_12G {
+			description = "boot cvitek system with board cv186ah_sm9v1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v1_12G";
+		};
+
+		config-cv186ah_sm9v1_16G {
+			description = "boot cvitek system with board cv186ah_sm9v1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v1_16G";
+		};
+
+		config-cv186ah_sm9v2_4G {
+			description = "boot cvitek system with board cv186ah_sm9v2_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v2_4G";
+		};
+
+		config-cv186ah_sm9v2_8G {
+			description = "boot cvitek system with board cv186ah_sm9v2_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_sm9v2_8G";
+		};
+
+		config-cv186ah_nvrv1_4G {
+			description = "boot cvitek system with board cv186ah_nvrv1_4G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_nvrv1_4G";
+		};
+
+		config-cv186ah_nvrv1_8G {
+			description = "boot cvitek system with board cv186ah_nvrv1_8G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_nvrv1_8G";
+		};
+
+		config-cv186ah_nvrv1_12G {
+			description = "boot cvitek system with board cv186ah_nvrv1_12G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_nvrv1_12G";
+		};
+
+		config-cv186ah_nvrv1_16G {
+			description = "boot cvitek system with board cv186ah_nvrv1_16G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv186ah_nvrv1_16G";
+		};
+
+		/*Compatible with dts before renaming*/
+		config-athena2_se9v1_1686_emmc {
+			description = "boot cvitek system with board bm1688_se9v1";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9v1";
+		};
+
+		/*Compatible with dts before renaming*/
+		config-athena2_se9v1_emmc_8G {
+			description = "boot cvitek system with board bm1688_se9v1";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_se9v1_8G";
+		};
+
+		/*Compatible with dts before renaming*/
+		config-athena2_wevb_emmc_4G {
+			description = "boot cvitek system with board bm1688_se9v1";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_wevb_emmc_4G";
+		};
+
+		/*Compatible with dts before renaming*/
+		config-athena2_wevb_1686a_emmc {
+			description = "boot cvitek system with board bm1688_se9v1";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-bm1688_wevb_emmc";
+		};
+	};
+
+};

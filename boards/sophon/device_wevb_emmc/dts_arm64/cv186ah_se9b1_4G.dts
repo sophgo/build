@@ -20,7 +20,7 @@
 #ifndef __UBOOT__
 		//0x1_0400_0000 - 0x1_2400_0000 for TPU (owner: zhuolin.li@sophgo.com)
 		scalar_reserved: scalar_mem {
-			reg = <0x1 0x04000000 0x0 0x20000000>;  //512MB for TPU firmware
+			reg = <0x1 0x04000000 0x0 0x10000000>;  //512MB for TPU firmware
 			no-map;
 		};
 
@@ -52,9 +52,14 @@
 		reset-gpio = <&porte 2 GPIO_ACTIVE_HIGH>; //gpio 130
 	};
 
-	/delete-node/ cv-sd1;
+	/delete-node/ cv-sd1@29320000;
 	sd:cv-sd@29310000 {
 		pwr-gpios = <&portg 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	fan0: pwm-fan {
+		pwm-names = "fan";
+		pwms = <&pwm2 3 1000000>;
 	};
 
 	thermal-zones {
@@ -118,7 +123,7 @@
 	bsl_leds: bsl_leds {
 		compatible = "gpio-leds";
 		disk-led {
-			label = "error";
+			label = "disk-blue";
 			gpios = <&portf 23 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};

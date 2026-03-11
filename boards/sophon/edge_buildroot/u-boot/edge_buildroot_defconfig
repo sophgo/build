@@ -89,6 +89,11 @@ CONFIG_WDT=y
 CONFIG_SOPHON_SPACC_SHA=y
 
 #
+# ENV
+#
+CONFIG_ENV_IS_IN_MMC=y
+
+#
 # VO
 #
 # CONFIG_VIDEO_SOPH is not set

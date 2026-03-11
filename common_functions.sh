@@ -141,7 +141,7 @@ function pack_data
   mkdir -p "$OUTPUT_DIR"/data
   pushd "$OUTPUT_DIR"/data;echo "If you can dream it, you can do it." > sample;popd
   cd "$BUILD_PATH" || return
-  make jffs2
+  make data
 )}
 
 function clean_rootfs
