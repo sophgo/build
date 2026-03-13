@@ -945,17 +945,18 @@ function setup_debian_env() {
     if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
         export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/bookworm.tgz"
         export DISTRO_MD5="cc6df8ef5a6c45d5562c7379b77d6773"
+        export FETCH_CMD="dfss"
     else
         case "$DISTRO" in
             "focal")
-                export DISTRO_URL="${DISTRO_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/distro/distro_focal_f93ebbaa47adb3231aef80661e9d01bf.tgz}"
                 export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
                 ;;
             "jammy")
-                export DISTRO_URL="${DISTRO_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/distro/distro_jammy_c6d415287309d0f61f05186621e5bb58.tgz}"
                 export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
                 ;;
         esac
+        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz"
+        export FETCH_CMD="dfss"
     fi
 
   export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
@@ -973,14 +974,14 @@ function fetch_debian_based_rootfs() {
         mkdir -p "$download_dir"
         cd "$download_dir"
 
-        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "dfss" || return 1
+        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "$FETCH_CMD" || return 1
         zcat "$file_path" | sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
     else
         local download_dir="${TOP_DIR}/ubuntu/distro"
         local file_path="${download_dir}/distro_${DISTRO}.tgz"
         mkdir -p "$download_dir"
 
-        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "wget" || return 1
+        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "$FETCH_CMD" || return 1
         zcat "$file_path" | sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
     fi
 }
