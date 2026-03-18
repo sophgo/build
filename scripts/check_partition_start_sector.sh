@@ -2,7 +2,7 @@
 
 set -e
 
-TARGET_PARTITION="DATA"
+TARGET_PARTITIONS=("DATA" "MISC" "ROOTFS")
 CURRENT_DEVICE="/dev/mmcblk0"
 NEW_PARTITION_XML="partition32G_sector.xml"
 PARTITION_TABLE_OFFSET=8192
@@ -16,11 +16,8 @@ get_partition_start_sector_from_xml() {
     local current_start=$PARTITION_TABLE_OFFSET
     local partition_found=0
     
-    # 清理XML内容，移除注释和空行
     local temp_xml=$(mktemp)
     grep -v '^ *<!--' "$xml_file" | grep -v '^ *-->' | sed '/^ *$/d' > "$temp_xml"
-    
-    # 解析XML中的分区信息
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
         
@@ -73,27 +70,36 @@ convert_label_to_device() {
 }
 
 echo "Starting partition start sector check..."
-echo "Target: $TARGET_PARTITION, Device: $CURRENT_DEVICE"
+echo "Device: $CURRENT_DEVICE"
 echo "XML file: $NEW_PARTITION_XML"
+echo "Partitions to check: ${TARGET_PARTITIONS[*]}"
+echo "========================================"
+
+for TARGET_PARTITION in "${TARGET_PARTITIONS[@]}"; do
+    echo "----------------------------------------"
+    echo "Checking partition: $TARGET_PARTITION"
+
+    PARTITION_DEVICE=$(convert_label_to_device "$TARGET_PARTITION" "$CURRENT_DEVICE")
+    [[ -z "$PARTITION_DEVICE" ]] && { echo "Error: Cannot convert label '$TARGET_PARTITION'" >&2; exit 1; }
+
+    CURRENT_START=$(get_partition_start_sector_from_system "$PARTITION_DEVICE" "$CURRENT_DEVICE")
+    NEW_START=$(get_partition_start_sector_from_xml "$TARGET_PARTITION" "$NEW_PARTITION_XML")
+
+    echo "Partition device: $PARTITION_DEVICE"
+    echo "Current start sector: $CURRENT_START"
+    echo "New layout start sector: $NEW_START"
+
+    if [[ "$CURRENT_START" -eq "$NEW_START" ]]; then
+        echo "✓ Check passed: Partition '$TARGET_PARTITION' start sector matches."
+    else
+        echo "✗ Check failed: Partition '$TARGET_PARTITION' start sector mismatch!"
+        echo "Current: $CURRENT_START, New: $NEW_START"
+        echo "OTA upgrade rejected to prevent data corruption."
+        exit 1
+    fi
+done
+
 echo "----------------------------------------"
-
-PARTITION_DEVICE=$(convert_label_to_device "$TARGET_PARTITION" "$CURRENT_DEVICE")
-[[ -z "$PARTITION_DEVICE" ]] && { echo "Error: Cannot convert label '$TARGET_PARTITION'" >&2; exit 1; }
-
-CURRENT_START=$(get_partition_start_sector_from_system "$PARTITION_DEVICE" "$CURRENT_DEVICE")
-NEW_START=$(get_partition_start_sector_from_xml "$TARGET_PARTITION" "$NEW_PARTITION_XML")
-
-echo "Current start sector: $CURRENT_START"
-echo "New layout start sector: $NEW_START"
-echo "----------------------------------------"
-
-if [[ "$CURRENT_START" -eq "$NEW_START" ]]; then
-    echo "✓ Check passed: Partition '$TARGET_PARTITION' start sector matches."
-    echo "OTA upgrade can proceed."
-    exit 0
-else
-    echo "✗ Check failed: Partition '$TARGET_PARTITION' start sector mismatch!"
-    echo "Current: $CURRENT_START, New: $NEW_START"
-    echo "OTA upgrade rejected to prevent data corruption."
-    exit 1
-fi
+echo "All partition start sector checks passed."
+echo "OTA upgrade can proceed."
+exit 0
