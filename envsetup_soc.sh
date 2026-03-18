@@ -943,8 +943,8 @@ function setup_debian_env() {
     export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
 
     if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
-        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/bookworm.tgz"
-        export DISTRO_MD5="cc6df8ef5a6c45d5562c7379b77d6773"
+        export DISTRO_MD5="aebaa36fee0119bca6f286858117764f"
+        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/bookworm_${DISTRO_MD5}.tgz"
         export FETCH_CMD="dfss"
     else
         case "$DISTRO" in

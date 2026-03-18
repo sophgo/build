@@ -11,20 +11,42 @@ echo ">>>>>start upgrade app package..."
 echo ">>>>>md5sum check ..."
 CHECK_SCRIPT="./check_partition_start_sector.sh"
 UPDATE_GPT_SCRIPT="./update_partition_gpt.sh"
+IGNORE_MD5_FILES=("md5.txt" "ota_versino.txt")
 basepath=$(cd `dirname $0`; pwd)
 echo $basepath
 cd $basepath
 rm -rf ota_versino.txt
-md5sum -c $1 > ota_versino.txt
+md5sum -c "$1" > ota_versino.txt 2>&1
 ret=$?
 count=$#
 rootpath="/data/ota"
 
-if [ $ret -ne 0 ]; then
+# collect real failed files except those in IGNORE_MD5_FILES
+FAILED_LINES=""
+while IFS= read -r line; do
+    # only care lines ending with 'FAILED'
+    echo "$line" | grep -q "FAILED$" || continue
+    file_name=${line%%:*}
+    skip=false
+    for ignore in "${IGNORE_MD5_FILES[@]}"; do
+        if [ "$file_name" = "$ignore" ]; then
+            skip=true
+            break
+        fi
+    done
+    if [ "$skip" = false ]; then
+        FAILED_LINES+="${line}"$'\n'
+    fi
+done < ota_versino.txt
+
+if [ $ret -ne 0 ] && [ -n "$FAILED_LINES" ]; then
     echo ">>>>> upgrade package is wrong stop upgrade..."
+    echo ">>>>> md5 check failed for the following files:"
+    printf "%s" "$FAILED_LINES"
     echo "update failed"
     exit 1
 else
+    echo ">>>>> md5 check passed."
     if bash "$CHECK_SCRIPT"; then
         echo "✓ Partition check passed."
     else
@@ -39,17 +61,6 @@ else
     fi
     md5sum * > md5.txt
     echo ">>>>>upgrade package starting..."
-    # backup user information
-    echo ">>>>>backup user information..."
-    rm -rf ${rootpath}/public_ota/backup
-    mkdir -p ${rootpath}/public_ota/backup
-    # update boot-loader
-    #sudo flash_update -i spi_flash.bin -b 0x06000000 -f 0x0
-    #sudo flash_update -i fip.bin -b 0x6000000 -f 0x40000
-    # upgrade mcu
-    #sudo mcu-util-aarch64 upgrade 1 0x17 sa5-mcu*.bin
-
-    # private ota :boot-recovery /data/ota/startup.sh\nprivate_update"
     sudo dd if=/dev/zero of=/dev/mmcblk0p3 bs=512 count=1
     if [ $# -ge 2 ]; then
         echo -e "boot-recovery\n/DATA/ota\n$2" > /dev/mmcblk0p3
