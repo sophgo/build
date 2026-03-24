@@ -68,7 +68,9 @@ config PARTITION_2_LABEL
 
 config PARTITION_2_SIZE
     string "Partition 2 Size (in KB), multiple of 64KB or 128KB"
-    default "3072"
+    default "3072" if STORAGE_TYPE_emmc
+    default "3072" if STORAGE_TYPE_spinand
+    default "1024" if STORAGE_TYPE_spinor
     depends on PARTITION_2
 	help
 		The size must be a multiple of 64KB or 128KB

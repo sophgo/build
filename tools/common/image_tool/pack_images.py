@@ -18,7 +18,7 @@ SV_BLOCK_NUM = 4
 BLOCK_SIZE_FOR_4K_NAND = 262144
 
 global chip_list
-chip_list = ["cv183x", "cv182x", "cv181x"]
+chip_list = ["cv184x","cv183x", "cv182x", "cv181x"]
 
 
 def parse_Args():
@@ -52,6 +52,12 @@ def parse_Args():
     parser.add_argument(
         "-v", "--verbose", help="increase output verbosity", action="store_true"
     )
+    # Only print partition table, don't generate Data.bin
+    parser.add_argument(
+        "-p", "--print_partitions", help="only print partition table, don't generate Data.bin",
+        action="store_true"
+    )
+    
     args = parser.parse_args()
     if args.verbose:
         logging.debug("Enable more verbose output")
@@ -161,15 +167,15 @@ def genDataBin(
                 f.seek(0)
                 file_array.fromfile(f, file_size)
             out.seek(p["offset"], 0)
-            logging.info("Writing %s to pos %d" % (p["label"], p["offset"]))
+            logging.info("Writing %s to pos %d, block offset = %d " % (p["label"], p["offset"],p["offset"] // block_size))
             file_array.tofile(out)
             # for fip.bin of spi nand, we do a backup at 9th block
             if i == 0 and storage_type == "spinand":
                 out.seek(block_size * FIP_BACKUP_BLOCK_POS, 0)
                 file_array.tofile(out)
                 logging.info(
-                    "do a backup for fip.bin at %d"
-                    % (block_size * FIP_BACKUP_BLOCK_POS)
+                    "do a backup for fip.bin at %d, block offset = %d "
+                    % (block_size * FIP_BACKUP_BLOCK_POS, FIP_BACKUP_BLOCK_POS)
                 )
 
         # Only append 0xff when the partition is not the last partition.
@@ -208,10 +214,22 @@ def main():
     args = parse_Args()
     xmlParser = XmlParser(args.xml)
     parts = xmlParser.parse(args.images_path)
-    out_path = path.join(args.output, "Data.bin")
 
     storage_type = xmlParser.getStorage()
-    logging.info("storage type is %s " % storage_type)
+    logging.info("storage type is %s" % storage_type)
+
+    if args.print_partitions:
+        for i, p in enumerate(parts):
+            file_name = p.get("file_name", "")
+            logging.info("Partition %d: %s(%s), pos=%d, block offset=%d" %
+                         (i, p.get("label", "unknown"), file_name, p.get("offset", 0), p.get("offset", 0) // args.block_size))
+            if storage_type == "spinand" and i == 0:
+                logging.info("FIP backup: pos=%d, block offset=%d" %
+                            (args.block_size * FIP_BACKUP_BLOCK_POS, FIP_BACKUP_BLOCK_POS))
+        return
+
+
+    out_path = path.join(args.output, "Data.bin")
 
     with open(out_path, "wb") as out:
         genDataBin(

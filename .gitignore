@@ -11,3 +11,4 @@ __pycache__
 !/tools/common/update_vendor/update_vendor.c
 tools/common/update_misc/update_misc
 tools/common/update_misc/update_misc.o
+tools/common/spinand_tool/fip_maker/fip_maker

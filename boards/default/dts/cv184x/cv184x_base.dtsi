@@ -1,5 +1,6 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/soc/cvitek,boot-mode.h>
+#include <dt-bindings/clock/cv184x-clock.h>
 
 / {
 	compatible = "cvitek,cv184x";
@@ -837,6 +838,8 @@
 		reg = <0x0 0x0a0a0000 0x0 0x2000>, <0x0 0x0a0a6000 0x0 0x1000>,
 		      <0x0 0x0a0a2000 0x0 0x2000>, <0x0 0x0a0a4000 0x0 0x2000>;
 		reg-names = "csi_mac0", "csi_wrap0", "csi_mac1", "csi_mac2";
+		clocks = <&clk CV184X_CLK_CAM0_VIP>, <&clk CV184X_CLK_CAM1_VIP>, <&clk CV184X_CLK_CAM2_VIP>;
+		clock-names = "clk_cam[0]", "clk_cam[1]", "clk_cam[2]";
 	};
 
 	mipi_tx: mipi_tx {
@@ -932,6 +935,12 @@
 	rtos_cmdqu {
 		compatible = "cvitek,rtos_cmdqu";
 		reg = <0x0 0x01900000 0x0 0x1000>;
+		shared_addr = <CVIMMAP_SHARE_MEM_ADDR>;
+		shared_size = <CVIMMAP_SHARE_MEM_SIZE>;
+		rtos_ion_addr = <CVIMMAP_RTOS_ION_ADDR>;
+		rtos_ion_size = <CVIMMAP_RTOS_ION_SIZE>;
+		rtos_log_addr = <CVIMMAP_RTOS_LOG_ADDR>;
+		rtos_log_size = <CVIMMAP_RTOS_LOG_SIZE>;
 		reg-names = "mailbox";
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "mailbox";

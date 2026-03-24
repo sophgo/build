@@ -12,7 +12,7 @@ function _build_default_env()
   COMPRESSOR_UBOOT=${COMPRESSOR_UBOOT:-lzma} # or none to disable
   MULTI_PROCESS_SUPPORT=${MULTI_PROCESS_SUPPORT:-0}
   PACK_BOOTLOGO=${PACK_BOOTLOGO:-n}
-  TPU_REL=${TPU_REL:-0} # TPU release build
+  TPU_REL=${TPU_REL:-1} # TPU release build
   SENSOR=${SENSOR:-sony_imx327}
   SCENES=${SCENES:-0} # scenes for dualos 0:normal  1:fastboot  2:low power
 }
@@ -827,8 +827,8 @@ function build_kernel_header()
 function build_libsophon()
 {(
   clean_libsophon
-  [ -d $TPU1686_PATH ] && generate_kernel_module
-  [ -d $TPU1686_PATH ] && build_kernel_header
+  # [ -d $TPU1686_PATH ] && generate_kernel_module
+  build_kernel_header
   print_notice "Run ${FUNCNAME[0]}() function"
 
   # pushd "$LIBSOPHON_PATH" || return

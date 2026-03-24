@@ -211,6 +211,16 @@ config STATIC
 	  dynamic libraries to be present, which is important if used
 	  as a system rescue tool.
 
+config SWITCH_32K_XTAL
+	bool "SWITCH 32K to external XTAL"
+	default n
+	help
+	  If you wish to use the on-board 32k crystal oscillator
+	  instead of the internal 32k clock of rtc_sys, please
+	  enable this feature. Once enabled, the BL2 code in the
+	  FSBL repository will perform the 32k clock source switching.
+
+
 config BUILD_FOR_DEBUG
 	bool "Build SDK with debug config"
 	default y
@@ -380,10 +390,9 @@ config AUD_DRV_SEL
 	help
 	  Say "y/n" here to enable/disable audio drv position.
 
-config AUD_3A_SEL
-	bool "enable 3a in alios"
-	depends on ENABLE_ALIOS
-	default n
+config AUD_RTOS_3A
+	bool "enable 3a in rtos"
+	default y
 	help
 	  Say "y/n" here to enable/disable 3a in alios.
 
@@ -392,6 +401,13 @@ config PACK_BOOTLOGO
     default n
     help
       Say "y" here to enable packing BOOTLOGO into firmware.
+
+config OSDC_DUAL_906
+    bool "906L dual OSDC"
+    depends on ENABLE_ALIOS
+    default n
+    help
+      Say "y" here to enable OSDC to alios.
 endmenu
 
 menu "FIP setting"
@@ -771,6 +787,7 @@ config ENABLE_ALIOS
 
 config ENABLE_RTT
 	bool "RT-Thread"
+	depends on !DUAL_OS
 	help
 	  Enable RT-Thread.
 endchoice
