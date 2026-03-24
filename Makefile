@@ -310,7 +310,7 @@ endif
 
 kerne%: export LOCALVERSION=-sophon-custom
 ifeq (${CONFIG_KERNEL_SRC_6.12},y)
-kerne%: export KERNELRELEASE=6.12.61
+kerne%: export KERNELRELEASE=6.12.62
 kerne%: export KDEB_PKGVERSION=${KERNELRELEASE}${LOCALVERSION}
 else
 kerne%: export KERNELRELEASE=5.10.4
