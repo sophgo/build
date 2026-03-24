@@ -52,6 +52,7 @@ ENVS_FROM_CONFIG = [
     "MTRACE",
     "AB_SYSTEM",
     "SUP_LARGE_PART_SIZE",
+    "SWITCH_32K_XTAL",
 ]
 
 

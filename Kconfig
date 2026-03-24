@@ -208,6 +208,15 @@ config STATIC
 	  dynamic libraries to be present, which is important if used
 	  as a system rescue tool.
 
+config SWITCH_32K_XTAL
+	bool "SWITCH 32K to external XTAL"
+	default n
+	help
+	  If you wish to use the on-board 32k crystal oscillator
+	  instead of the internal 32k clock of rtc_sys, please
+	  enable this feature. Once enabled, the BL2 code in the
+	  FSBL repository will perform the 32k clock source switching.
+
 config BUILD_FOR_DEBUG
 	bool "Build SDK with debug config"
 	default y

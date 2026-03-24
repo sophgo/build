@@ -6,3 +6,4 @@ __pycache__
 /config.cmake
 /config.all_vars
 /.defconfig
+tools/common/spinand_tool/fip_maker/fip_maker
