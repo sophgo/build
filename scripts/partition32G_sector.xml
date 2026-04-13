@@ -23,7 +23,7 @@
         <partition label="BOOT"       size_in_sectors="262144"  readonly="false"  format="1" />
         <partition label="RECOVERY"   size_in_sectors="262144"  readonly="false" format="2" />
         <partition label="MISC"       size_in_sectors="20480"  readonly="false"   format="0" />
-        <partition label="ROOTFS"     size_in_sectors="6291456" readonly="true"   format="2" />
-        <partition label="ROOTFS_RW"  size_in_sectors="18582912" readonly="false"  format="2" />
+        <partition label="ROOTFS"     size_in_sectors="8388608" readonly="true"   format="2" />
+        <partition label="ROOTFS_RW"  size_in_sectors="16485760" readonly="false"  format="2" />
         <partition label="DATA"       size_in_sectors="8388608" readonly="false"  format="2" />
 </physical_partition>
