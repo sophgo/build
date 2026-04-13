@@ -631,7 +631,7 @@ config KERNEL_ENTRY_HACK_ADDR
 	string "Set kernel entry in boot image"
 	depends on KERNEL_ENTRY_HACK
 	default "0x04200000" if C906_HART1
-	default "0x14200000" if C906_HART2
+	default "0x08200000" if C906_HART2
 	help
 	  Set kernel entry in boot image.
 	  Don't select this if you don't know what you are doning.

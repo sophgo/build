@@ -23,13 +23,6 @@
 		#size-cells = <0x2>;
 		ranges;
 #ifndef __UBOOT__
-		//0x1_0400_0000 - 0x1_2400_0000 for TPU (owner: zhuolin.li@sophgo.com)
-		//Don't move the TPU address
-		scalar_reserved: scalar_mem {
-			reg = <0x1 0x04000000 0x0 0x10000000>;  //512MB for TPU firmware
-			no-map;
-		};
-
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
 			reg = <0x2 0x00000000 0x1 0x00000000>; // 4G, for npu

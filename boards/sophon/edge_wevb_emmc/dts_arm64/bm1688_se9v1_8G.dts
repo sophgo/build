@@ -18,13 +18,6 @@
 		#size-cells = <0x2>;
 		ranges;
 #ifndef __UBOOT__
-		//0x1_0400_0000 - 0x1_2400_0000 for TPU (owner: zhuolin.li@sophgo.com)
-		//Don't move the TPU address
-		scalar_reserved: scalar_mem {
-			reg = <0x1 0x04000000 0x0 0x10000000>;  //512MB for TPU firmware
-			no-map;
-		};
-
 		//0x1_7A00_0000 - 0x1_DA00_0000 for TPU (owner: zhuolin.li@sophgo.com)
 		ion_for_npu: ion_npu_mem {
 			compatible = "npu-region";
