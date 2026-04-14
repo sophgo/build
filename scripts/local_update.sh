@@ -1,4 +1,19 @@
 #!/bin/bash
+# Note:
+#   This script must be executed with root privileges.
+#
+# Usage:
+#   ./local_update.sh <md5_file> [skip_partition_flag] [recovery_arg]
+# Args:
+#   <md5_file>            Required. md5 list file, e.g. md5.txt
+#   [skip_partition_flag] Optional. If present, skip partition check/update
+#                         and md5 regeneration step.
+#   [recovery_arg]        Optional. Extra third line written to /dev/mmcblk0p3
+# Examples:
+#   ./local_update.sh md5.txt
+#   ./local_update.sh md5.txt skip
+#   ./local_update.sh md5.txt skip my_recovery_param
+#   ./local_update.sh md5.txt "" my_recovery_param
 
 # this is se6 ota update script
 if [ $# -lt 1  ] ; then
@@ -20,6 +35,10 @@ md5sum -c "$1" > ota_versino.txt 2>&1
 ret=$?
 count=$#
 rootpath="/data/ota"
+skip_partition_ops=false
+if [ $# -ge 2 ] && [ -n "$2" ]; then
+    skip_partition_ops=true
+fi
 
 # collect real failed files except those in IGNORE_MD5_FILES
 FAILED_LINES=""
@@ -47,23 +66,27 @@ if [ $ret -ne 0 ] && [ -n "$FAILED_LINES" ]; then
     exit 1
 else
     echo ">>>>> md5 check passed."
-    if bash "$CHECK_SCRIPT"; then
-        echo "✓ Partition check passed."
+    if [ "$skip_partition_ops" = true ]; then
+        echo ">>>>> skip partition check/update/md5 regenerate by optional arg."
     else
-        echo "ERROR: Partition check failed! OTA update aborted." >&2
-        exit 1
+        if bash "$CHECK_SCRIPT"; then
+            echo "✓ Partition check passed."
+        else
+            echo "ERROR: Partition check failed! OTA update aborted." >&2
+            exit 1
+        fi
+        if bash "$UPDATE_GPT_SCRIPT"; then
+            echo "✓ Partition update passed."
+        else
+            echo "ERROR: Partition update failed! OTA update aborted." >&2
+            exit 1
+        fi
+        md5sum * > md5.txt
     fi
-    if bash "$UPDATE_GPT_SCRIPT"; then
-        echo "✓ Partition update passed."
-    else
-        echo "ERROR: Partition update failed! OTA update aborted." >&2
-        exit 1
-    fi
-    md5sum * > md5.txt
     echo ">>>>>upgrade package starting..."
-    sudo dd if=/dev/zero of=/dev/mmcblk0p3 bs=512 count=1
-    if [ $# -ge 2 ]; then
-        echo -e "boot-recovery\n/DATA/ota\n$2" > /dev/mmcblk0p3
+    dd if=/dev/zero of=/dev/mmcblk0p3 bs=512 count=1
+    if [ $# -ge 3 ] && [ -n "$3" ]; then
+        echo -e "boot-recovery\n/DATA/ota\n$3" > /dev/mmcblk0p3
     else
         echo -e "boot-recovery\n/DATA/ota" > /dev/mmcblk0p3
     fi
