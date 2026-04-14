@@ -1331,6 +1331,126 @@ function revert_package()
 	fi
 }
 
+# 在 <dir> 下查找 sdcard.tgz；若存在则在同目录创建 sdcard_out，并按 revert_package 相同步骤解压/还原到 sdcard_out。
+# 用法: revert_sdcard_package <dir>
+function revert_sdcard_package()
+{
+	local SCRIPTS_DIR="${TOP_DIR}/build/scripts/"
+	local base="${1:?usage: revert_sdcard_package <dir_containing_sdcard.tgz>}"
+	local sdcard_tgz out tmp source_partition_xml
+
+	base="$(cd "$base" && pwd)" || return 1
+	sdcard_tgz="$base/sdcard.tgz"
+	out="$base/sdcard_out"
+	tmp="$base/.revert_sdcard_tmp"
+
+	if [ ! -f "$sdcard_tgz" ]; then
+		echo "sdcard.tgz does not exist in: $base" >&2
+		return 1
+	fi
+
+	rm -rf "$tmp" "$out"
+	mkdir -p "$tmp/package_update/update/sdcard" "$out"
+	cp -r "$SCRIPTS_DIR/revert_package.sh" "$tmp/package_update/update/sdcard/"
+
+	pushd "$base" || return 1
+	tar -zxf sdcard.tgz -m -C "$tmp/package_update/"
+	source_partition_xml="$tmp/package_update/sdcard/partition32G_sector.xml"
+	if [ ! -f "$source_partition_xml" ]; then
+		echo "partition32G_sector.xml not found in sdcard.tgz" >&2
+		popd
+		rm -rf "$tmp"
+		return 1
+	fi
+	cp -r "$tmp/package_update/sdcard/"* "$tmp/package_update/update/sdcard/"
+	shopt -s nullglob
+	for f in "$tmp/package_update/sdcard/"*.bin; do
+		cp -r "$f" "$out/"
+	done
+	shopt -u nullglob
+	cd "$tmp/package_update/update/sdcard" || { popd; return 1; }
+	./revert_package.sh boot data rootfs rootfs_rw recovery
+
+	cd ../
+	sudo rm -rf ./*.tgz
+	mv ./sdcard/*.tgz ./
+	sudo rm -rf ./sdcard
+
+	shopt -s nullglob
+	for tgz in ./*.tgz; do
+		part_name="$(basename "$tgz" .tgz)"
+		mkdir -p "$out/$part_name"
+		tar -zxf "$tgz" -C "$out/$part_name"
+	done
+	shopt -u nullglob
+
+	cp -f "$source_partition_xml" "$out/"
+	popd || return 1
+
+	rm -rf "$tmp"
+	echo "revert_sdcard_package finished: $out"
+}
+
+function rebuild_sdcard_package()
+{
+	local SCRIPTS_DIR="${TOP_DIR}/build/scripts/"
+	local pkg_dir="${1:?usage: rebuild_sdcard_package <sdcard_out_dir>}"
+	local partition_xml part
+	local parts=(boot data rootfs rootfs_rw recovery misc)
+	local created_tgz=()
+
+	pkg_dir="$(cd "$pkg_dir" && pwd)" || return 1
+	partition_xml="$pkg_dir/partition32G_sector.xml"
+
+	if [ ! -f "$partition_xml" ]; then
+		echo "partition32G_sector.xml not found in: $pkg_dir" >&2
+		return 1
+	fi
+
+	pushd "$pkg_dir" || return 1
+
+	for part in "${parts[@]}"; do
+		if [ -d "$part" ]; then
+			tar -zcf "${part}.tgz" -C "$part" . || { popd; return 1; }
+			created_tgz+=("${part}.tgz")
+		fi
+	done
+
+	pushd "$SCRIPTS_DIR" || { popd; return 1; }
+	if [ ! -e ./mk_gpt ]; then
+		pushd mk-gpt || { popd; popd; return 1; }
+		make || { popd; popd; popd; return 1; }
+		popd || { popd; popd; return 1; }
+	fi
+
+	./bm_make_package_sectors.sh sdcard "$partition_xml" "$pkg_dir" || { popd; popd; return 1; }
+	popd || { popd; return 1; }
+
+	if [ ! -d "$pkg_dir/sdcard" ]; then
+		echo "failed to generate $pkg_dir/sdcard" >&2
+		popd
+		return 1
+	fi
+
+	pushd "$pkg_dir/sdcard" || { popd; return 1; }
+	cp "$SCRIPTS_DIR/local_update.sh" .
+	cp "$SCRIPTS_DIR/ota_update.sh" .
+	cp "$SCRIPTS_DIR/update_partition_gpt.sh" .
+	cp "$SCRIPTS_DIR/update_gpt" .
+	cp "$SCRIPTS_DIR/check_partition_start_sector.sh" .
+	md5sum * > md5.txt
+	popd || { popd; return 1; }
+
+	tar -zcf sdcard.tgz sdcard || { popd; return 1; }
+
+	for part in "${created_tgz[@]}"; do
+		rm -f "$part"
+	done
+
+	popd || return 1
+	echo "rebuild_sdcard_package finished: $pkg_dir/sdcard.tgz"
+}
+
 function build_update()
 {
     SCRIPTS_DIR=${TOP_DIR}/build/scripts/
