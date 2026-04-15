@@ -1301,51 +1301,20 @@ tftp
 usb
 )
 
-function revert_package()
-{
-	SCRIPTS_DIR=${TOP_DIR}/build/scripts/
-	mkdir -p $OUTPUT_DIR/package_update/update/sdcard
-	mkdir -p $OUTPUT_DIR/package_edge
-	cp -r $SCRIPTS_DIR/revert_package.sh $OUTPUT_DIR/package_update/update/sdcard
-	sdcard_file="$OUTPUT_DIR/sdcard.tgz"
-
-	if [ -f "$sdcard_file" ]; then
-		echo "the sdcard.tgz exists."
-		pushd $OUTPUT_DIR
-		tar -zxf sdcard.tgz -m -C ./package_update/
-		cp -r ./package_update/sdcard/* ./package_update/update/sdcard/
-		cp -r ./package_update/sdcard/*.bin $OUTPUT_DIR/package_edge/
-		cd ./package_update/update/sdcard
-		./revert_package.sh boot data rootfs rootfs_rw recovery
-
-		cd ../
-		sudo rm -rf ./*.tgz
-		mv ./sdcard/*.tgz ./
-		sudo rm -rf ./sdcard
-		cp -r ./* $OUTPUT_DIR/package_edge/
-		popd
-		echo "revert package finished!"
-	else
-		echo "sdcard.tgz does not exist."
-		echo "please copy sdcard.tgz to ${OUTPUT_DIR}/ and try again."
-	fi
-}
-
-# 在 <dir> 下查找 sdcard.tgz；若存在则在同目录创建 sdcard_out，并按 revert_package 相同步骤解压/还原到 sdcard_out。
-# 用法: revert_sdcard_package <dir>
+# 传入 sdcard.tgz 文件路径，在当前目录生成 sdcard_out 并解包还原。
+# 用法: revert_sdcard_package <path_to_sdcard.tgz>
 function revert_sdcard_package()
 {
 	local SCRIPTS_DIR="${TOP_DIR}/build/scripts/"
-	local base="${1:?usage: revert_sdcard_package <dir_containing_sdcard.tgz>}"
+	local input_tgz="${1:?usage: revert_sdcard_package <path_to_sdcard.tgz>}"
 	local sdcard_tgz out tmp source_partition_xml
 
-	base="$(cd "$base" && pwd)" || return 1
-	sdcard_tgz="$base/sdcard.tgz"
-	out="$base/sdcard_out"
-	tmp="$base/.revert_sdcard_tmp"
+	sdcard_tgz="$(cd "$(dirname "$input_tgz")" && pwd)/$(basename "$input_tgz")" || return 1
+	out="$PWD/sdcard_out"
+	tmp="$PWD/.revert_sdcard_tmp"
 
 	if [ ! -f "$sdcard_tgz" ]; then
-		echo "sdcard.tgz does not exist in: $base" >&2
+		echo "sdcard.tgz does not exist: $sdcard_tgz" >&2
 		return 1
 	fi
 
@@ -1353,8 +1322,8 @@ function revert_sdcard_package()
 	mkdir -p "$tmp/package_update/update/sdcard" "$out"
 	cp -r "$SCRIPTS_DIR/revert_package.sh" "$tmp/package_update/update/sdcard/"
 
-	pushd "$base" || return 1
-	tar -zxf sdcard.tgz -m -C "$tmp/package_update/"
+	pushd "$PWD" || return 1
+	tar -zxf "$sdcard_tgz" -m -C "$tmp/package_update/"
 	source_partition_xml="$tmp/package_update/sdcard/partition32G_sector.xml"
 	if [ ! -f "$source_partition_xml" ]; then
 		echo "partition32G_sector.xml not found in sdcard.tgz" >&2
@@ -1408,6 +1377,8 @@ function rebuild_sdcard_package()
 	fi
 
 	pushd "$pkg_dir" || return 1
+
+	rm -rf sdcard sdcard.tgz
 
 	for part in "${parts[@]}"; do
 		if [ -d "$part" ]; then
