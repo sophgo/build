@@ -694,8 +694,8 @@ echo -e "LC_ALL=C.UTF-8\n" > /etc/default/locale
 echo "Defaults timestamp_timeout=43200" | tee -a /etc/sudoers
 
 for deb_dir in /debs /home/linaro/debs; do
+  retries=0
   if [  -d \${deb_dir} ] && [ \$(ls \${deb_dir}/*.deb | wc -l) -gt 0 ]; then
-    retries=0
     while [ \${retries} -lt 3 ]; do
       sleep 1
       if dpkg -i -R \${deb_dir}; then
