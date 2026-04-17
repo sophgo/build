@@ -103,6 +103,20 @@ function file_validate()
 	[ -s ${file} ] || panic "$i \"$file\" is empty"
 }
 
+function gzip_validate()
+{
+	local file=$1
+
+	[ -n "${file}" ] || panic "gzip_validate(): empty file path"
+	[ -f "${file}" ] || panic "gzip file \"${file}\" does not exist"
+	[ -r "${file}" ] || panic "gzip file \"${file}\" is not readable"
+	[ -s "${file}" ] || panic "gzip file \"${file}\" is empty"
+
+	if ! gzip -t "${file}" >/dev/null 2>&1; then
+		panic "gzip file \"${file}\" is corrupted, please regenerate it"
+	fi
+}
+
 function suser() {
 	echo
 	echo To continue, superuser credentials are required.
@@ -577,6 +591,7 @@ function do_gen_partition_subimg()
 			fi
 		else
 			if [ -f ${PART_COMPRESS_FILE_NAME[$2]} ]; then
+				gzip_validate "${PART_COMPRESS_FILE_NAME[$2]}"
 				mkdir -p $RECOVERY_DIR/$MOUNT_DIR-$2
 				sudo mount $RECOVERY_DIR/$1 $RECOVERY_DIR/$MOUNT_DIR-$2
 				if [ $3 -eq 1 ]; then
