@@ -311,7 +311,11 @@ function build_middleware()
   pushd "$MW_PATH"
   make all -j$(nproc)
   test $? -ne 0 && print_notice "build middleware failed !!" && popd && return 1
-  make install DESTDIR="$SYSTEM_OUT_DIR"
+  if ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+    make install DESTDIR="$SYSTEM_OUT_DIR"
+  else
+    make packdeb
+  fi
   popd
 
   # add sdk version
@@ -373,10 +377,19 @@ function build_tdl_sdk()
     echo "$TPU_SDK_INSTALL_PATH not present, run build_tpu_sdk first"
     return 1
   fi
+  clean_tdl_sdk
 
   pushd "$TDL_SDK_PATH"
   ./build_tdl_sdk.sh all
   test "$?" -ne 0 && print_notice "${FUNCNAME[0]}() failed !!" && popd && return 1
+  if grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+    rm -rf pkg_root install/${CHIP_ARCH}/*.deb
+    create_debian_dir tdlsdk pkg_root 1.0.0 arm64
+    cp -a install/$CHIP_ARCH/* pkg_root/opt/sophon/tdlsdk
+    dpkg-deb --build pkg_root install/${CHIP_ARCH}/tdlsdk_1.0.0_arm64.deb
+    rm -rf pkg_root 
+    echo "package tdlsdk done"
+    fi
   popd
 }
 
@@ -454,7 +467,7 @@ function build_bmsophon()
 
   local _static_lib=OFF
   local _install_prefix="$LIBSOPHON_PATH"/pcie_build/install
-  if ! grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config && ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+  if ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
     _static_lib=ON
     _install_prefix="$SYSTEM_OUT_DIR"/usr/lib
   fi
@@ -513,6 +526,12 @@ function build_amd64_bmsophon()
   cmake --build amd64_build --target package --parallel "$(nproc)"
 }
 
+function build_bmtpu()
+{
+    pushd "$LIBSOPHON_PATH"/driver || return
+    make SOC_LINUX_DIR="$KERNEL_PATH"/"$KERNEL_OUTPUT_FOLDER" SOC_MODE=1
+    popd
+}
 
 function build_libsophon()
 {
@@ -521,7 +540,7 @@ function build_libsophon()
 
   local _static_lib=OFF
   local _install_prefix="$LIBSOPHON_PATH"/build/install
-  if ! grep -q '^CONFIG_ROOTFS_DEBIAN=y' "${TOP_DIR}"/build/.config && ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
+  if ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
     _static_lib=ON
     _install_prefix="$SYSTEM_OUT_DIR"/usr/lib
   fi
@@ -611,11 +630,12 @@ function build_nvr_edge
   popd
 }
 
-function build_edge_ubuntu
+function build_debian_based_rootfs
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  build_edge_overlay || { ret=$?; echo "Error: build_edge_overlay failed with exit code $ret"; return $ret; }
+  setup_debian_env || { ret=$?; echo "Error: setup_debian_env failed with exit code $ret"; return $ret; }
+  fetch_debian_based_rootfs || { ret=$?; echo "Error: fetch_debian_based_rootfs failed with exit code $ret"; return $ret; }
   local version=$(grep Version $DISTRO_OVERLAY_DIR/$CVIARCH/sophgo-fs/DEBIAN/control | cut -d ' ' -f 2)
   mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/debs
   dpkg-deb -b "${DISTRO_OVERLAY_DIR}/${CVIARCH}/sophgo-fs" \
@@ -628,9 +648,24 @@ function build_edge_ubuntu
   rm -rf "${SDK_DEBS}"/linux-image*.deb
 
   shopt -s nullglob
-  update_files_if_newer "linux*.deb" "${TOP_DIR}/linux_5.10/build" "${BSP_DEBS}"
-  update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${SDK_DEBS}"
-  update_files_if_newer "sophon-soc-libisp*arm64.deb" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "${SDK_DEBS}"
+  if [ "$KERNEL_SRC" = "linux-common" ]; then
+    update_files_if_newer "linux*.deb" "${TOP_DIR}/linux-common/build" "${BSP_DEBS}"
+  elif [ "$KERNEL_SRC" = "linux_5.10" ]; then
+    update_files_if_newer "linux*.deb" "${TOP_DIR}/linux_5.10/build" "${BSP_DEBS}"
+  else
+    echo "error, KERNEL_SRC should be 'linux-common' or 'linux_5.10'. " >&2
+  fi
+
+  if [ "$SIDE_TYPE" = "device" ]; then
+    update_files_if_newer "middleware_*.deb" "${TOP_DIR}/middleware/${MW_VER}" "${SDK_DEBS}"
+    update_files_if_newer "tdlsdk_*.deb" "${TOP_DIR}/tdl_sdk/install/${CHIP_ARCH}" "${SDK_DEBS}"
+  elif [ "$SIDE_TYPE" = "edge" ]; then
+    update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${SDK_DEBS}"
+    update_files_if_newer "sophon-soc-libisp*arm64.deb" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "${SDK_DEBS}"
+
+  else
+    echo "error, SIDE_TYPE should be 'device' or 'edge'。" >&2
+  fi
   update_files_if_newer "sophon-soc-libsophon*.deb" "${TOP_DIR}/libsophon/build" "${SDK_DEBS}"
 
   shopt -u nullglob
@@ -659,8 +694,8 @@ echo -e "LC_ALL=C.UTF-8\n" > /etc/default/locale
 echo "Defaults timestamp_timeout=43200" | tee -a /etc/sudoers
 
 for deb_dir in /debs /home/linaro/debs; do
+  retries=0
   if [  -d \${deb_dir} ] && [ \$(ls \${deb_dir}/*.deb | wc -l) -gt 0 ]; then
-    retries=0
     while [ \${retries} -lt 3 ]; do
       sleep 1
       if dpkg -i -R \${deb_dir}; then
@@ -695,10 +730,10 @@ EOT
   popd
 }
 
-function build_edge_rootfs()
+function build_sdk_rootfs()
 {
   echo "BOARD value is: '${BOARD}'"
-  if [[ "${BOARD}" == "buildroot" ]]; then
+  if ! grep -q '^CONFIG_ROOTFS_UBUNTU=y' "${TOP_DIR}"/build/.config; then
     pack_cfg || { ret=$?; echo "Error: pack_cfg failed with exit code $ret"; return $ret; }
     pack_rootfs || { ret=$?; echo "Error: pack_rootfs failed with exit code $ret"; return $ret; }
     pack_data || { ret=$?; echo "Error: pack_data failed with exit code $ret"; return $ret; }
@@ -707,7 +742,7 @@ function build_edge_rootfs()
     copy_tools || { ret=$?; echo "Error: copy_tools failed with exit code $ret"; return $ret; }
     pack_upgrade || { ret=$?; echo "Error: pack_upgrade failed with exit code $ret"; return $ret; }
   else
-    build_edge_ubuntu || { ret=$?; echo "Error: build_edge_ubuntu failed with exit code $ret"; return $ret; }
+    build_debian_based_rootfs || { ret=$?; echo "Error: build_debian_based_rootfs failed with exit code $ret"; return $ret; }
 
     if [ "${target}" != "regression" ]; then
         build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
@@ -831,70 +866,129 @@ function clean_nvr_edge(){
   popd
 }
 
-function build_edge_env() {
-  #export DISTRO=${DISTRO:-focal}
-  #export DISTRO=jammy
-  export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
-  export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
-  export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
-  export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
-  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V1131=y' ${TOP_DIR}/build/.config; then
-    export DISTRO=jammy
-    export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
-  else
-    export DISTRO=focal
-    export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
-  fi
+download_and_verify_file() {
+    local file_url="$1"
+    local file_path="$2"
+    local expected_md5="$3"
+    local download_tool="$4"
+
+    echo "Processing file: $(basename "$file_path")"
+
+    if [ ! -e "$file_path" ]; then
+        echo "Downloading file..."
+        case $download_tool in
+            "wget")
+                wget -q --show-progress "$file_url" -O "$file_path"
+                ;;
+            "dfss")
+                python -m dfss --url="$file_url"
+                local filename=$(basename "$file_url")
+                if [ -f "$filename" ]; then
+                    mv "$filename" "$file_path"
+                fi
+                ;;
+            *)
+                echo "Unsupported download tool: $download_tool"
+                return 1
+                ;;
+        esac
+    else
+        local current_md5=$(md5sum "$file_path" | awk '{print $1}')
+        if [ "$current_md5" != "$expected_md5" ]; then
+            echo "File exists but MD5 mismatch, re-downloading..."
+            rm -f "$file_path"
+            case $download_tool in
+                "wget") wget -q --show-progress "$file_url" -O "$file_path" ;;
+                "dfss")
+                    python -m dfss --url="$file_url"
+                    local filename=$(basename "$file_url")
+                    [ -f "$filename" ] && mv "$filename" "$file_path"
+                    ;;
+            esac
+        else
+            echo "File exists and MD5 matches, skipping download."
+        fi
+    fi
+
+    local final_md5=$(md5sum "$file_path" | awk '{print $1}')
+    if [ "$final_md5" != "$expected_md5" ]; then
+        echo "Error: File $(basename "$file_path") MD5 verification failed after download."
+        echo "Expected MD5: $expected_md5"
+        echo "Actual MD5: $final_md5"
+        return 1
+    fi
+
+    echo "File verification successful."
+    return 0
+}
+
+function setup_debian_env() {
+    SUPPORTED_DISTROS=("jammy" "focal" "debian" "bookworm")
+    DISTRO=${BUILD_ROOTFS_NAME:-jammy}
+    SUPPORTED=0
+    for d in "${SUPPORTED_DISTROS[@]}"; do
+        if [ "$d" = "$DISTRO" ]; then
+            SUPPORTED=1
+            break
+        fi
+    done
+
+    if [ $SUPPORTED -eq 0 ]; then
+        echo "warning:not support DISTRO: '$DISTRO',use default 'jammy'"
+        export DISTRO="jammy"
+    fi
+    export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
+    export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
+    export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
+    export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
+
+    if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
+        export DISTRO_MD5="aebaa36fee0119bca6f286858117764f"
+        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/bookworm_${DISTRO_MD5}.tgz"
+        export FETCH_CMD="dfss"
+    else
+        case "$DISTRO" in
+            "focal")
+                export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
+                ;;
+            "jammy")
+                export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
+                ;;
+        esac
+        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz"
+        export FETCH_CMD="dfss"
+    fi
 
   export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
   export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
   export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
 }
 
-function build_edge_overlay() {
-  sudo rm -rf "${EDGE_ROOTFS_DIR}"
-  mkdir -p "${EDGE_ROOTFS_DIR}"
+function fetch_debian_based_rootfs() {
+    sudo rm -rf "${EDGE_ROOTFS_DIR}"
+    mkdir -p "${EDGE_ROOTFS_DIR}"
 
-  if grep -q '^CONFIG_ROOTFS_DEBIAN=y' ${TOP_DIR}/build/.config; then
-      mkdir -p ${TOP_DIR}/ubuntu/bookworm
-      cd ${TOP_DIR}/ubuntu/bookworm
-      if [ ! -e "${TOP_DIR}/ubuntu/bookworm/bookworm.tgz" ]; then
-          python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/bookworm.tgz
-      fi
-      zcat "${TOP_DIR}/ubuntu/bookworm/bookworm.tgz" |\
-         sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
-  else
-    mkdir -p "${TOP_DIR}"/ubuntu/distro
-    if [ ! -e "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" ]; then
-      echo "load distro_${DISTRO}.tgz ..."
-      cd ${TOP_DIR}/ubuntu/distro
-      python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
-      mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
+    if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
+        local download_dir="${TOP_DIR}/ubuntu/bookworm"
+        local file_path="${download_dir}/bookworm.tgz"
+        mkdir -p "$download_dir"
+        cd "$download_dir"
+
+        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "$FETCH_CMD" || return 1
+        zcat "$file_path" | sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
     else
-        FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
-        if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
-            echo "update distro_${DISTRO}.tgz ..."
-            rm -f "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz"
-	    cd ${TOP_DIR}/ubuntu/distro
-            python -m dfss --url=open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz
-	    mv distro_${DISTRO}_${DISTRO_MD5}.tgz distro_${DISTRO}.tgz
-        fi
-    fi
-    FILE_MD5=$(md5sum "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" | awk '{print $1}')
-    if [ "$FILE_MD5" != "$DISTRO_MD5" ]; then
-        echo "The distro_${DISTRO}.tgz is corrupted; Please check."
-	return -1
-    fi
-    zcat "${TOP_DIR}/ubuntu/distro/distro_${DISTRO}.tgz" |\
-		sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
-  fi
+        local download_dir="${TOP_DIR}/ubuntu/distro"
+        local file_path="${download_dir}/distro_${DISTRO}.tgz"
+        mkdir -p "$download_dir"
 
+        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "$FETCH_CMD" || return 1
+        zcat "$file_path" | sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
+    fi
 }
 
 function build_edge_sdk() {
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  build_edge_env || { ret=$?; echo "Error: build_edge_env failed with exit code $ret"; return $ret; }
   build_uboot || { ret=$?; echo "Error: build_uboot failed with exit code $ret"; return $ret; }
   build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
   build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
@@ -907,16 +1001,17 @@ function build_edge_sdk() {
     build_libsophon || { ret=$?; echo "Error: build_libsophon failed with exit code $ret"; return $ret; }
     build_sophon_media || { ret=$?; echo "Error: build_sophon_media failed with exit code $ret"; return $ret; }
     ## build pcie deb
-    build_bmsophon || { ret=$?; echo "Error: build_bmsophon failed with exit code $ret"; return $ret; }
-    build_amd64_bmsophon || { ret=$?; echo "Error: build_amd64_bmsophon failed with exit code $ret"; return $ret; }
-    build_pcie_arm64_sophon_media || { ret=$?; echo "Error: build_pcie_arm64_sophon_media failed with exit code $ret"; return $ret; }
-    build_pcie_amd64_sophon_media || { ret=$?; echo "Error: build_pcie_amd64_sophon_media failed with exit code $ret"; return $ret; }
+    if [[ -z "$MINI_BUILD" ]]; then
+    	build_bmsophon || { ret=$?; echo "Error: build_bmsophon failed with exit code $ret"; return $ret; }
+    	build_amd64_bmsophon || { ret=$?; echo "Error: build_amd64_bmsophon failed with exit code $ret"; return $ret; }
+    	build_pcie_arm64_sophon_media || { ret=$?; echo "Error: build_pcie_arm64_sophon_media failed with exit code $ret"; return $ret; }
+    	build_pcie_amd64_sophon_media || { ret=$?; echo "Error: build_pcie_amd64_sophon_media failed with exit code $ret"; return $ret; }
+    fi
   fi
 }
 
 function build_edge_package(){
   cd ${TOP_DIR}
-  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/local_update.sh ${TOP_DIR}/build/scripts
   cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update.sh ${TOP_DIR}/build/scripts
   build_package
 }
@@ -925,7 +1020,7 @@ function build_edge_all(){
   local target=${1:-all}
 
   build_edge_sdk || { ret=$?; echo "Error: build_edge_sdk failed with exit code $ret"; return $ret; }
-  build_edge_rootfs || { ret=$?; echo "Error: build_edge_rootfs failed with exit code $ret"; return $ret; }
+  build_sdk_rootfs || { ret=$?; echo "Error: build_sdk_rootfs failed with exit code $ret"; return $ret; }
 }
 
 function clean_edge_all(){
@@ -1087,7 +1182,14 @@ function build_3rd_party()
     "uv"
     "cvi-json-c"
     "cvi-miniz"
+    "curl"
     "opencv4.5"
+    "stb"
+    "nlohmannjson"
+    "kissfft"
+    "kaldi-native-fbank"
+    "googletest"
+    "eigen"
   )
 
   for name in "${oss_list[@]}"
@@ -1199,52 +1301,20 @@ tftp
 usb
 )
 
-function revert_package()
-{
-	SCRIPTS_DIR=${TOP_DIR}/build/scripts/
-	mkdir -p $OUTPUT_DIR/package_update/update/sdcard
-	mkdir -p $OUTPUT_DIR/package_edge
-	cp -r $SCRIPTS_DIR/revert_package.sh $OUTPUT_DIR/package_update/update/sdcard
-	sdcard_file="$OUTPUT_DIR/sdcard.tgz"
-
-	if [ -f "$sdcard_file" ]; then
-		echo "the sdcard.tgz exists."
-		pushd $OUTPUT_DIR
-		tar -zxf sdcard.tgz -m -C ./package_update/
-		cp -r ./package_update/sdcard/* ./package_update/update/sdcard/
-		cp -r ./package_update/sdcard/*.bin $OUTPUT_DIR/package_edge/
-		cd ./package_update/update/sdcard
-		./revert_package.sh boot data rootfs rootfs_rw recovery
-
-		cd ../
-		sudo rm -rf ./*.tgz
-		mv ./sdcard/*.tgz ./
-		sudo rm -rf ./sdcard
-		cp -r ./* $OUTPUT_DIR/package_edge/
-		popd
-		echo "revert package finished!"
-	else
-		echo "sdcard.tgz does not exist."
-		echo "please copy sdcard.tgz to ${OUTPUT_DIR}/ and try again."
-	fi
-}
-
-
-# 在 <dir> 下查找 sdcard.tgz；若存在则在同目录创建 sdcard_out，并按 revert_package 相同步骤解压/还原到 sdcard_out。
-# 用法: revert_sdcard_package <dir>
+# 传入 sdcard.tgz 文件路径，在当前目录生成 sdcard_out 并解包还原。
+# 用法: revert_sdcard_package <path_to_sdcard.tgz>
 function revert_sdcard_package()
 {
 	local SCRIPTS_DIR="${TOP_DIR}/build/scripts/"
-	local base="${1:?usage: revert_sdcard_package <dir_containing_sdcard.tgz>}"
+	local input_tgz="${1:?usage: revert_sdcard_package <path_to_sdcard.tgz>}"
 	local sdcard_tgz out tmp source_partition_xml
 
-	base="$(cd "$base" && pwd)" || return 1
-	sdcard_tgz="$base/sdcard.tgz"
-	out="$base/sdcard_out"
-	tmp="$base/.revert_sdcard_tmp"
+	sdcard_tgz="$(cd "$(dirname "$input_tgz")" && pwd)/$(basename "$input_tgz")" || return 1
+	out="$PWD/sdcard_out"
+	tmp="$PWD/.revert_sdcard_tmp"
 
 	if [ ! -f "$sdcard_tgz" ]; then
-		echo "sdcard.tgz does not exist in: $base" >&2
+		echo "sdcard.tgz does not exist: $sdcard_tgz" >&2
 		return 1
 	fi
 
@@ -1252,11 +1322,11 @@ function revert_sdcard_package()
 	mkdir -p "$tmp/package_update/update/sdcard" "$out"
 	cp -r "$SCRIPTS_DIR/revert_package.sh" "$tmp/package_update/update/sdcard/"
 
-	pushd "$base" || return 1
-	tar -zxf sdcard.tgz -m -C "$tmp/package_update/"
-	source_partition_xml="$tmp/package_update/sdcard/partition32G.xml"
+	pushd "$PWD" || return 1
+	tar -zxf "$sdcard_tgz" -m -C "$tmp/package_update/"
+	source_partition_xml="$tmp/package_update/sdcard/partition32G_sector.xml"
 	if [ ! -f "$source_partition_xml" ]; then
-		echo "partition32G.xml not found in sdcard.tgz" >&2
+		echo "partition32G_sector.xml not found in sdcard.tgz" >&2
 		popd
 		rm -rf "$tmp"
 		return 1
@@ -1299,14 +1369,16 @@ function rebuild_sdcard_package()
 	local created_tgz=()
 
 	pkg_dir="$(cd "$pkg_dir" && pwd)" || return 1
-	partition_xml="$pkg_dir/partition32G.xml"
+	partition_xml="$pkg_dir/partition32G_sector.xml"
 
 	if [ ! -f "$partition_xml" ]; then
-		echo "partition32G.xml not found in: $pkg_dir" >&2
+		echo "partition32G_sector.xml not found in: $pkg_dir" >&2
 		return 1
 	fi
 
 	pushd "$pkg_dir" || return 1
+
+	rm -rf sdcard sdcard.tgz
 
 	for part in "${parts[@]}"; do
 		if [ -d "$part" ]; then
@@ -1322,7 +1394,7 @@ function rebuild_sdcard_package()
 		popd || { popd; popd; return 1; }
 	fi
 
-	./bm_make_package.sh sdcard "$partition_xml" "$pkg_dir" || { popd; popd; return 1; }
+	./bm_make_package_sectors.sh sdcard "$partition_xml" "$pkg_dir" || { popd; popd; return 1; }
 	popd || { popd; return 1; }
 
 	if [ ! -d "$pkg_dir/sdcard" ]; then
@@ -1334,6 +1406,9 @@ function rebuild_sdcard_package()
 	pushd "$pkg_dir/sdcard" || { popd; return 1; }
 	cp "$SCRIPTS_DIR/local_update.sh" .
 	cp "$SCRIPTS_DIR/ota_update.sh" .
+	cp "$SCRIPTS_DIR/update_partition_gpt.sh" .
+	cp "$SCRIPTS_DIR/update_gpt" .
+	cp "$SCRIPTS_DIR/check_partition_start_sector.sh" .
 	md5sum * > md5.txt
 	popd || { popd; return 1; }
 
@@ -1346,7 +1421,6 @@ function rebuild_sdcard_package()
 	popd || return 1
 	echo "rebuild_sdcard_package finished: $pkg_dir/sdcard.tgz"
 }
-
 
 function build_update()
 {
@@ -1375,12 +1449,15 @@ function build_update()
 	fi
 	echo packing update image...
 
-	./bm_make_package.sh $UPDATE_TYPE ./partition32G.xml "$OUTPUT_DIR"/package_edge
+	./bm_make_package_sectors.sh $UPDATE_TYPE ./partition32G_sector.xml "$OUTPUT_DIR"/package_edge
 	popd
 
 	pushd $OUTPUT_DIR/package_edge/$1
 	cp $SCRIPTS_DIR/local_update.sh .
 	cp $SCRIPTS_DIR/ota_update.sh .
+	cp $SCRIPTS_DIR/update_partition_gpt.sh .
+	cp $SCRIPTS_DIR/update_gpt .
+	cp $SCRIPTS_DIR/check_partition_start_sector.sh .
 	md5sum * > md5.txt
 	popd
 
@@ -1419,7 +1496,7 @@ function build_package()
     update_files_if_newer "sophon-libsophon_*_arm64.deb" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
     update_files_if_newer "sophon-libsophon-dev_*_arm64.deb" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
 
-    update_files_if_newer "sophon-media_1.9.0_aarch64.tar.gz" "${TOP_DIR}/sophon_media/pcie_arm64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
+    update_files_if_newer "sophon-media_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/pcie_arm64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
     update_files_if_newer "sophon-media-sophon*_arm64.deb" "${TOP_DIR}/sophon_media/pcie_arm64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
 
     update_files_if_newer "libsophon_*_x86_64.tar.gz" "$LIBSOPHON_PATH/amd64_build" "$PACKAGE_OUTPUT_DIR/pcie/x86"
@@ -1427,7 +1504,7 @@ function build_package()
     update_files_if_newer "sophon-libsophon_*_amd64.deb" "$LIBSOPHON_PATH/amd64_build" "$PACKAGE_OUTPUT_DIR/pcie/x86"
     update_files_if_newer "sophon-libsophon-dev_*_amd64.deb" "$LIBSOPHON_PATH/amd64_build" "$PACKAGE_OUTPUT_DIR/pcie/x86"
 
-    update_files_if_newer "sophon-media_1.9.0_x86_64.tar.gz" "${TOP_DIR}/sophon_media/pcie_amd64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+    update_files_if_newer "sophon-media_*_x86_64.tar.gz" "${TOP_DIR}/sophon_media/pcie_amd64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/x86"
     update_files_if_newer "sophon-media-sophon*_amd64.deb" "${TOP_DIR}/sophon_media/pcie_amd64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/x86"
 
     update_files_if_newer "sophon-media-soc_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/buildit" "$OUTPUT_DIR/package_edge"
@@ -1446,11 +1523,11 @@ function build_package()
     sudo cp -rf  $OUTPUT_DIR/rootfs/mnt/system "${EDGE_ROOTFS_DIR}"/mnt/
 
     mkdir -p rootfs_rw/overlay/home/linaro
-    cp -rf "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs rootfs_rw/overlay/home/linaro
+    sudo mv "${EDGE_ROOTFS_DIR}"/home/linaro/* rootfs_rw/overlay/home/linaro
     sudo chown 1000:1000 -R rootfs_rw/overlay/home/linaro
 
     sudo mkdir -p rootfs_rw/overlay/opt
-    sudo mv "${EDGE_ROOTFS_DIR}"/opt/sophon rootfs_rw/overlay/opt/
+    sudo mv "${EDGE_ROOTFS_DIR}"/opt/* rootfs_rw/overlay/opt/
     sudo tar -zcf .rootfs_rw.tgz -C rootfs_rw .
     sudo mv .rootfs_rw.tgz "${EDGE_ROOTFS_DIR}"/root/
     sudo tar -zcf rootfs.tgz --exclude=home/linaro/bsp-debs -C "${EDGE_ROOTFS_DIR}" .
@@ -1469,10 +1546,12 @@ function build_package()
     pushd $PACKAGE_OUTPUT_DIR
     build_update sdcard
     tar -zcf sdcard.tgz sdcard
-    build_update usb
-    tar -zcf usb.tgz usb
-    build_update tftp
-    tar -zcf tftp.tgz tftp
+    if [[ -z "$MINI_BUILD" ]]; then
+      build_update usb
+      tar -zcf usb.tgz usb
+      build_update tftp
+      tar -zcf tftp.tgz tftp
+    fi
     popd
 }
 
@@ -1497,13 +1576,7 @@ function build_device_all()
     build_access_guard_turnkey_app || return $?
     build_ipc_app || return $?
   fi
-  pack_cfg || return $?
-  pack_rootfs || return $?
-  pack_data || return $?
-  pack_system || return $?
-  pack_gpt || return $?
-  copy_tools || return $?
-  pack_upgrade || return $?
+  build_sdk_rootfs || { ret=$?; echo "Error: build_sdk_rootfs failed with exit code $ret"; return $ret; }
 )}
 
 function release_nvr_deb()
@@ -1725,6 +1798,7 @@ function clean_device_all()
   clean_osdrv
   clean_cvi_rtsp
   clean_pqtool_server
+  rm -rf ${TOP_DIR}/ubuntu/install
 }
 
 function distclean_all()
@@ -1993,7 +2067,6 @@ function cvi_setup_env()
       return 1
     fi
   fi
-  build_edge_env
 }
 
 function croot()
@@ -2035,7 +2108,13 @@ function print_usage()
 TOP_DIR=$(gettop)
 BUILD_PATH="$TOP_DIR/build"
 SOC_LINUX_HEADER_DIR=$(pwd)/linux_deb
-KERNEL_HEADER_FILE=$(pwd)/linux_5.10/build
+
+if [ "$KERNEL_SRC" = "linux-common" ]; then
+  KERNEL_HEADER_FILE=$(pwd)/linux-common/build
+else
+  KERNEL_HEADER_FILE=$(pwd)/linux_5.10/build
+fi
+
 export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
@@ -2052,5 +2131,6 @@ source "$TOP_DIR/build/riscv_functions.sh"
 source "$TOP_DIR/build/alios_functions.sh"
 # pack backdoor file for PLD env
 source "$TOP_DIR/build/pld_backdoor.sh"
+source "$TOP_DIR/build/deb_utils.sh"
 
 print_usage
