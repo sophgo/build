@@ -224,7 +224,6 @@
 		reg = <0x0 0x29210000 0x0 0x10000>;
 		clocks = <&clk CV186X_CLK_SPI>;
 		#address-cells = <1>;
-		cs-gpios = <&portd 15 GPIO_ACTIVE_HIGH>;
 		#size-cells = <0>;
 #if 1
 		dmas = <&dmac1 6 1 1
@@ -234,10 +233,9 @@
 #endif
 		status = "okay";
 		num-cs = <1>;
-		ms41929@0 {
-			compatible = "ms41929";
+		spidev@0 {
+			compatible = "rohm,dh2228fv";
 			spi-max-frequency = <1000000>;
-			spi-cs-high;
 			reg = <0>;
 		};
 	};
@@ -1433,12 +1431,12 @@
 		serial5 = &uart5;
 		serial6 = &uart6;
 		serial7 = &uart7;
-
+#ifndef __UBOOT__
 		spi0 = &spi0;
 		spi1 = &spi1;
 		spi2 = &spi2;
 		spi3 = &spi3;
-
+#endif
 		ethernet0 = &ethernet0;
 		ethernet1 = &ethernet1;
 	};
