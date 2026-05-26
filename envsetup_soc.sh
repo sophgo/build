@@ -119,8 +119,10 @@ function _build_atf_env()
 function build_atf()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
   _build_atf_env
   cd "$BUILD_PATH" || return
+  make u-boot-build || return "$?"
   make arm-trusted-firmware
 )}
 
@@ -1301,6 +1303,60 @@ tftp
 usb
 )
 
+_sdcard_find_partition_xml()
+{
+	local dir="$1" name found=""
+	for name in partition32G_sector.xml partition32G.xml; do
+		if [ -f "$dir/$name" ]; then
+			echo "$dir/$name"
+			return 0
+		fi
+	done
+	found="$(find "$dir" -maxdepth 1 -name 'partition*.xml' -type f 2>/dev/null | head -1)"
+	if [ -n "$found" ]; then
+		echo "$found"
+		return 0
+	fi
+	return 1
+}
+
+_sdcard_partition_format()
+{
+	local f="$1"
+	if grep -q 'size_in_sectors=' "$f" 2>/dev/null; then
+		echo sector
+		return 0
+	fi
+	if grep -q 'size_in_kb=' "$f" 2>/dev/null; then
+		echo kb
+		return 0
+	fi
+	return 1
+}
+
+_cleanup_stale_mounts()
+{
+	local dir name m mp
+	for dir in "$@"; do
+		[ -n "$dir" ] && [ -d "$dir" ] || continue
+		for name in boot_tmp data_tmp rootfs_tmp rootfs_rw_tmp recovery_tmp; do
+			m="$dir/$name"
+			if mountpoint -q "$m" 2>/dev/null; then
+				sudo umount "$m" 2>/dev/null || sudo umount -l "$m" 2>/dev/null || true
+			fi
+		done
+		for m in "$dir"/tmp-[0-9]*; do
+			[ -d "$m" ] || continue
+			if mountpoint -q "$m" 2>/dev/null; then
+				sudo umount "$m" 2>/dev/null || sudo umount -l "$m" 2>/dev/null || true
+			fi
+		done
+	done
+	while read -r mp; do
+		[ -n "$mp" ] && sudo umount -l "$mp" 2>/dev/null || true
+	done < <(mount | awk '/(boot|data|rootfs|rootfs_rw|recovery)_tmp$/ || /\/tmp-[0-9]+$/ {print $3}')
+}
+
 # 传入 sdcard.tgz 文件路径，在当前目录生成 sdcard_out 并解包还原。
 # 用法: revert_sdcard_package <path_to_sdcard.tgz>
 function revert_sdcard_package()
@@ -1318,18 +1374,16 @@ function revert_sdcard_package()
 		return 1
 	fi
 
+	_cleanup_stale_mounts "$PWD/.revert_sdcard_tmp/package_update/update/sdcard"
 	rm -rf "$tmp" "$out"
 	mkdir -p "$tmp/package_update/update/sdcard" "$out"
 	cp -r "$SCRIPTS_DIR/revert_package.sh" "$tmp/package_update/update/sdcard/"
 
 	pushd "$PWD" || return 1
 	tar -zxf "$sdcard_tgz" -m -C "$tmp/package_update/"
-	source_partition_xml="$tmp/package_update/sdcard/partition32G_sector.xml"
-	if [ ! -f "$source_partition_xml" ]; then
-		echo "partition32G_sector.xml not found in sdcard.tgz" >&2
-		popd
-		rm -rf "$tmp"
-		return 1
+	source_partition_xml="$(_sdcard_find_partition_xml "$tmp/package_update/sdcard" 2>/dev/null)" || source_partition_xml=""
+	if [ -z "$source_partition_xml" ]; then
+		echo "warning: no partition*.xml in sdcard.tgz, continue without it" >&2
 	fi
 	cp -r "$tmp/package_update/sdcard/"* "$tmp/package_update/update/sdcard/"
 	shopt -s nullglob
@@ -1337,8 +1391,14 @@ function revert_sdcard_package()
 		cp -r "$f" "$out/"
 	done
 	shopt -u nullglob
-	cd "$tmp/package_update/update/sdcard" || { popd; return 1; }
-	./revert_package.sh boot data rootfs rootfs_rw recovery
+	cd "$tmp/package_update/update/sdcard" || { popd; _cleanup_stale_mounts "$tmp/package_update/update/sdcard"; return 1; }
+	./revert_package.sh boot data rootfs rootfs_rw recovery || {
+		echo "revert_package.sh failed" >&2
+		_cleanup_stale_mounts "$tmp/package_update/update/sdcard"
+		popd
+		rm -rf "$tmp"
+		return 1
+	}
 
 	cd ../
 	sudo rm -rf ./*.tgz
@@ -1349,11 +1409,22 @@ function revert_sdcard_package()
 	for tgz in ./*.tgz; do
 		part_name="$(basename "$tgz" .tgz)"
 		mkdir -p "$out/$part_name"
-		tar -zxf "$tgz" -C "$out/$part_name"
+		sudo tar -zxf "$tgz" -C "$out/$part_name" \
+			--exclude='dev' --exclude='proc' --exclude='sys' \
+			--exclude='run' --exclude='tmp' || {
+			echo "tar extract failed: $tgz" >&2
+			_cleanup_stale_mounts "$tmp/package_update/update/sdcard"
+			popd
+			rm -rf "$tmp"
+			return 1
+		}
 	done
 	shopt -u nullglob
 
-	cp -f "$source_partition_xml" "$out/"
+	if [ -n "$source_partition_xml" ]; then
+		cp -f "$source_partition_xml" "$out/"
+	fi
+	_cleanup_stale_mounts "$tmp/package_update/update/sdcard"
 	popd || return 1
 
 	rm -rf "$tmp"
@@ -1364,60 +1435,115 @@ function rebuild_sdcard_package()
 {
 	local SCRIPTS_DIR="${TOP_DIR}/build/scripts/"
 	local pkg_dir="${1:?usage: rebuild_sdcard_package <sdcard_out_dir>}"
-	local partition_xml part
+	local partition_xml found fmt part make_script s part_count
+	local -a sdcard_scripts tar_excludes=(--exclude='dev' --exclude='proc' --exclude='sys'
+		--exclude='run' --exclude='tmp')
 	local parts=(boot data rootfs rootfs_rw recovery misc)
 	local created_tgz=()
 
 	pkg_dir="$(cd "$pkg_dir" && pwd)" || return 1
-	partition_xml="$pkg_dir/partition32G_sector.xml"
+	_cleanup_stale_mounts "$pkg_dir" "$pkg_dir/sdcard"
 
-	if [ ! -f "$partition_xml" ]; then
-		echo "partition32G_sector.xml not found in: $pkg_dir" >&2
+	found="$(_sdcard_find_partition_xml "$pkg_dir" 2>/dev/null)" || found=""
+	if [ -z "$found" ]; then
+		echo "error: no partition*.xml in sdcard_out: $pkg_dir" >&2
+		echo "  revert_sdcard_package may not have copied partition xml from the original sdcard.tgz;" >&2
+		echo "  or the tgz itself has no partition32G.xml / partition32G_sector.xml — check the source package first." >&2
 		return 1
 	fi
+	fmt="$(_sdcard_partition_format "$found")" || {
+		echo "unsupported partition xml format: $found" >&2
+		return 1
+	}
+	partition_xml="$(cd "$(dirname "$found")" && pwd)/$(basename "$found")"
 
 	pushd "$pkg_dir" || return 1
 
 	rm -rf sdcard sdcard.tgz
+	part_count=0
 
 	for part in "${parts[@]}"; do
-		if [ -d "$part" ]; then
-			tar -zcf "${part}.tgz" -C "$part" . || { popd; return 1; }
-			created_tgz+=("${part}.tgz")
+		if [ ! -d "$part" ]; then
+			continue
 		fi
+		if [ -z "$(ls -A "$part" 2>/dev/null)" ]; then
+			echo "warning: skip empty partition dir: $part" >&2
+			continue
+		fi
+		sudo tar -zcf "${part}.tgz" -C "$part" "${tar_excludes[@]}" \
+			--numeric-owner --owner=0 --group=0 . || {
+			_cleanup_stale_mounts "$pkg_dir"
+			popd
+			return 1
+		}
+		created_tgz+=("${part}.tgz")
+		part_count=$((part_count + 1))
 	done
 
+	if [ "$part_count" -eq 0 ]; then
+		echo "error: no non-empty partition dirs in $pkg_dir (boot/data/rootfs/...)" >&2
+		popd
+		return 1
+	fi
+
 	pushd "$SCRIPTS_DIR" || { popd; return 1; }
-	if [ ! -e ./mk_gpt ]; then
+	if [ ! -e ./mk_gpt ] || { [ "$fmt" = sector ] && [ ! -e ./mk_sector_gpt ]; }; then
 		pushd mk-gpt || { popd; popd; return 1; }
 		make || { popd; popd; popd; return 1; }
 		popd || { popd; popd; return 1; }
 	fi
 
-	./bm_make_package_sectors.sh sdcard "$partition_xml" "$pkg_dir" || { popd; popd; return 1; }
+	if [ "$fmt" = sector ]; then
+		make_script=bm_make_package_sectors.sh
+		sdcard_scripts=(local_update.sh update_partition_gpt.sh update_gpt check_partition_start_sector.sh)
+	else
+		make_script=bm_make_package.sh
+		sdcard_scripts=(local_update.sh)
+	fi
+	echo "rebuild_sdcard_package: $make_script ($(basename "$partition_xml"))" >&2
+	if ! ./"$make_script" sdcard "$partition_xml" "$pkg_dir"; then
+		_cleanup_stale_mounts "$pkg_dir" "$pkg_dir/sdcard"
+		popd
+		popd
+		return 1
+	fi
 	popd || { popd; return 1; }
+	_cleanup_stale_mounts "$pkg_dir/sdcard"
 
 	if [ ! -d "$pkg_dir/sdcard" ]; then
 		echo "failed to generate $pkg_dir/sdcard" >&2
+		_cleanup_stale_mounts "$pkg_dir"
 		popd
 		return 1
 	fi
 
 	pushd "$pkg_dir/sdcard" || { popd; return 1; }
-	cp "$SCRIPTS_DIR/local_update.sh" .
-	cp "$SCRIPTS_DIR/ota_update.sh" .
-	cp "$SCRIPTS_DIR/update_partition_gpt.sh" .
-	cp "$SCRIPTS_DIR/update_gpt" .
-	cp "$SCRIPTS_DIR/check_partition_start_sector.sh" .
-	md5sum * > md5.txt
+	for s in "${sdcard_scripts[@]}"; do
+		if [ -f "$SCRIPTS_DIR/$s" ]; then
+			cp "$SCRIPTS_DIR/$s" .
+		else
+			echo "warning: missing script $s in $SCRIPTS_DIR" >&2
+		fi
+	done
+	if ! md5sum * > md5.txt 2>/dev/null; then
+		echo "error: md5sum failed in $pkg_dir/sdcard" >&2
+		popd
+		popd
+		return 1
+	fi
 	popd || { popd; return 1; }
 
-	tar -zcf sdcard.tgz sdcard || { popd; return 1; }
+	if ! tar -zcf sdcard.tgz sdcard; then
+		_cleanup_stale_mounts "$pkg_dir"
+		popd
+		return 1
+	fi
 
 	for part in "${created_tgz[@]}"; do
 		rm -f "$part"
 	done
 
+	_cleanup_stale_mounts "$pkg_dir/sdcard"
 	popd || return 1
 	echo "rebuild_sdcard_package finished: $pkg_dir/sdcard.tgz"
 }
@@ -1440,6 +1566,8 @@ function build_update()
 		done
 		return
 	fi
+
+	_cleanup_stale_mounts "${OUTPUT_DIR}/package_edge/${UPDATE_TYPE}" "${OUTPUT_DIR}/package_edge"
 
 	pushd $SCRIPTS_DIR/
 	if [ ! -e ./mk_gpt ]; then
@@ -1543,6 +1671,7 @@ function build_package()
     find "${MOD_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
     update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}-dev_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${PACKAGE_OUTPUT_DIR}/bsp-debs"
 
+    _cleanup_stale_mounts "${OUTPUT_DIR}/package_edge" "${PACKAGE_OUTPUT_DIR}"
     pushd $PACKAGE_OUTPUT_DIR
     build_update sdcard
     tar -zcf sdcard.tgz sdcard
