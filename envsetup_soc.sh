@@ -649,6 +649,30 @@ function build_debian_based_rootfs
   rm -rf "${BSP_DEBS}"/linux*.deb
   rm -rf "${SDK_DEBS}"/linux-image*.deb
 
+    # 打包 openclaw
+OPENCLAW_SRC="${TOP_DIR}/build/tools/cv186x/openclaw-src"
+if [ -d "$OPENCLAW_SRC" ] && [ -f "$OPENCLAW_SRC/DEBIAN/control" ]; then
+    echo "Packaging openclaw..."
+
+    DATA_DIR_INSIDE_SRC="${OPENCLAW_SRC}/data"
+    TEMP_DATA_DIR_OUTSIDE_SRC="${TOP_DIR}/build/tools/cv186x/openclaw-data-temp"
+
+    if [ -d "$DATA_DIR_INSIDE_SRC" ]; then
+        mv "$DATA_DIR_INSIDE_SRC" "$TEMP_DATA_DIR_OUTSIDE_SRC"
+        echo "Moved data directory out for deb packaging"
+    fi
+
+    dpkg-deb --build "$OPENCLAW_SRC" "${MOD_DEBS}/openclaw.deb"
+    echo "openclaw.deb built and copied to ${MOD_DEBS}"
+
+    if [ -d "$TEMP_DATA_DIR_OUTSIDE_SRC" ]; then
+        mv "$TEMP_DATA_DIR_OUTSIDE_SRC" "$DATA_DIR_INSIDE_SRC"
+        echo "Restored data directory"
+    fi
+
+    echo "--- Openclaw packaging finished ---"
+fi
+
   shopt -s nullglob
   if [ "$KERNEL_SRC" = "linux-common" ]; then
     update_files_if_newer "linux*.deb" "${TOP_DIR}/linux-common/build" "${BSP_DEBS}"
@@ -1663,6 +1687,14 @@ function build_package()
 
     mkdir -p $PACKAGE_OUTPUT_DIR/data
     rsync -av $ROOT_TOP_DIR/bootloader-arm64/distro/data/ $PACKAGE_OUTPUT_DIR/data/
+    # 复制 Qwen3VL 模型到 data 目录
+    OPENCLAW_QWEN3VL="${TOP_DIR}/build/tools/cv186x/openclaw-src/data/Qwen3VL"
+    if [ -d "$OPENCLAW_QWEN3VL" ]; then
+        echo "Copying Qwen3VL to data partition..."
+        cp -r "$OPENCLAW_QWEN3VL" "$PACKAGE_OUTPUT_DIR/data/"
+        echo "Qwen3VL copied successfully"
+    fi
+
     tar -zcf data.tgz -C data .
     popd
 
