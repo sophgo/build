@@ -873,6 +873,7 @@ download_and_verify_file() {
     local download_tool="$4"
 
     echo "Processing file: $(basename "$file_path")"
+    python3 -m pip install dfss --upgrade
 
     if [ ! -e "$file_path" ]; then
         echo "Downloading file..."
