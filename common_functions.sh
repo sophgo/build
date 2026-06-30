@@ -185,11 +185,7 @@ function pack_cfg
   print_notice "Run ${FUNCNAME[0]}_${STORAGE_TYPE}() function"
 
   pushd "$ISP_TUNING_PATH"
-  if [ $STORAGE_TYPE == "spinor" ]; then
-    ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/param/ "$SENSOR_TUNING_PARAM"
-  else
-    ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/tmp_secure/ "$SENSOR_TUNING_PARAM"
-  fi
+  ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/param/ "$SENSOR_TUNING_PARAM"
   popd
 
   export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML ROOTFS_DIR
@@ -316,7 +312,7 @@ function pack_prog_img
     ./fip_maker "$page_size" "$nandid" "$OUTPUT_DIR/$fip_file" "$tmp_dir/$fip_file"
     popd
 
-    python3 $IMGTOOL_PATH/pack_images.py "$CHIP_ARCH_LOWER" "$FLASH_PARTITION_XML" "${OUTPUT_DIR}/rawimages/" "$tmp_dir/" -b "$block_size" 2>&1 | tee "$tmp_dir"/partition_info.txt
+    python3 $IMGTOOL_PATH/pack_images.py "$CHIP_ARCH_LOWER" "$FLASH_PARTITION_XML" "${OUTPUT_DIR}/rawimages/" "$tmp_dir/" -p -b "$block_size" 2>&1 | tee "$tmp_dir"/partition_info.txt
   else
     cp "${OUTPUT_DIR}/${fip_file}" "${OUTPUT_DIR}/rawimages/"
     python3 $IMGTOOL_PATH/pack_images.py "$CHIP_ARCH_LOWER" "$FLASH_PARTITION_XML" "${OUTPUT_DIR}/rawimages/" "$tmp_dir/"
