@@ -25,7 +25,7 @@ BOARD_KCONFIG_SAVED_GLOB = join(BOARD_DIR, "*/*/*_defconfig")
 CHIP_LIST_PATH = join(BOARD_DIR, "chip_list.json")
 SENSOR_LIST_PATH = join(BUILD_REPO_DIR, "media/SensorSupportList/sensor_list/sensor_list.json")
 SENSOR_KCONFIG_PATH = join(BUILD_REPO_DIR, "output/Kconfig.sensors")
-PANEL_LIST_PATH = join(BUILD_REPO_DIR, "panels/panel_list.json")
+PANEL_HEADER_DIR = join(BUILD_REPO_DIR, "media/PanelSupportList/panels")
 PANEL_KCONFIG_PATH = join(BUILD_REPO_DIR, "output/Kconfig.panels")
 PIPELINE_KCONFIG_PATH = join(BUILD_REPO_DIR, "output/Kconfig.pipelines")
 

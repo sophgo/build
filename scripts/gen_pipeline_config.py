@@ -26,6 +26,9 @@ config ALIOS_CUSTOMIZATION_PIPELINE
 """
 
 
+NORM_DEFAULT_PIPELINE = "cv1842hp_gc8613"
+
+
 def find_pipelines(base_path):
     """search direcotries contains customization pipeline"""
     pipelines = []
@@ -44,9 +47,10 @@ def generate_kconfig():
 
     default_lines = []
     if norm_pipelines:
+        norm_default = NORM_DEFAULT_PIPELINE if NORM_DEFAULT_PIPELINE in norm_pipelines else norm_pipelines[0]
         default_lines.append(
             '    default {} if NORM_SOLUTION'.format(
-                norm_pipelines[0].upper().replace('-', '_')))
+                norm_default.upper().replace('-', '_')))
     if fast_pipelines:
         default_lines.append(
             '    default {} if FAST_SOLUTION'.format(

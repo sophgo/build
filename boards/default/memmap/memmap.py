@@ -143,7 +143,6 @@ class MemoryMap:
         # modify private attribute values
         setattr(MemoryMap, 'DRAM_SIZE', int(dram_size, 16))
         setattr(MemoryMap, 'KERNEL_MEMORY_SIZE', int(dram_size, 16))
-
         setattr(MemoryMap, 'RTOS_SYS_ADDR', getattr(MemoryMap, 'FSBL_C906L_START_ADDR'))
         setattr(MemoryMap, 'RTOS_SYS_SIZE', int(rtos_sys_size, 16))
         setattr(MemoryMap, 'RTOS_LOG_ADDR',

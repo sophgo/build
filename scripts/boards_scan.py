@@ -46,9 +46,6 @@ ENVS_FROM_CONFIG = [
     "FLASH_SIZE_SHRINK",
     "C906L_DMA_ENABLE",
     "BUILD_FOR_DEBUG",
-    "PANEL_TUNING_PARAM",
-    "PANEL_LANE_NUM_TUNING_PARAM",
-    "PANEL_LANE_SWAP_TUNING_PARAM",
     "MTRACE",
     "SKIP_UBOOT",
     "SKIP_UBOOT_DEBUG",
@@ -91,6 +88,8 @@ def parse_args():
     parser.add_argument("--chip_name", dest="chip_name", type=str)
     parser.add_argument("--board_name", dest="board_name", type=str)
     parser.add_argument("--skip_ramdisk", action="store_true")
+    parser.add_argument("--signature", action="store_true")
+    parser.add_argument("--cipher", action="store_true")
 
     if argcomplete:
         argcomplete.autocomplete(parser)
@@ -521,7 +520,48 @@ fdt_tmpl = """
         }};
 """
 
+fdt_sign_tmpl = """
+        fdt-{chip}_{board} {{
+            description = "cvitek device tree - {chip}_{board}";
+            data = /incbin/("./{chip}_{board}.dtb");
+            type = "flat_dt";
+            arch = "arm64";
+            compression = "none";
+            hash-1 {{
+                algo = "{hash_algo}";
+            }};
+            signature {{
+                algo = "sha256,rsa2048";
+                key-name-hint = "test_reeos";
+                required = "image";
+                sign-images = "fdt-{chip}_{board}";
+            }};
+        }};
+"""
 
+fdt_sign_cipher_tmpl = """
+        fdt-{chip}_{board} {{
+            description = "cvitek device tree - {chip}_{board}";
+            data = /incbin/("./{chip}_{board}.dtb");
+            type = "flat_dt";
+            arch = "arm64";
+            compression = "none";
+            hash-1 {{
+                algo = "{hash_algo}";
+            }};
+            signature {{
+                algo = "sha256,rsa2048";
+                key-name-hint = "test_reeos";
+                required = "image";
+                sign-images = "fdt-{chip}_{board}";
+            }};
+            cipher {{
+                algo = "aes256";
+                key-name-hint = "test_reeos_aes256";
+                iv-name-hint = "test_reeos_iv";
+            }};
+        }};
+"""
 config_tmpl = """
         config-{chip}_{board} {{
             description = "boot cvitek system with board {chip}_{board}";
@@ -543,10 +583,10 @@ config_noramdisk_tmpl = """
 
 def insertAfter(string, keyword, replacement):
     i = string.find(keyword)
-    return string[: i + len(keyword)] + replacement + string[i + len(keyword) :]
+    return string[:i + len(keyword)] + replacement + string[i + len(keyword):]
 
 
-def gen_single_board_its(chip, board, skip_ramdisk=False):
+def gen_single_board_its(chip, board, skip_ramdisk=False, signature=False, cipher=False):
     its_str = {
         "fdt": "",
         "config": "",
@@ -556,9 +596,18 @@ def gen_single_board_its(chip, board, skip_ramdisk=False):
     its_path = os.path.join(build_helper.BUILD_OUTPUT_DIR, "multi.its.tmp")
 
     cfg_tmpl = config_noramdisk_tmpl if skip_ramdisk else config_tmpl
-    its_str["fdt"] = fdt_tmpl.format(
-        chip=chip, board=board, hash_algo=get_hash_algo(board)
-    )
+    if cipher:
+        its_str["fdt"] = fdt_sign_cipher_tmpl.format(
+            chip=chip, board=board, hash_algo=get_hash_algo(board)
+        )
+    elif signature:
+        its_str["fdt"] = fdt_sign_tmpl.format(
+            chip=chip, board=board, hash_algo=get_hash_algo(board)
+        )
+    else:
+        its_str["fdt"] = fdt_tmpl.format(
+            chip=chip, board=board, hash_algo=get_hash_algo(board)
+        )
     its_str["config"] = cfg_tmpl.format(chip=chip, board=board)
 
     config_list = config_list_tmpl.format(**its_str)
@@ -663,7 +712,11 @@ def main():
 
     if args.gen_single_board_its:
         gen_single_board_its(
-            args.chip_name.lower(), args.board_name.lower(), args.skip_ramdisk
+            args.chip_name.lower(),
+            args.board_name.lower(),
+            args.skip_ramdisk,
+            args.signature,
+            args.cipher,
         )
 
     logging.debug("[%s] finished", datetime.now().isoformat())

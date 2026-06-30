@@ -134,6 +134,21 @@ define uboot_compress_action
 endef
 endif
 
+# Fallback when RAMDISK_OUTPUT_FOLDER is not set (e.g. make from IDE): derive from OUTPUT_DIR
+RAMDISK_WORKSPACE_DIR ?= $(if $(RAMDISK_OUTPUT_FOLDER),$(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER),$(TOP_DIR)/ramdisk/build/$(patsubst soc_%,%,$(notdir $(OUTPUT_DIR)))/workspace)
+define uboot_add_public_key
+	${Q}echo "Public key embedded into u-boot.bin"
+	$(if $(wildcard $(RAMDISK_WORKSPACE_DIR)/multi.its),,$(error multi.its not found at $(RAMDISK_WORKSPACE_DIR)/multi.its - run pack_boot first))
+	cd ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER} ; \
+	./tools/mkimage -K dts/dt.dtb -r -k $(TOP_DIR)/ramdisk/keys/ \
+			-f $(RAMDISK_WORKSPACE_DIR)/multi.its \
+			$(RAMDISK_WORKSPACE_DIR)/boot.itb && \
+	cat u-boot-nodtb.bin dts/dt.dtb > u-boot-dtb.bin && \
+	cp dts/dt.dtb u-boot.dtb && \
+	cp u-boot-dtb.bin u-boot.bin && \
+	cd -
+endef
+
 UBOOT_CVIPART_DEP := ${UBOOT_PATH}/include/imgs.h ${UBOOT_PATH}/include/cvipart.h
 
 ${UBOOT_CVIPART_DEP}: ${FLASH_PARTITION_XML} ${BUILD_PATH}/.config
@@ -187,7 +202,7 @@ u-boot-menuconfig: ${UBOOT_OUTPUT_CONFIG_PATH}
 u-boot-dts:
 	$(call print_target)
 ifeq ($(UBOOT_SRC), u-boot-2021.10)
-	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L} \
+	${Q}find -L ${BUILD_PATH}/boards/${CHIP_ARCH_L} \
 		\( -path "*linux/*.dts*" -o -path "*dts_$(subst arm64,arm,$(patsubst "%",%,$(CONFIG_ARCH)))/*.dts*" \) \
 		-exec cp {} ${UBOOT_PATH}/arch/$(subst arm64,arm,$(patsubst "%",%,$(CONFIG_ARCH)))/dts/ \;
 	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec cp {} ${UBOOT_PATH}/arch/$(subst arm64,arm,$(patsubst "%",%,$(CONFIG_ARCH)))/dts/ \;
@@ -202,8 +217,19 @@ u-boot-build: ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER} ${UBOOT_CVIPART_DEP} ${UBOOT_
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvi_board_init.c ${UBOOT_CVI_BOARD_INIT_PATH}
 	${Q}rm -f ${UBOOT_CVITEK_PATH}
 	${Q}ln -s ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/u-boot/cvitek.h ${UBOOT_CVITEK_PATH}
+	${Q}ln -sfn ${BUILD_PATH}/media/PanelSupportList ${UBOOT_PATH}/include/cvitek/PanelSupportList
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} olddefconfig
+ifeq ($(CONFIG_KERNEL_SECURE_BOOT),y)
+	${Q}sed -i 's/# CONFIG_KERNEL_SECURE_BOOT is not set/CONFIG_KERNEL_SECURE_BOOT=y/' ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+ifeq ($(CONFIG_KERNEL_FIT_CIPHER),y)
+	${Q}sed -i 's/# CONFIG_FIT_CIPHER is not set/CONFIG_FIT_CIPHER=y/' ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/.config
+endif
+	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} olddefconfig
+endif
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} all
+ifeq ($(CONFIG_KERNEL_SECURE_BOOT),y)
+	$(call uboot_add_public_key)
+endif
 	${Q}cat ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin > ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot-raw.bin
 ifeq (${CONFIG_UBOOT_SPL_CUSTOM},y)
 	${Q}cat ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/spl/u-boot-spl.bin > ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot-raw_spl.bin
@@ -220,6 +246,7 @@ u-boot-clean:
 	$(call print_target)
 	${Q}$(MAKE) -j${NPROC} -C ${UBOOT_PATH} distclean
 	${Q}rm -f ${OUTPUT_DIR}/fip.bin ${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot.bin.lzma ${UBOOT_CVIPART_DEP}
+	${Q}rm -f ${UBOOT_PATH}/include/cvitek/PanelSupportList
 
 ################################################################################
 # kernel targets
@@ -271,6 +298,7 @@ endif
 
 ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),CV181X CV180X))
 define copy_header_action
+	${Q}cp -r ${OSDRV_PATH}/interdrv/include/common/uapi/linux/* ${1}/linux/
 endef
 endif
 
@@ -403,7 +431,7 @@ kernel-dts: ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
 	${Q}ln -snrf ${CVI_BOARD_MEMMAP_H_PATH} ${KERNEL_PATH}/scripts/dtc/include-prefixes/
 	${Q}find ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ -type l -delete
 	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
-	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L} \
+	${Q}find -L ${BUILD_PATH}/boards/${CHIP_ARCH_L} \
 		\( -path "*linux/*.dts*" -o -path "*dts_$(subst arm64,arm,$(patsubst "%",%,$(CONFIG_ARCH)))/*.dts*" \) \
 		-exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} dtbs
@@ -487,6 +515,13 @@ else
 BOOT_IMAGE_ARG += --gen-board-its ${CHIP_ARCH}
 endif
 
+ifeq ($(CONFIG_KERNEL_SECURE_BOOT),y)
+BOOT_IMAGE_ARG += --signature
+ifeq ($(CONFIG_KERNEL_FIT_CIPHER),y)
+BOOT_IMAGE_ARG += --cipher
+endif
+endif
+
 define raw2cimg
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
 endef
@@ -501,7 +536,15 @@ else
 	$(call gen_cpio,onekernel_fixed_files.txt.sqsh)
 endif
 	# copy multi.its for *.itb layout
+ifeq ($(CONFIG_KERNEL_SECURE_BOOT),y)
+ifeq ($(CONFIG_KERNEL_FIT_CIPHER),y)
+	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi_sign_cipher.its" "${BUILD_PATH}/output/multi.its.tmp"
+else
+	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi_sign.its" "${BUILD_PATH}/output/multi.its.tmp"
+endif
+else
 	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi.its" "${BUILD_PATH}/output/multi.its.tmp"
+endif
 
 	${Q}python3 "${BUILD_PATH}/scripts/boards_scan.py" ${BOOT_IMAGE_ARG}
 	${Q}mv "${BUILD_PATH}/output/multi.its.tmp" "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its"
@@ -514,7 +557,7 @@ endif
 	${Q}sed -i "s/compression = \"gzip\";/compression = \"${KERNEL_COMPRESS}\";/" ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
 	${Q}gzip -9 -f -k ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.cpio > ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/boot.cpio.gz
 ifeq ($(CONFIG_SKIP_RAMDISK),y)
-	${Q}sed -ie '26,38d' ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
+	${Q}sed -i '/ramdisk-1 {/,/\/\*FDT\*\//{/\/\*FDT\*\//!d;}' ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
 else
 	${Q}sed -i "s/data = \/incbin\/(\".\/rootfs.cpio.gz\");/data = \/incbin\/(\".\/boot.cpio.gz\");/g" ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its
 endif
@@ -533,7 +576,15 @@ ifeq ($(CONFIG_FASTBOOT),y)
 endif
 	$(call gen_cpio,ramboot_fixed_files.txt)
 	# copy multi.its for *.itb layout
+ifeq ($(CONFIG_KERNEL_SECURE_BOOT),y)
+ifeq ($(CONFIG_KERNEL_FIT_CIPHER),y)
+	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi_sign_cipher.its" "${BUILD_PATH}/output/multi.its.tmp"
+else
+	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi_sign.its" "${BUILD_PATH}/output/multi.its.tmp"
+endif
+else
 	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi.its" "${BUILD_PATH}/output/multi.its.tmp"
+endif
 	${Q}python3 "${BUILD_PATH}/scripts/boards_scan.py" --gen_single_board_its --chip_name "${CHIP}" --board_name "${BOARD}"
 	${Q}mv "${BUILD_PATH}/output/multi.its.tmp" "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its"
 	${Q}gzip -9 -f -k ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/Image > ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/Image.gz
@@ -643,6 +694,9 @@ endif
 $(OUTPUT_DIR)/rawimages:
 	${Q}mkdir -p $@
 
+define mkjffs2image
+	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkjffs2.py $(COMMON_TOOLS_PATH)/mkfs.jffs2 ${1} ${2} $(OUTPUT_DIR)/rawimages/${3} $(FLASH_PARTITION_XML)
+endef
 
 # Pack_image
 # Description: Macro for packing image
@@ -659,9 +713,14 @@ define pack_image
 	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.emmc
 endef
 else ifeq (${STORAGE_TYPE},spinor)
-# TODO:
+# spinor use jffs2
 define pack_image
-	$(warning spi nor flash is not support rw filesystem)
+	$(call mkjffs2image,$(strip ${2}),$(if $(filter y,${CONFIG_USE_4K_ERASE_SIZE_FOR_JFFS2}),4096,65536),$(strip ${1}).spinor)
+endef
+else ifeq (${STORAGE_TYPE},sd)
+define pack_image
+	${Q}$(COMMON_TOOLS_PATH)/prebuild/make_ext4fs -l ${3}  -L $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') $(OUTPUT_DIR)/rawimages/${1}.sd ${2}
+	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.sd
 endef
 else
 define pack_image
@@ -712,10 +771,6 @@ endif
 
 define raw2cimg_lps
 	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/raw2cimg_lps.py $(OUTPUT_DIR)/rawimages/${1} $(OUTPUT_DIR) $(FLASH_PARTITION_XML)
-endef
-
-define mkjffs2image
-	${Q}python3 $(COMMON_TOOLS_PATH)/image_tool/mkjffs2.py $(COMMON_TOOLS_PATH)/mkfs.jffs2 $(OUTPUT_DIR)/data ${1} $(OUTPUT_DIR)/rawimages/${2} $(FLASH_PARTITION_XML)
 endef
 
 menuconfig-br2:
@@ -806,15 +861,17 @@ data:
 ifeq ($(STORAGE_TYPE),spinor)
 	chmod +x $(COMMON_TOOLS_PATH)/mkfs.jffs2
 ifeq (${CONFIG_USE_4K_ERASE_SIZE_FOR_JFFS2},y)
-	$(call mkjffs2image ,4096,data.spinor)
+		$(call mkjffs2image,$(OUTPUT_DIR)/data,4096,data.spinor)
 else
-	# can not have space before param
-	$(call mkjffs2image ,65536,data.spinor)
+		# can not have space before param
+		$(call mkjffs2image,$(OUTPUT_DIR)/data,65536,data.spinor)
 endif
 else ifeq (${STORAGE_TYPE},spinand)
 	$(call pack_image,data,$(OUTPUT_DIR)/data/)
 else ifeq (${STORAGE_TYPE},emmc)
 	$(call pack_image,data,$(OUTPUT_DIR)/data/,3072M)
+else ifeq (${STORAGE_TYPE},sd)
+	$(call pack_image,data,$(OUTPUT_DIR)/data/,14M)
 endif
 	$(call raw2cimg,data.$(STORAGE_TYPE))
 

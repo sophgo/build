@@ -1,7 +1,11 @@
 <physical_partition type="sd">
     <partition label="fip" size_in_kb="2560" file="fip.bin"/>
+    <partition label="2nd" size_in_kb="3072" file="yoc.bin"/>
     <partition label="BOOT" size_in_kb="8192" file="boot.sd"/>
     <partition label="MISC" size_in_kb="384" file="logo.jpg" />
-    <partition label="ROOTFS" size_in_kb="71680" file="rootfs.sd" />
+    <partition label="ROOTFS" size_in_kb="40960" file="rootfs.sd" />
+    <partition label="SYSTEM" size_in_kb="20480" file="system.sd" mountpoint="/mnt/system" type="ext4"/>
+    <partition label="CFG" size_in_kb="12288" file="cfg.sd" mountpoint="/mnt/cfg" type="ext4"/>
+    <partition label="DATA" file="data.sd" mountpoint="/mnt/data" type="ext4"/>
 </physical_partition>
 

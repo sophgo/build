@@ -189,6 +189,12 @@ def gen_cvipart_h(output, parser):
                         % (0x10000000 + parser.parts["BOOT"]["offset"])
                     )
 
+        elif parser.getStorage() == "sd":
+            # SD image has 2 MBR partitions: p1=FAT32(boot), p2=ext4(rootfs)
+            of.write('#define PART_LAYOUT ""\n')
+            of.write('#define ROOTFS_DEV "/dev/mmcblk0p2"\n')
+            of.write('#define PARTS_OFFSET ""\n')
+
         elif parser.getStorage() == "none":
             of.write('#define PART_LAYOUT ""\n')
             of.write('#define ROOTFS_DEV ""\n')
@@ -266,7 +272,7 @@ def gen_cvipart_h(output, parser):
         if parser.getStorage() == "emmc":
             LBA_SIZE = 512
 
-        if parser.getStorage() != "none":
+        if parser.getStorage() != "none" and parser.getStorage() != "sd":
             of.write("#define PARTS_OFFSET \\\n")
             for i, p in enumerate(parts):
                 of.write('"%s_PART_OFFSET=0x%x\\0" \\\n' % (p["label"], int(p["offset"] / LBA_SIZE)))

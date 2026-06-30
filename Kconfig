@@ -456,12 +456,40 @@ config OD_CLK_SEL
 	help
 	  "y" Select to build fip.bin with OD(overdrive) clock setting
 
-config VC_CLK_OVERDRIVE
-	bool "Select to build fip.bin with VC clock overdrived setting"
-	depends on !OD_CLK_SEL
+config CPU_OD_CLK_SEL
+	bool "CPU clock overdrived setting"
+	depends on OD_CLK_SEL
+	default y if OD_CLK_SEL
+	help
+	  "y" Select to build fip.bin with CPU clock overdrived setting
+
+config CPU_OD_CLK_BIG
+	bool "Overdrive big core (APPLL)"
+	depends on CPU_OD_CLK_SEL
+	default y
+	help
+	  Set APPLL to OD frequency for the big core.
+
+config CPU_OD_CLK_1000M
+	bool "Set big core to 1000MHz"
+	depends on CPU_OD_CLK_BIG
 	default n
 	help
-	  "y" Select to build fip.bin with VC clock overdrived setting
+	  Set big core APPLL to 1000MHz instead of default 1100MHz.
+
+config CPU_OD_CLK_LITTLE
+	bool "Overdrive little core (RVPLL)"
+	depends on CPU_OD_CLK_SEL
+	default y
+	help
+	  Set RVPLL to OD frequency for the little core.
+
+config TPU_OD_CLK_SEL
+	bool "TPU clock overdrived setting"
+	depends on OD_CLK_SEL
+	default y if OD_CLK_SEL
+	help
+	  "y" Select to build fip.bin with TPU clock overdrived setting
 
 config IMPROVE_AXI_CLK
 	bool "Improve aix clock while load image"
@@ -582,7 +610,6 @@ config VENDOR_PARTITION
 endmenu
 
 source "output/Kconfig.sensors"
-source "output/Kconfig.panels"
 
 menu "uboot options"
 
@@ -690,6 +717,22 @@ config SUSPEND
 		Allow the system to enter sleep states in which main memory is
 		powered and thus its contents are preserved, such as the
 		suspend-to-RAM state (e.g. the ACPI S3 state).
+
+config KERNEL_SECURE_BOOT
+	bool "Enable kernel secure boot"
+	default n
+	help
+	  Enable kernel secure boot.
+
+config KERNEL_FIT_CIPHER
+	bool "Support FIT image encryption/decryption"
+	depends on KERNEL_SECURE_BOOT && UBOOT_2021_10
+	default n
+	help
+		Enable FIT image AES encryption/decryption for images inside boot.itb.
+		Requires U-Boot built with CONFIG_FIT_CIPHER=y and tools with
+		OpenSSL support. Put symmetric key (e.g. key-name.bin) into keys dir.
+
 endmenu
 
 menu "ROOTFS options"
@@ -907,41 +950,43 @@ config MIRROR_2ND_PACK_HEAD
 
 config RTOS_BUILD_IN_FIP
         bool "RTOS image build in to fip.bin"
+        depends on !ENABLE_ALIOS
         default y
         help
           select the rtos imgae build in to fip.bin or not.
           default is "y"
           If set to "y", the rtos image is build in to fip.bin.
           If set to "n", the rtos image is not build in to fip.bin.
-		  If it's not set, it is same as "n"
+          If it's not set, it is same as "n"
 
 choice
-	prompt "Rtos Image Compression Type"
-	default RTOS_COMPRESS_LZMA if ENABLE_ALIOS
-	default RTOS_COMPRESS_ORIG if ENABLE_FREERTOS
-	default RTOS_COMPRESS_ORIG if ENABLE_RTT
-	help
-		when ENABLE_FREERTOS=y, compression type is forced to "orig"
+        prompt "Rtos Image Compression Type"
+        default RTOS_COMPRESS_LZMA if ENABLE_ALIOS
+        default RTOS_COMPRESS_ORIG if ENABLE_FREERTOS
+        default RTOS_COMPRESS_ORIG if ENABLE_RTT
+        help
+          when ENABLE_FREERTOS=y, compression type is forced to "orig"
 
-	config RTOS_COMPRESS_ORIG
-	bool "orig"
-	config RTOS_COMPRESS_LZMA
-        depends on !(ENABLE_FREERTOS|| ENABLE_RTT)
-	bool "lzma"
-	config RTOS_COMPRESS_LZ4
-        depends on !(ENABLE_FREERTOS|| ENABLE_RTT)
-	bool "lz4"
+        config RTOS_COMPRESS_ORIG
+        bool "orig"
+        depends on !ENABLE_ALIOS
+        config RTOS_COMPRESS_LZMA
+        depends on ENABLE_ALIOS
+        bool "lzma"
+        config RTOS_COMPRESS_LZ4
+        depends on ENABLE_ALIOS
+        bool "lz4"
 endchoice
 
 config RTOS_COMPRESS_TYPE
-	string
-	default "orig" if RTOS_COMPRESS_ORIG
-	default "lzma" if RTOS_COMPRESS_LZMA
-	default "lz4" if RTOS_COMPRESS_LZ4
-	help
-		Select the RTOS image compress type
-		default compress type is "lzma"
-		The choices of compress type are "lz4" and "lzma" or "orig"
+        string
+        default "orig" if RTOS_COMPRESS_ORIG
+        default "lzma" if RTOS_COMPRESS_LZMA
+        default "lz4" if RTOS_COMPRESS_LZ4
+        help
+          Select the RTOS image compress type
+          default compress type is "lzma"
+          The choices of compress type are "lz4" and "lzma" or "orig"
 
 source "output/Kconfig.pipelines"
 

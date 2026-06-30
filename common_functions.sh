@@ -178,7 +178,7 @@ function pack_system
   export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML
 
   cd "$BUILD_PATH" || return
-  if [ "$STORAGE_TYPE" == "emmc" ] || [ "$STORAGE_TYPE" == "spinor" ] || [ "$STORAGE_TYPE" == "spinand" ]; then
+  if [ "$STORAGE_TYPE" == "emmc" ] || [ "$STORAGE_TYPE" == "spinor" ] || [ "$STORAGE_TYPE" == "spinand" ] || [ "$STORAGE_TYPE" == "sd" ]; then
     make system
   fi
 )}
@@ -207,9 +207,7 @@ function pack_cfg
   export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML ROOTFS_DIR
 
   cd "$BUILD_PATH" || return
-  if [ $STORAGE_TYPE != "sd" ]; then
-    make cfg
-  fi
+  make cfg
 )}
 
 function copy_tools
@@ -308,6 +306,15 @@ function pack_prog_img
   tar -tzvf "$OUTPUT_DIR"/prog_img.tar.gz
 
   rm -rf "$tmp_dir"
+)}
+
+function pack_sd_image
+{(
+  if [[ "$STORAGE_TYPE" != "sd" ]]; then
+    return 0
+  fi
+  print_notice "Run ${FUNCNAME[0]}() function"
+  "${BUILD_PATH}/sd_gen_burn_image.sh" "$OUTPUT_DIR"
 )}
 
 pathremove()
@@ -453,7 +460,7 @@ function setconfig()
 
 function _build_add_bash_completion()
 {
-  _boards=$(find "${BUILD_PATH}/boards" -mindepth 2 -maxdepth 2 -type d -not -path '*/default/*' -printf '%f ')
+  _boards=$(find -L "${BUILD_PATH}/boards" -mindepth 2 -maxdepth 2 -type d -not -path '*/default/*' -printf '%f ')
   complete -W "$_boards" defconfig
   complete -r setconfig 2> /dev/null || return 0
 }

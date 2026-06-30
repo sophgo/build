@@ -301,6 +301,39 @@ typedef enum _VI_DATA_TYPE_E {
 	VI_DATA_TYPE_BUTT
 } VI_DATA_TYPE_E;
 
+typedef enum _VI_AI_ISP_TYPE_E {
+	VI_AI_ISP_CFG_INIT,
+	VI_AI_ISP_CFG_DEINIT,
+	VI_AI_ISP_CFG_ENABLE,
+	VI_AI_ISP_CFG_DISABLE,
+} VI_AI_ISP_TYPE_E;
+
+typedef struct _VI_AI_ISP_CFG_S {
+	CVI_S32 viPipe;
+	VI_AI_ISP_TYPE_E enAiIspType;
+	CVI_U64 reserved[2];
+} VI_AI_ISP_CFG_S;
+
+typedef struct _VI_AI_ISP_INFO_S {
+	CVI_S32 viPipe;
+	CVI_U64 inputAddr[2];
+	CVI_U64 outputAddr[2];
+	CVI_U32 size;
+	CVI_U64 reserved[1];
+} VI_AI_ISP_INFO_S;
+
+/* synchronization information about the BT.656 */
+typedef enum _VI_AI_ISP_CMD_E {
+	VI_CMD_GET_AI_ISP_RAW,
+	VI_CMD_PUT_AI_ISP_RAW,
+} VI_AI_ISP_CMD_E;
+
+typedef struct _VI_AI_ISP_INFO_WRAP_S {
+	VI_PIPE viPipe; /* RW;Whether custom attr is enable */
+	VI_AI_ISP_CMD_E enCmd; /* RW;Custom command */
+	VI_AI_ISP_INFO_S stIspInfo; /* RW;Custom data, the content depends on enCmd */
+} VI_AI_ISP_INFO_WRAP_S;
+
 /* Attribute of wdr */
 typedef struct _VI_WDR_ATTR_S {
 	WDR_MODE_E enWDRMode; /* RW; WDR mode.*/

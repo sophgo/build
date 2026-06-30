@@ -20,7 +20,7 @@ extern "C" {
 #endif /* End of #ifdef __cplusplus */
 
 #define VB_INVALID_POOLID (-1U)
-#define VB_INVALID_HANDLE (-1U)
+#define VB_INVALID_HANDLE (-1ULL)
 #define VB_STATIC_POOLID (-2U)
 #define VB_EXTERNAL_POOLID (-3U)
 

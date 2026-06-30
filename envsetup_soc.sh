@@ -109,7 +109,7 @@ function _build_uboot_env()
   _build_fsbl_env
   export UBOOT_OUTPUT_FOLDER IMGTOOL_PATH FLASH_PARTITION_XML FIP_BIN_PATH
   export UBOOT_VBOOT RELEASE_VERSION PACK_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT
-  export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
+  export RAMDISK_OUTPUT_FOLDER
 }
 
 function _build_busybox_env()
@@ -233,21 +233,11 @@ function build_buildroot_package()
   make build_package-br2 || return "$?"
 )}
 
-function _link_uboot_logo()
-{(
-  print_notice "Run ${FUNCNAME[0]}() function"
-  cd "$BUILD_PATH" || return
-  if [[ x"${PANEL_TUNING_PARAM}" = x"I80_panel_st7789v" ]]; then
-    ln -sf "$COMMON_TOOLS_PATH"/bootlogo/logo_320x240.BMP "$COMMON_TOOLS_PATH"/bootlogo/logo.jpg
-  fi
-)}
-
 function build_uboot()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_uboot_env
   _build_opensbi_env
-  _link_uboot_logo
   cd "$BUILD_PATH" || return
   make u-boot || return "$?"
 )}
@@ -335,6 +325,8 @@ function build_middleware()
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_middleware_env
   cd "$BUILD_PATH" || return
+
+  ln -sfn "$BUILD_PATH"/media/PanelSupportList "$MW_PATH"/component/PanelSupportList
 
   make "$ROOTFS_DIR" || return "$?"
 
@@ -828,6 +820,7 @@ function build_libsophon()
 {(
   clean_libsophon
   # [ -d $TPU1686_PATH ] && generate_kernel_module
+  [ -d "$LIBSOPHON_PATH/tpu-debugger" ] && build_tpu_debugger
   build_kernel_header
   print_notice "Run ${FUNCNAME[0]}() function"
 
@@ -889,6 +882,24 @@ function build_libsophon()
   cp -rf "$LIBSOPHON_PATH"/install/libsophon-0.4.9/data/bmtpu.ko "$SYSTEM_OUT_DIR"/ko || return
 
   popd
+)}
+
+function build_tpu_debugger()
+{(
+  clean_tpu_debugger_kernel
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  pushd "$LIBSOPHON_PATH"/tpu-debugger
+    mkdir -p "$SYSTEM_OUT_DIR"/bin
+    cp -rf "$LIBSOPHON_PATH"/tpu-debugger/bin/"$SDK_VER"/tpu-debugger "$SYSTEM_OUT_DIR"/bin
+  popd
+)}
+
+function clean_tpu_debugger()
+{(
+  print_notice "Run ${FUNCNAME[0]}() function"
+
+  rm -rf "$SYSTEM_OUT_DIR"/bin/tpu-debugger
 )}
 
 function build_tpu_kernel()
@@ -1204,8 +1215,14 @@ function cvi_setup_env()
       FLASH_PARTITION_XML="$BUILD_PATH"/boards/"${CHIP_ARCH,,}"/"$PROJECT_FULLNAME"/partition/partition_"$STORAGE_TYPE".xml
     fi
     if ! [ -e "$FLASH_PARTITION_XML" ]; then
-      print_error "${FLASH_PARTITION_XML} does not exist!!"
-      return 1
+      default_partition_xml="$BUILD_PATH"/partitions.xml
+      if [ -e "$default_partition_xml" ]; then
+        echo "${FLASH_PARTITION_XML} does not exist, default to ${default_partition_xml}"
+        FLASH_PARTITION_XML="$default_partition_xml"
+      else
+        print_error "${FLASH_PARTITION_XML} does not exist!!"
+        return 1
+      fi
     fi
   fi
 
@@ -1264,7 +1281,6 @@ BUILD_PATH="$TOP_DIR/build"
 export TOP_DIR BUILD_PATH
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
-"${BUILD_PATH}/scripts/gen_panel_config.py"
 [[ -d "${TOP_DIR}/cvi_alios" ]] && ""${BUILD_PATH}/scripts/gen_pipeline_config.py""
 
 # import common functions

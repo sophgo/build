@@ -61,19 +61,12 @@ class XmlParser:
                     file_size = os.stat(path).st_size
                 except Exception:
                     file_size = 0
-                if file_size > p["part_size"] and part.attrib["label"] != "DATA" :
+                if file_size > (p["part_size"] + 64 * (1 + math.ceil(p["part_size"] / MAX_LOAD_SIZE))) :
                     logging.error(
                         "Image: %s(%d) is larger than partition size(%d)"
                         % (part.attrib["file"], file_size, p["part_size"])
                     )
                     raise OverflowError
-                else :
-                    if file_size > (p["part_size"] + 64 * (1 + math.ceil(p["part_size"] / MAX_LOAD_SIZE))) :
-                        logging.error(
-                            "Image: %s(%d) is larger than partition size(%d)"
-                            % (part.attrib["file"], file_size, p["part_size"])
-                        )
-                        raise OverflowError
                 p["file_path"] = path
                 logging.debug("size of " + path + " : " + str(file_size))
             else:

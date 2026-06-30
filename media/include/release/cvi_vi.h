@@ -655,6 +655,24 @@ CVI_S32 CVI_VI_GetDevRxFrameCount(VI_DEV ViDev, CVI_U32 *pu32FrameCount);
 CVI_S32 CVI_VI_SetBypassFrm(VI_PIPE ViPipe, CVI_U8 bypass_num);
 
 /**
+ * @brief Ioctrl for dual OS platform. only use for dual_os platform
+ *
+ * @param pIspCfg(In), Pointer to extended control structure.
+ *
+ * @return CVI_S32 Return CVI_SUCCESS if succeed.
+ */
+CVI_S32 CVI_VI_AiIspCfg(VI_AI_ISP_CFG_S *pIspCfg);
+
+/**
+ * @brief Ioctrl for dual OS platform. only use for dual_os platform
+ *
+ * @param pIspWrapInfo(In), Pointer to extended control structure.
+ *
+ * @return CVI_S32 Return CVI_SUCCESS if succeed.
+ */
+CVI_S32 CVI_VI_AiIspInfo(VI_AI_ISP_INFO_WRAP_S *pIspWrapInfo);
+
+/**
  * @deprecated
  *
  * @brief Register Power Management Callback

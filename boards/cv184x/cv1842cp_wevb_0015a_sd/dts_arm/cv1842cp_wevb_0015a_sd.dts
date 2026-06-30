@@ -1,0 +1,9 @@
+/dts-v1/;
+#include "cv184x_base_arm.dtsi"
+#include "cv184x_asic_qfn.dtsi"
+#include "cv184x_asic_sd.dtsi"
+#include "cv184x_default_memmap.dtsi"
+
+/ {
+
+};

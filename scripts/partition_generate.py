@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 import kconfiglib
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -102,8 +103,11 @@ def parse_kconfig(kconfig_file, config_file):
 
     # Get storage type
     storage_type = kconf.syms["STORAGE_TYPE"].str_value
-    if storage_type not in ["emmc", "spinor", "spinand"]:
-        raise ValueError("Error: STORAGE_TYPE must be one of 'emmc', 'spinor', or 'spinand'.")
+    if storage_type == "sd":
+        # SD partition XML is managed manually, skip auto-generation
+        return [], storage_type, 0
+    if storage_type not in ["emmc", "spinor", "spinand", "sd"]:
+        raise ValueError("Error: STORAGE_TYPE must be one of 'emmc', 'spinor', 'spinand', or 'sd'.")
 
     # Parse total flash size
     flash_size_str = kconf.syms["FLASH_SIZE"].str_value.upper().replace(" ", "")
@@ -190,6 +194,10 @@ if __name__ == "__main__":
     config_file = os.path.join(Path(__file__).resolve().parent.parent, ".config")
     # Parse Kconfig
     partitions, storage_type, total_flash_size_kb = parse_kconfig(kconfig_file, config_file)
+
+    if not partitions:
+        print(f"Skipping partition XML generation for storage type '{storage_type}'.")
+        sys.exit(0)
 
     # Output xml file path
     output_file = os.path.join(Path(__file__).resolve().parent.parent, "partitions.xml")

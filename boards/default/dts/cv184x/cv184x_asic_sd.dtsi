@@ -1,0 +1,9 @@
+/ {
+	aliases {
+		mmc0 = &sd;
+		mmc1 = &emmc;
+	};
+
+	/delete-node/ cvi-spif@10000000;
+	/delete-node/ cv-spinf@4060000;
+};

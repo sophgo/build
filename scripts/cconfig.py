@@ -59,12 +59,16 @@ def parse_args():
     )
     parser.add_argument("-l", "--list", action="store_true", help="列出所有支持的配置")
     parser.add_argument("config_name", nargs='?', help="配置名称")
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
     return parser.parse_args()
 
 # 嵌入的配置数据
 EMBEDDED_CONFIG = '''
 # USB ADB配置
 adb:
+  description: 启用 USB ADB 调试功能
   kernel_configs:  # 内核配置项
     - CONFIG_USB
     - CONFIG_USB_GADGET
@@ -75,11 +79,10 @@ adb:
     - CONFIG_USB_F_FS
   build_configs:  # 构建配置项
     - CONFIG_TARGET_PACKAGE_ADBD
-    - CONFIG_TARGET_PACKAGE_LIBCRYPTO
-    - CONFIG_TARGET_PACKAGE_LIBZ
 
 # RNDIS网络配置
 rndis:
+  description: 启用 USB RNDIS 网卡功能
   kernel_configs:  # 内核配置项
     - CONFIG_USB
     - CONFIG_USB_GADGET
@@ -94,14 +97,32 @@ rndis:
   build_configs:  # 构建配置项
     - CONFIG_TARGET_PACKAGE_RNDIS_SCRIPT
 
+# MTP文件传输配置
+mtp:
+  description: 启用 USB MTP 文件传输功能
+  kernel_configs:
+    - CONFIG_USB
+    - CONFIG_USB_DWC2
+    - CONFIG_USB_ROLE_SWITCH
+    - CONFIG_USB_DWC2_DUAL_ROLE
+    - CONFIG_USB_GADGET
+    - CONFIG_USB_CONFIGFS
+    - CONFIG_USB_LIBCOMPOSITE
+    - CONFIG_USB_CONFIGFS_F_FS
+    - CONFIG_USB_F_FS
+  build_configs:
+    - CONFIG_TARGET_PACKAGE_UMTPRD
+
 # I2C GPIO配置
 i2c_gpio:
+  description: 启用 GPIO 模拟 I2C 总线
   kernel_configs:
     - CONFIG_I2C
     - CONFIG_I2C_GPIO
 
 # Ftrace是Linux内核中的一个跟踪工具，用于帮助开发人员了解内核的行为
 ftrace:
+  description: 启用 Linux 内核 ftrace 跟踪调试能力
   kernel_configs:
     - CONFIG_FTRACE                      # 启用ftrace基础功能
     - CONFIG_HAVE_FUNCTION_TRACER        # 支持函数跟踪器
@@ -124,6 +145,7 @@ ftrace:
 
 # SPI 屏幕
 spi_panel:
+  description: 启用 SPI 屏幕基础驱动
   kernel_configs:
     - CONFIG_SPI
     - CONFIG_SPI_MASTER
@@ -135,6 +157,7 @@ spi_panel:
 
 # SPI 使用 DMA 传输数据
 spi_panel_dma:
+  description: 启用 SPI 屏幕并使用 DMA 传输
   kernel_configs:
     - CONFIG_SPI
     - CONFIG_SPI_MASTER
@@ -146,6 +169,7 @@ spi_panel_dma:
     # - CONFIG_FB_TFT_ST7789V     # 使能屏幕驱动 ST7789V
 
 gpio_keys:
+  description: 启用 GPIO 按键输入驱动
   kernel_configs:
     - CONFIG_INPUT
     - CONFIG_INPUT_EVDEV
@@ -153,10 +177,77 @@ gpio_keys:
     - CONFIG_INPUT_KEYBOARD
     - CONFIG_KEYBOARD_GPIO
 
+# ADC电阻分压按键配置
+adc-key:
+  description: 启用 ADC 电阻分压按键输入驱动
+  kernel_configs:
+    - CONFIG_INPUT
+    - CONFIG_INPUT_EVDEV
+    - CONFIG_IIO
+    - CONFIG_CVI_SARADC
+    - CONFIG_KEYBOARD_ADC
+
+# RTC配置
+cvi_rtc:
+  description: 启用 CVITEK RTC 硬件时钟驱动
+  kernel_configs:
+    - CONFIG_RTC_CLASS
+    - CONFIG_CVI_RTC
+
+# NTP网络校时配置
+ntp:
+  description: 启用 NTPD 网络时间同步服务
+  build_configs:
+    - CONFIG_TARGET_PACKAGE_NTP
+
+# 开机Logo配置
+bootlogo:
+  description: 启用正常开机 Logo 打包
+  build_configs:
+    - CONFIG_PACK_BOOTLOGO
+  uboot_configs:
+    - CONFIG_BOOTLOGO
+
+# SD卡烧录进度Logo配置
+sd-burnlogo:
+  description: 启用 SD 卡烧录进度 Logo 显示
+  uboot_configs:
+    - CONFIG_SD_BURNLOGO
+
+# U-Boot eFuse fastboot，保留 SD 卡烧录
+fastboot-efuse-withsd:
+  description: 写 eFuse 跳过 ROM 烧录检查，并保留 SD 卡烧录入口
+  uboot_configs:
+    - CONFIG_EFUSE_ENABLE_FASTBOOT
+    - CONFIG_EFUSE_FASTBOOT_KEEP_SD_DL
+
+# U-Boot eFuse fastboot，仅启用快启 eFuse
+fastboot-efuse:
+  description: 写 eFuse 跳过 ROM 烧录检查；仅开此项会禁用 USB、SD 卡、UART 烧录入口
+  uboot_configs:
+    - CONFIG_EFUSE_ENABLE_FASTBOOT
+
+# CVI看门狗配置
+cvi_wdt:
+  description: 启用 CVITEK 看门狗（Watchdog）驱动，基于 Synopsys DesignWare Watchdog
+  kernel_configs:
+    - CONFIG_WATCHDOG              # 看门狗类支持
+    - CONFIG_CVI_WDT               # CVITEK 看门狗驱动
+    # 注意: CONFIG_DW_WATCHDOG (通用 DW Watchdog 驱动) 与此驱动使用相同的 compatible "snps,dw-wdt" 和驱动名 "dw_wdt"
+    # 请勿同时启用 CONFIG_DW_WATCHDOG，否则会导致驱动匹配冲突
+
+# 应用 coredump 配置
+coredump:
+  description: 启用内核 ELF core dump，用于程序崩溃调试
+  kernel_configs:
+    - CONFIG_ELF_CORE       # ELF 格式 core dump 支持（CONFIG_COREDUMP 的依赖）
+    - CONFIG_COREDUMP       # 启用 core dump 功能
+
 # 内核模块对应关系配置
 configs_ko:
   CONFIG_USB: usbcore.ko  # USB核心模块
   CONFIG_USB_CONFIGFS_F_FS: none
+  CONFIG_USB_F_FS: usb_f_fs.ko
   CONFIG_USB_CONFIGFS: none
   CONFIG_USB_DWC2: dwc2.ko
   CONFIG_USB_GADGET: usb-core.ko
@@ -207,7 +298,9 @@ def check_environment(check_path=True):
         'kernel_config': os.path.join(top_dir, f'linux_5.10/build/{project_fullname}/.config'),
         'build_config': os.path.join(top_dir, 'build/.config'),
         'kernel_defconfig': os.path.join(top_dir, f'build/boards/{chip_arch}/{project_fullname}/linux/cvitek_{project_fullname}{defconfig_suffix}'),
-        'build_defconfig': os.path.join(top_dir, f'build/boards/{chip_arch}/{project_fullname}/{project_fullname}{defconfig_suffix}')
+        'build_defconfig': os.path.join(top_dir, f'build/boards/{chip_arch}/{project_fullname}/{project_fullname}{defconfig_suffix}'),
+        'uboot_config': os.path.join(top_dir, os.getenv('UBOOT_SRC', 'u-boot-2021.10'), 'build', project_fullname, '.config'),
+        'uboot_defconfig': os.path.join(top_dir, f'build/boards/{chip_arch}/{project_fullname}/u-boot/{os.getenv("BRAND", "cvitek")}_{project_fullname}_defconfig')
     }
 
     if check_path:
@@ -216,6 +309,8 @@ def check_environment(check_path=True):
         print(f"{Colors.BLUE}SCENES:{Colors.ENDC} {'fastboot' if is_fastboot else 'normal'}")
         for name, path in config_paths.items():
             print(f"{Colors.GREEN}{name}:{Colors.ENDC} {path}")
+            if name.startswith('uboot_'):
+                continue
             if not os.path.exists(path):
                 print(f"{Colors.RED}错误: 文件不存在: {path}{Colors.ENDC}")
                 sys.exit(1)
@@ -255,11 +350,14 @@ def read_build_config(config_file):
 
 def list_configs(config):
     print(f"{Colors.BLUE}支持的配置项:{Colors.ENDC}")
-    for name in config.keys():
+    max_name_len = max((len(name) for name in config.keys() if name != 'configs_ko'), default=0)
+    for name, cfg in config.items():
         if name != 'configs_ko':
-            print(f"  - {name}")
+            description = cfg.get('description', '') if isinstance(cfg, dict) else ''
+            print(f"  - {name.ljust(max_name_len)}  {description}")
 
-def check_config(config, config_name, kernel_config_file, build_config_file, kernel_defconfig_file, build_defconfig_file):
+def check_config(config, config_name, kernel_config_file, build_config_file, kernel_defconfig_file, build_defconfig_file,
+                 uboot_config_file, uboot_defconfig_file):
     # 配置名称不区分大小写
     config_name_lower = config_name.lower()
     config_key = next((k for k in config.keys() if k.lower() == config_name_lower), None)
@@ -368,6 +466,57 @@ def check_config(config, config_name, kernel_config_file, build_config_file, ker
                             f.write(f"{config}=y\n")
                     print(f"{Colors.GREEN}已将配置添加到 {build_defconfig_file}{Colors.ENDC}")
 
+    if 'uboot_configs' in cfg:
+        print(f"\n{Colors.GREEN}U-Boot配置: {Colors.ENDC}")
+        if not os.path.exists(uboot_config_file):
+            print(f"{Colors.RED}错误: 找不到U-Boot配置文件 {uboot_config_file}{Colors.ENDC}")
+            sys.exit(1)
+        if not os.path.exists(uboot_defconfig_file):
+            print(f"{Colors.RED}错误: 找不到U-Boot defconfig文件 {uboot_defconfig_file}{Colors.ENDC}")
+            sys.exit(1)
+
+        uboot_configs = read_kconfig(uboot_config_file)
+        uboot_defconfig = read_kconfig(uboot_defconfig_file)
+        disabled_uboot_configs = []
+
+        for uconfig in cfg['uboot_configs']:
+            status = uboot_configs.get(uconfig, '')
+            if not status:
+                disabled_uboot_configs.append(uconfig)
+                print(f"⛔    {uconfig.ljust(30)}")
+            elif status == 'y':
+                print(f"✅    {uconfig.ljust(30)}")
+            elif status == 'm':
+                print(f"✅(m) {uconfig.ljust(30)}")
+
+        if disabled_uboot_configs:
+            need_enable_configs = []
+            warning_config = []
+
+            for config in disabled_uboot_configs:
+                if config in uboot_defconfig and uboot_defconfig[config] in ['y', 'm']:
+                    warning_config.append(config)
+                else:
+                    need_enable_configs.append(config)
+
+            if warning_config:
+                print(f"\n{Colors.YELLOW}Warning: 以下配置在U-Boot defconfig中已启用但未生效, build_uboot后重试{Colors.ENDC}")
+                for config in warning_config:
+                    print(f"{config}=y")
+
+            if need_enable_configs:
+                print(f"\n{Colors.YELLOW}需要启用的U-Boot配置项:{Colors.ENDC} {uboot_defconfig_file}")
+                for config in need_enable_configs:
+                    print(f"{config}=y")
+
+                user_input = input(f"\n{Colors.YELLOW}是否需要将配置添加到 {uboot_defconfig_file}? (y/n): {Colors.ENDC}")
+                if user_input.lower() == 'y':
+                    with open(uboot_defconfig_file, 'a') as f:
+                        f.write(f"\n# enable {config_key}\n")
+                        for config in need_enable_configs:
+                            f.write(f"{config}=y\n")
+                    print(f"{Colors.GREEN}已将配置添加到 {uboot_defconfig_file}{Colors.ENDC}")
+
 def main():
     args = parse_args()
 
@@ -384,7 +533,9 @@ def main():
                     config_paths['kernel_config'],
                     config_paths['build_config'],
                     config_paths['kernel_defconfig'],
-                    config_paths['build_defconfig'])
+                    config_paths['build_defconfig'],
+                    config_paths['uboot_config'],
+                    config_paths['uboot_defconfig'])
 
 if __name__ == "__main__":
     main()
