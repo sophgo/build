@@ -23,6 +23,8 @@ ifeq ($(RELEASE_FLAG),0)
 	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/plat/include/ipcm_system.h ${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/internal_include/
 	${Q}ln -sf ${OSDRV_PATH}/interdrv/ipcm/plat/include/ipcm_anonymous.h ${ALIOS_PATH}/components/cvi_mmf_sdk/cvi_osdrv/internal_include/
 endif
+	${Q}cp -af ${ALIOS_SOLUTIONS_DIR}/customization/${CONFIG_ALIOS_CUSTOMIZATION_PIPELINE}/package.yaml.turnkey ${ALIOS_SOLUTIONS_DIR}/package_yamls/
+	${Q}cp -af ${ALIOS_SOLUTIONS_DIR}/customization/${CONFIG_ALIOS_CUSTOMIZATION_PIPELINE}/package.yaml.turnkey.release ${ALIOS_SOLUTIONS_DIR}/package_yamls/
 
 alios-build: $(OUTPUT_DIR)/rawimages
 alios-build: memory-map alios-depends

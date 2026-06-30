@@ -1,6 +1,6 @@
 <physical_partition type="spinor">
     <partition label="fip" size_in_kb="512" readonly="false" file="fip_spl.bin"/>
-    <partition label="2nd" size_in_kb="2560" readonly="false" file="yoc.bin"/>
+    <partition label="2nd" size_in_kb="3008" readonly="false" file="yoc.bin"/>
     <partition label="jump" size_in_kb="3072" readonly="false" file="Image"/>
     <partition label="PQ" size_in_kb="384" readonly="false" file="pq_data.spinor"/>
     <partition label="PARAM" size_in_kb="64" file="param.bin" />

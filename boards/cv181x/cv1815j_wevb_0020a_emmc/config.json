@@ -1,0 +1,11 @@
+{
+    "ddr_cfg_list": [
+        "",
+        "ddr3_2133_x16",
+        "ddr3_1866_x16",
+        "ddr3_1600_x16",
+        "ddr2_1333_x16",
+        "ddr_auto_x16"
+    ],
+    "board_information": "C906B + EMMC + BGA SIP 256MB"
+}

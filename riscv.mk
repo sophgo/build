@@ -15,9 +15,10 @@ ifeq (${CONFIG_SKIP_UBOOT},y)
 endif
 	${Q}$(MAKE) -C ${OPENSBI_PATH} PLATFORM=generic CONFIG_SKIP_UBOOT=$(CONFIG_SKIP_UBOOT) \
 		CONFIG_SKIP_UBOOT_DEBUG=$(CONFIG_SKIP_UBOOT_DEBUG) \
-	    FW_PAYLOAD_PATH=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/arch/${ARCH}/boot/Image \
+	    FW_PAYLOAD_PATH=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/arch/${ARCH}/boot/Image CHIP_ARCH=$(CHIP_ARCH) \
 	    FW_FDT_PATH=${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/${CHIP}_${BOARD}.dtb
 	${Q}mkdir -p ${OUTPUT_DIR}/elf
+	${Q}mkdir -p ${OUTPUT_DIR}/rawimages
 	${Q}cp ${OPENSBI_PATH}/build/platform/generic/firmware/fw_jump.bin ${OUTPUT_DIR}/fw_jump.bin
-	${Q}cp ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/arch/${ARCH}/boot/Image ${OUTPUT_DIR}/Image
+	${Q}cp ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/arch/${ARCH}/boot/Image ${OUTPUT_DIR}/rawimages/Image
 

@@ -357,6 +357,10 @@ kernel-build: memory-map
 kernel-build: ${KERNEL_OUTPUT_CONFIG_PATH}
 	$(call print_target)
 	${Q}echo LOCALVERSION=${LOCALVERSION}
+ifneq (${CONFIG_SUSPEND},y)
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG="SUSPEND=n"'
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} savedefconfig
+endif
 # Set CONFIG_SERIAL_EARLYCON_RISCV_SBI config in defconfig
 ifeq (${CONFIG_SKIP_UBOOT_DEBUG},y)
 	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} setconfig 'SCRIPT_ARG="SERIAL_EARLYCON_RISCV_SBI=y"'
@@ -432,6 +436,8 @@ else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 INITRAMFS_BASE := glibc_arm
 else ifeq ($(CONFIG_TOOLCHAIN_UCLIBC_ARM),y)
 INITRAMFS_BASE := uclibc_arm
+else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM),y)
+INITRAMFS_BASE := musl_arm
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_RISCV64),y)
 INITRAMFS_BASE := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)
@@ -543,6 +549,8 @@ else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_ARM),y)
 packages_arch := arm
 else ifeq ($(CONFIG_TOOLCHAIN_UCLIBC_ARM),y)
 packages_arch := uclibc
+else ifeq ($(CONFIG_TOOLCHAIN_MUSL_ARM),y)
+packages_arch := musl
 else ifeq ($(CONFIG_TOOLCHAIN_GLIBC_RISCV64),y)
 packages_arch := glibc_riscv64
 else ifeq ($(CONFIG_TOOLCHAIN_MUSL_RISCV64),y)
@@ -611,6 +619,31 @@ endif
 $(OUTPUT_DIR)/rawimages:
 	${Q}mkdir -p $@
 
+
+# Pack_image
+# Description: Macro for packing image
+# Parameters 1: partition label
+# Parameters 2: Folder path for pack
+# Parameters 3: Size for packing (for make_ext4fs)
+ifeq (${STORAGE_TYPE},spinand)
+define pack_image
+	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py $(FLASH_PARTITION_XML) $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') ${2} $(OUTPUT_DIR)/rawimages/${1}.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
+endef
+else ifeq (${STORAGE_TYPE},emmc)
+define pack_image
+	${Q}$(COMMON_TOOLS_PATH)/prebuild/make_ext4fs -l ${3}  -L $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') $(OUTPUT_DIR)/rawimages/${1}.emmc ${2}
+	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.emmc
+endef
+else ifeq (${STORAGE_TYPE},spinor)
+# TODO:
+define pack_image
+endef
+else
+define pack_image
+	$(error Unknown STORAGE_TYPE ${STORAGE_TYPE})
+endef
+endif
+
 rootfs-pack:export CROSS_COMPILE_KERNEL=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_KERNEL))
 rootfs-pack:export CROSS_COMPILE_SDK=$(patsubst "%",%,$(CONFIG_CROSS_COMPILE_SDK))
 rootfs-pack:export OSDRV_BUILD_IN:=$(CONFIG_OSDRV_BUILD_IN)
@@ -626,6 +659,11 @@ endif
 	${Q}find $(ROOTFS_DIR) -name "*.ko" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_KERNEL)strip --strip-unneeded {} \;
 	${Q}find $(ROOTFS_DIR) -name "*.so*" -type f -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} \;
 	${Q}find $(ROOTFS_DIR) -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
+
+ifeq (${CONFIG_ROOTFS_RW},y)
+	$(call pack_image,rootfs,$(ROOTFS_DIR),71M)
+else
+
 ifeq ($(STORAGE_TYPE),spinor)
 ifeq (${CONFIG_ROOTFS_FORMAT_OPTIMIZATION},y)
 	${Q}mksquashfs $(ROOTFS_DIR) $(OUTPUT_DIR)/rawimages/rootfs.sqsh -root-owned -comp gzip
@@ -640,6 +678,8 @@ ifeq ($(STORAGE_TYPE),spinand)
 	${Q}rm $(OUTPUT_DIR)/rawimages/rootfs.sqsh
 else
 	${Q}mv $(OUTPUT_DIR)/rawimages/rootfs.sqsh $(OUTPUT_DIR)/rawimages/rootfs.$(STORAGE_TYPE)
+endif
+
 endif
 
 define raw2cimg
@@ -701,30 +741,6 @@ endif
 
 $(OUTPUT_DIR)/system:
 	${Q}mkdir -p $@
-
-# Pack_image
-# Description: Macro for packing image
-# Parameters 1: partition label
-# Parameters 2: Folder path for pack
-# Parameters 3: Size for packing (for make_ext4fs)
-ifeq (${STORAGE_TYPE},spinand)
-define pack_image
-	${Q}python3 $(COMMON_TOOLS_PATH)/spinand_tool/mkubiimg.py $(FLASH_PARTITION_XML) $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') ${2} $(OUTPUT_DIR)/rawimages/${1}.spinand -b $(CONFIG_NANDFLASH_BLOCKSIZE) -p $(CONFIG_NANDFLASH_PAGESIZE)
-endef
-else ifeq (${STORAGE_TYPE},emmc)
-define pack_image
-	${Q}$(COMMON_TOOLS_PATH)/prebuild/make_ext4fs -l ${3}  -L $(shell echo ${1} | tr  '[:lower:]' '[:upper:]') $(OUTPUT_DIR)/rawimages/${1}.emmc ${2}
-	resize2fs -M $(OUTPUT_DIR)/rawimages/${1}.emmc
-endef
-else ifeq (${STORAGE_TYPE},spinor)
-# TODO:
-define pack_image
-endef
-else
-define pack_image
-	$(error Unknown STORAGE_TYPE ${STORAGE_TYPE})
-endef
-endif
 
 $(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE):$(OUTPUT_DIR)/system
 	$(call pack_image,system,$(OUTPUT_DIR)/system,38M)

@@ -42,7 +42,7 @@
 			};
 		};
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			u-boot,dm-spl;
 			device_type = "cpu";
 			reg = <0x00>;
@@ -439,4 +439,17 @@
 		interrupt-parent = <&plic0>;
     };
 #endif
+
+	chosen {
+		opensbi-domain{
+			compatible = "opensbi,dimain,config";
+
+			tdomain: trusted-domain {
+				compatible = "opensbi,domain,instance";
+				possible-harts = <&cpu0>;
+				system-suspend-allowed;
+			};
+		};
+	};	
+
 };

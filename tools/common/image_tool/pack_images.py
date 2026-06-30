@@ -18,7 +18,7 @@ SV_BLOCK_NUM = 4
 BLOCK_SIZE_FOR_4K_NAND = 262144
 
 global chip_list
-chip_list = ["cv183x", "cv182x", "cv181x"]
+chip_list = ["cv184x","cv183x", "cv182x", "cv181x"]
 
 
 def parse_Args():
@@ -204,6 +204,16 @@ def genBootBin(out, images_path):
         raise e
 
 
+def printPartitions(parts, storage_type, block_size):
+    for i, p in enumerate(parts):
+        file_name = p.get("file_name", "")
+        logging.info("Partition %d: %s(%s), pos=%d, block offset=%d" %
+                    (i, p.get("label", "unknown"), file_name, p.get("offset", 0), p.get("offset", 0) // block_size))
+        if storage_type == "spinand" and i == 0:
+            logging.info("FIP backup(%s): pos=%d, block offset=%d" %
+                        (file_name,block_size * FIP_BACKUP_BLOCK_POS, FIP_BACKUP_BLOCK_POS))
+
+
 def main():
     args = parse_Args()
     xmlParser = XmlParser(args.xml)
@@ -212,6 +222,10 @@ def main():
 
     storage_type = xmlParser.getStorage()
     logging.info("storage type is %s " % storage_type)
+
+    if storage_type == "spinand":
+        printPartitions(parts, storage_type, args.block_size)
+        return
 
     with open(out_path, "wb") as out:
         genDataBin(

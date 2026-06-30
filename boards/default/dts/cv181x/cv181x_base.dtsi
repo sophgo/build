@@ -494,6 +494,8 @@
 		clocks = <&eth_csrclk>, <&eth_ptpclk>;
 		//phy-reset-gpios = <&porta 26 0>;
 
+		ephy_base_reg = <0x3009000>;
+		ephy_top_reg = <0x3009800>;
 		tx-fifo-depth = <8192>;
 		rx-fifo-depth = <8192>;
 		/* no hash filter and perfect filter support */
@@ -947,6 +949,6 @@
 
 	chosen {
 		stdout-path = "serial0";
-		bootargs = "mtdparts=10000000.cvi-spif:512K(fip),1792K(2nd),3072K(jump),384K(PQ),64K(PARAM),64K(PARAM_BAK),64K(ENV),64K(ENV_BAK),4096K(ROOTFS),4096K(DATA) rootwait ro root=/dev/mtdblock8  rootfstype=squashfs console=ttyS0,115200 earlycon=sbi riscv.fwsz=0x80000 loglevel=0";
+		bootargs = "mtdparts=10000000.cvi-spif:512K(fip),1792K(2nd),3072K(jump),384K(PQ),64K(PARAM),64K(PARAM_BAK),64K(ENV),64K(ENV_BAK),4096K(ROOTFS),4096K(DATA) rootwait ro root=/dev/mtdblock8  rootfstype=squashfs console=ttyS0,115200 earlycon=sbi riscv.fwsz=0x80000 loglevel=0";	
 	};
 };

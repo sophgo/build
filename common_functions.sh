@@ -117,9 +117,9 @@ function pack_boot
 function pack_payload
 {(
   if [ "$SUP_LARGE_PART_SIZE" = "n" ];then
-    python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/Image "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+    python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/Image "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
   else
-    python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$OUTPUT_DIR"/Image "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+    python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$OUTPUT_DIR"/rawimages/Image "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
   fi
 )}
 # $1 : The path for rootfs partition
@@ -208,7 +208,7 @@ function pack_gpt
   make gpt.img PARTITION_XML="$FLASH_PARTITION_XML" INSTALL_DIR="$OUTPUT_DIR"/rawimages
   if [ "$SUP_LARGE_PART_SIZE" = "n" ];then
     python3 "$IMGTOOL_PATH"/raw2cimg.py "$OUTPUT_DIR"/rawimages/gpt.img "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
-  else 
+  else
     python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$OUTPUT_DIR"/rawimages/gpt.img "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
   fi
   popd
@@ -237,11 +237,14 @@ function copy_tools
     command rm -rf "$OUTPUT_DIR"/tools
     command mkdir -p "$OUTPUT_DIR"/tools/
     command cp -rf "$TOOLS_PATH"/common/usb_dl/ "$OUTPUT_DIR"/tools/
-    if [ "$ENABLE_BOOTLOGO" -eq 1 ] && [ "$SUP_LARGE_PART_SIZE" = "n" ]; then
-      python3 "$IMGTOOL_PATH"/raw2cimg.py "$BOOTLOGO_PATH" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
-    fi
-    if [ "$ENABLE_BOOTLOGO" -eq 1 ] && [ "$SUP_LARGE_PART_SIZE" = "y" ]; then
-      python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$BOOTLOGO_PATH" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+    if [ "$ENABLE_BOOTLOGO" -eq 1 ] ; then
+      command mkdir -p "$OUTPUT_DIR"/rawimages
+      command cp --remove-destination "$BOOTLOGO_PATH" "$OUTPUT_DIR"/rawimages/logo.jpg
+      if [ "$SUP_LARGE_PART_SIZE" = "n" ]; then
+        python3 "$IMGTOOL_PATH"/raw2cimg.py "$BOOTLOGO_PATH" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+      else
+        python3 "$IMGTOOL_PATH"/raw2cimg_lps.py "$BOOTLOGO_PATH" "$OUTPUT_DIR" "$FLASH_PARTITION_XML"
+      fi
     fi
     command cp --remove-destination "$FLASH_PARTITION_XML" "$OUTPUT_DIR"/
   fi
@@ -283,7 +286,7 @@ function pack_upgrade
   done
 if [ "$SUP_LARGE_PART_SIZE" = "y" ];then
   python3 "$IMGTOOL_PATH"/mk_package_lps.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args
-else 
+else
   python3 "$IMGTOOL_PATH"/mk_package.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args
 fi
   command rm -rf "$TMPDIR"
@@ -292,24 +295,40 @@ fi
 function pack_prog_img
 {(
   local tmp_dir
+  local nandid=$1
+
+  CHIP_ARCH_LOWER=$(echo "${CHIP_ARCH}" | tr A-Z a-z)
   tmp_dir="$OUTPUT_DIR"/temp
   mkdir -p "$tmp_dir"
   rm -rf "${tmp_dir:?}/"*
+  # get fip filename from partition xml
+  fip_file=$(grep -oP 'label="fip"[^>]*file="\K[^"]+' "$FLASH_PARTITION_XML")
+
   if [[ "$STORAGE_TYPE" = "spinand" ]]; then
-    pushd "$SPINANDTOOL_PATH"/sv_tool
-    make
-    ./create_sv -c 5 -o "$tmp_dir"/sv.bin
+    if [ -z "$nandid" ]; then
+      echo -e "\e[31m nandid is required for spinand storage. Usage: pack_images <nandid>, nandid = 0x{DID/MID} ,such as 0x95c8 . \e[0m"
+      return 1
+    fi
+
+    cp "${OUTPUT_DIR}/rawimages/"* "${tmp_dir}/"
+    # get nand block size and page size from .config
+    read -r block_size page_size < <(awk -F= '
+        /^CONFIG_NANDFLASH_BLOCKSIZE=/{block=$2}
+        /^CONFIG_NANDFLASH_PAGESIZE=/{page=$2}
+        END{print block, page}
+      ' "$BUILD_PATH/.config")
+      print_notice "NANDID=$nandid, NANDFLASH_BLOCKSIZE=$block_size, NANDFLASH_PAGESIZE=$page_size"
+
+    # fip need to be processed by fip_maker, add nand info.
+    pushd "$SPINANDTOOL_PATH"/fip_maker
+    make || return "$?"
+    ./fip_maker "$page_size" "$nandid" "$OUTPUT_DIR/$fip_file" "$tmp_dir/$fip_file"
     popd
-    cp "$OUTPUT_DIR"/rawimages/*."$STORAGE_TYPE" "$tmp_dir"
-    cp "$OUTPUT_DIR"/*.xml "$tmp_dir"
-    cp "$OUTPUT_DIR"/fip.bin "$tmp_dir"
-    # Tar images
-    tar -caf "$OUTPUT_DIR"/prog_img.tar.gz -C "$tmp_dir" .
-    # List images in tar
-    tar -tzvf "$OUTPUT_DIR"/prog_img.tar.gz
-  elif [[ "$STORAGE_TYPE" = "emmc" ]]; then
-    cp "$OUTPUT_DIR"/fip.bin "$OUTPUT_DIR"/rawimages/
-    python3 "$IMGTOOL_PATH"/pack_emmc_bin.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR"/rawimages/ "$tmp_dir" -v
+
+    python3 $IMGTOOL_PATH/pack_images.py "$CHIP_ARCH_LOWER" "$FLASH_PARTITION_XML" "${OUTPUT_DIR}/rawimages/" "$tmp_dir/" -p -b "$block_size" 2>&1 | tee "$tmp_dir"/partition_info.txt
+  else
+    cp "${OUTPUT_DIR}/${fip_file}" "${OUTPUT_DIR}/rawimages/"
+    python3 $IMGTOOL_PATH/pack_images.py "$CHIP_ARCH_LOWER" "$FLASH_PARTITION_XML" "${OUTPUT_DIR}/rawimages/" "$tmp_dir/"
   fi
   # Tar images
   tar -caf "$OUTPUT_DIR"/prog_img.tar.gz -C "$tmp_dir" .

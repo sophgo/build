@@ -33,6 +33,7 @@ config CROSS_COMPILE_KERNEL
 	string "Cross-compiler tool prefix for kernel"
 	default "aarch64-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
 	default "arm-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
+	default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
 	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -155,6 +156,12 @@ config TOOLCHAIN_UCLIBC_ARM
 	help
 	  uclibc library for arm(AARCH32).
 
+config TOOLCHAIN_MUSL_ARM
+	bool "musl library for user mode application on arm"
+	help
+	  musl library for arm(AARCH32).
+
+
 config TOOLCHAIN_GLIBC_RISCV64
 	bool "glibc library for user mode application on riscv64"
 	help
@@ -174,6 +181,7 @@ config CROSS_COMPILE_SDK
 	default "aarch64-linux-gnu-" if TOOLCHAIN_GLIBC_ARM64
 	default "arm-linux-gnueabihf-" if TOOLCHAIN_GLIBC_ARM
 	default "arm-cvitek-linux-uclibcgnueabihf-" if TOOLCHAIN_UCLIBC_ARM
+	default "arm-none-linux-musleabihf-" if TOOLCHAIN_MUSL_ARM
 	default "riscv64-unknown-linux-gnu-" if TOOLCHAIN_GLIBC_RISCV64
 	default "riscv64-unknown-linux-musl-" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -185,6 +193,7 @@ config SDK_VER
 	default "64bit" if TOOLCHAIN_GLIBC_ARM64
 	default "32bit" if TOOLCHAIN_GLIBC_ARM
 	default "uclibc" if TOOLCHAIN_UCLIBC_ARM
+	default "musl" if TOOLCHAIN_MUSL_ARM
 	default "glibc_riscv64" if TOOLCHAIN_GLIBC_RISCV64
 	default "musl_riscv64" if TOOLCHAIN_MUSL_RISCV64
 	help
@@ -199,6 +208,15 @@ config STATIC
 	  Static binaries are larger, but do not require functioning
 	  dynamic libraries to be present, which is important if used
 	  as a system rescue tool.
+
+config SWITCH_32K_XTAL
+	bool "SWITCH 32K to external XTAL"
+	default n
+	help
+	  If you wish to use the on-board 32k crystal oscillator
+	  instead of the internal 32k clock of rtc_sys, please
+	  enable this feature. Once enabled, the BL2 code in the
+	  FSBL repository will perform the 32k clock source switching.
 
 config DOUBLESDK
 	bool "Build SDK with v410 sdk and v420 sdk"
@@ -227,7 +245,7 @@ config FASTBOOT_GENERAL
 	select OSDRV_BUILD_IN if FASTBOOT_GENERAL
 	select RTOS_ANNON_MSG if FASTBOOT_GENERAL
 	help
-		This enables general features for fastboot. If you don't know how to customize 
+		This enables general features for fastboot. If you don't know how to customize
 		your fastboot SDK, this option give you some common fastboot choices here.
 		But, if you know how to customize your fastboot configuration, please set n.
 
@@ -366,6 +384,21 @@ config AUD_3A_SEL
 	default n
 	help
 	  Say "y/n" here to enable/disable 3a in alios.
+
+config SUSPEND
+        bool "Suspend to RAM and standby"
+        default n
+        help
+          Allow the system to enter sleep states in which main memory is
+          powered and thus its contents are preserved, such as the
+          suspend-to-RAM state (e.g. the ACPI S3 state).
+
+config ENABLE_UART_DL
+	bool "Enable UART download"
+	depends on ARCH=riscv
+	default n
+	help
+		Enable UART download
 endmenu
 
 menu "FIP setting"
@@ -434,6 +467,31 @@ config IMPROVE_AXI_CLK
 	default n
 	help
 		Improve aix clock while load image, imporve boottime
+
+menu "Burn Button Options"
+
+config ENABLE_BURN_BUTTON
+	bool "Enable burn button for update or not"
+	default n
+	depends on UBOOT_SPL_CUSTOM
+	help
+	  Enable burn button for update.
+
+config GPIO_GRP
+	int "from gpio0 to gpio4"
+	depends on ENABLE_BURN_BUTTON
+	default 1
+	help
+	  GPIO group number for button.
+
+config GPIO_PIN
+	int "GPIO pin number"
+	depends on ENABLE_BURN_BUTTON
+	default 3
+	help
+	  GPIO pin number for button.
+
+endmenu
 
 endmenu
 
@@ -639,6 +697,12 @@ config USE_4K_ERASE_SIZE_FOR_JFFS2
 	help
 	  Enable use 4K erase size for jffs2 filesystem, it's only for nor flash
 
+config ROOTFS_RW
+	bool "Enable rootfs with rw"
+	default n
+	help
+	  Enable rootfs with rw.
+
 endmenu
 
 menu "Turnkey options"
@@ -799,41 +863,7 @@ config COMPRESS_RTOS_BIN
 	help
 	  compress rtos bin by lzma
 
-choice
-    prompt "Alios customization pipeline"
-	default CV180ZB_GC2053 if CHIP_ARCH_cv180x
-	default CV1811C_CV2003_1l_TRIPLE if CHIP_ARCH_cv181x
-
-config CV180ZB_SC2003_SC2003_1l_SWITCH
-        bool "CV180ZB_SC2003_SC2003_1l_SWITCH pipeline"
-        depends on ENABLE_ALIOS
-        help
-          Select pipeline for CV180ZB_SC2003_SC2003_1l_SWITCH project.
-
-config CV180ZB_SC2331_SC2331_1l_SWITCH
-        bool "CV180ZB_SC2331_SC2331_1l_SWITCH pipeline"
-        depends on ENABLE_ALIOS
-        help
-          Select pipeline for CV180ZB_SC2331_SC2331_1l_SWITCH project.
-
-config CV1811C_CV2003_1l_TRIPLE
-        bool "CV1811C_CV2003_1l_TRIPLE pipeline"
-        depends on ENABLE_ALIOS
-        help
-          Select pipeline for CV1811C_CV2003_1l_TRIPLE project.
-
-config CV180ZB_GC2053
-        bool "CV180ZB_GC2053 pipeline"
-        depends on ENABLE_ALIOS
-        help
-          Select pipeline for CV180ZB_GC2053 project.
-
-config CV1811C_JD9165
-        bool "CV1811C_JD9165 pipeline"
-        depends on ENABLE_ALIOS
-        help
-          Select pipeline for CV1811C_JD9165 project.
-endchoice
+source "output/Kconfig.pipelines"
 
 endmenu
 
