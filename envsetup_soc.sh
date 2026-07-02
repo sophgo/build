@@ -87,8 +87,6 @@ update_files_if_newer() {
     done
 }
 
-
-
 function _build_fsbl_env()
 {
   export FSBL_PATH
@@ -119,8 +117,10 @@ function _build_atf_env()
 function build_atf()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
   _build_atf_env
   cd "$BUILD_PATH" || return
+  make u-boot-build || return "$?"
   make arm-trusted-firmware
 )}
 
@@ -630,104 +630,12 @@ function build_nvr_edge
   popd
 }
 
-function build_debian_based_rootfs
+function build_edge_rootfs
 {
   print_notice "Run ${FUNCNAME[0]}() function"
 
-  setup_debian_env || { ret=$?; echo "Error: setup_debian_env failed with exit code $ret"; return $ret; }
-  fetch_debian_based_rootfs || { ret=$?; echo "Error: fetch_debian_based_rootfs failed with exit code $ret"; return $ret; }
-  local version=$(grep Version $DISTRO_OVERLAY_DIR/$CVIARCH/sophgo-fs/DEBIAN/control | cut -d ' ' -f 2)
-  mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/debs
-  dpkg-deb -b "${DISTRO_OVERLAY_DIR}/${CVIARCH}/sophgo-fs" \
-    "${EDGE_ROOTFS_DIR}/home/linaro/debs/sophgo-bsp-rootfs_${version}_arm64.deb"
-
-  mkdir -p ${BSP_DEBS}
-  mkdir -p ${SDK_DEBS}
-  mkdir -p ${MOD_DEBS}
-  rm -rf "${BSP_DEBS}"/linux*.deb
-  rm -rf "${SDK_DEBS}"/linux-image*.deb
-
-  shopt -s nullglob
-  if [ "$KERNEL_SRC" = "linux-common" ]; then
-    update_files_if_newer "linux*.deb" "${TOP_DIR}/linux-common/build" "${BSP_DEBS}"
-  elif [ "$KERNEL_SRC" = "linux_5.10" ]; then
-    update_files_if_newer "linux*.deb" "${TOP_DIR}/linux_5.10/build" "${BSP_DEBS}"
-  else
-    echo "error, KERNEL_SRC should be 'linux-common' or 'linux_5.10'. " >&2
-  fi
-
-  if [ "$SIDE_TYPE" = "device" ]; then
-    update_files_if_newer "middleware_*.deb" "${TOP_DIR}/middleware/${MW_VER}" "${SDK_DEBS}"
-    update_files_if_newer "tdlsdk_*.deb" "${TOP_DIR}/tdl_sdk/install/${CHIP_ARCH}" "${SDK_DEBS}"
-  elif [ "$SIDE_TYPE" = "edge" ]; then
-    update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${SDK_DEBS}"
-    update_files_if_newer "sophon-soc-libisp*arm64.deb" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "${SDK_DEBS}"
-
-  else
-    echo "error, SIDE_TYPE should be 'device' or 'edge'。" >&2
-  fi
-  update_files_if_newer "sophon-soc-libsophon*.deb" "${TOP_DIR}/libsophon/build" "${SDK_DEBS}"
-
-  shopt -u nullglob
-
-  echo copy overlay file to rootfs...
-  sudo cp -rf \
-    "$DISTRO_OVERLAY_DIR"/common/rootfs/* \
-    "$DISTRO_OVERLAY_DIR"/"$CVIARCH"/rootfs/* \
-    "${EDGE_ROOTFS_DIR}"
-
-  python $COMMON_TOOLS_PATH/image_tool/mkcvipart_edge.py $FLASH_PARTITION_XML "${EDGE_ROOTFS_DIR}/etc/" --fw_env
-  # copy customer's debs
-  find "${TOP_DIR}"/ubuntu/bootloader-arm64/distro/debs \
-    -name *.deb -exec cp -f {} "${MOD_DEBS}" \;
-
-  mkdir -p "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs
-  find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${EDGE_ROOTFS_DIR}"/home/linaro/bsp-debs \;
-  find "${SDK_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${EDGE_ROOTFS_DIR}"/home/linaro/debs \;
-  find "${MOD_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${EDGE_ROOTFS_DIR}"/home/linaro/debs \;
-
-  echo install packages...
-sudo chroot "${EDGE_ROOTFS_DIR}" /bin/bash << EOT
-#!/bin/bash
-
-echo -e "LC_ALL=C.UTF-8\n" > /etc/default/locale
-echo "Defaults timestamp_timeout=43200" | tee -a /etc/sudoers
-
-for deb_dir in /debs /home/linaro/debs; do
-  retries=0
-  if [  -d \${deb_dir} ] && [ \$(ls \${deb_dir}/*.deb | wc -l) -gt 0 ]; then
-    while [ \${retries} -lt 3 ]; do
-      sleep 1
-      if dpkg -i -R \${deb_dir}; then
-        break
-      fi
-      retries=\$((retries + 1))
-    done
-  fi
-
-  if [ \${retries} -eq 3 ]; then
-    exit 1
-  fi
-
-  for file in \${deb_dir}/*; do
-    file=\$(basename \${file})
-    if  [ "\${file##*.}" == "whl" ]; then
-        pip3 install --no-index --find-links=file://\${deb_dir} \${file%%-*}
-    fi
-  done
-  rm -rf \${deb_dir}
-done
-systemctl disable apt-daily.timer apt-daily-upgrade.timer
-systemctl disable apt-daily.service apt-daily-upgrade.service
-systemctl disable unattended-upgrades.service
-systemctl mask unattended-upgrades.service apt-daily.service apt-daily-upgrade.service
-
-EOT
-
-  echo packing rootfs...
-  pushd "${EDGE_ROOTFS_DIR}"
-  sudo chown 1000:1000 -R data
-  popd
+  build_debian_based_rootfs \
+    || { ret=$?; echo "Error: build_debian_based_rootfs failed with exit code $ret"; return $ret; }
 }
 
 function build_sdk_rootfs()
@@ -742,7 +650,7 @@ function build_sdk_rootfs()
     copy_tools || { ret=$?; echo "Error: copy_tools failed with exit code $ret"; return $ret; }
     pack_upgrade || { ret=$?; echo "Error: pack_upgrade failed with exit code $ret"; return $ret; }
   else
-    build_debian_based_rootfs || { ret=$?; echo "Error: build_debian_based_rootfs failed with exit code $ret"; return $ret; }
+    build_edge_rootfs || { ret=$?; echo "Error: build_edge_rootfs failed with exit code $ret"; return $ret; }
 
     if [ "${target}" != "regression" ]; then
         build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
@@ -847,13 +755,6 @@ function clean_sophon_media(){
   popd
 }
 
-function clean_distro() {
-  if [ -d "${TOP_DIR}/ubuntu/distro" ]; then
-    find "${TOP_DIR}/ubuntu/distro" \
-      -name "distro_*.tgz" -delete
-  fi
-}
-
 function clean_nvr_edge(){
   print_notice "Run ${FUNCNAME[0]}() function"
   if [ ! -d "${TOP_DIR}/frameworks/nvr_edge" ]; then
@@ -864,127 +765,6 @@ function clean_nvr_edge(){
   rm -rf build
   rm -rf nvr_edge_*
   popd
-}
-
-download_and_verify_file() {
-    local file_url="$1"
-    local file_path="$2"
-    local expected_md5="$3"
-    local download_tool="$4"
-
-    echo "Processing file: $(basename "$file_path")"
-    python3 -m pip install dfss --upgrade
-
-    if [ ! -e "$file_path" ]; then
-        echo "Downloading file..."
-        case $download_tool in
-            "wget")
-                wget -q --show-progress "$file_url" -O "$file_path"
-                ;;
-            "dfss")
-                python -m dfss --url="$file_url"
-                local filename=$(basename "$file_url")
-                if [ -f "$filename" ]; then
-                    mv "$filename" "$file_path"
-                fi
-                ;;
-            *)
-                echo "Unsupported download tool: $download_tool"
-                return 1
-                ;;
-        esac
-    else
-        local current_md5=$(md5sum "$file_path" | awk '{print $1}')
-        if [ "$current_md5" != "$expected_md5" ]; then
-            echo "File exists but MD5 mismatch, re-downloading..."
-            rm -f "$file_path"
-            case $download_tool in
-                "wget") wget -q --show-progress "$file_url" -O "$file_path" ;;
-                "dfss")
-                    python -m dfss --url="$file_url"
-                    local filename=$(basename "$file_url")
-                    [ -f "$filename" ] && mv "$filename" "$file_path"
-                    ;;
-            esac
-        else
-            echo "File exists and MD5 matches, skipping download."
-        fi
-    fi
-
-    local final_md5=$(md5sum "$file_path" | awk '{print $1}')
-    if [ "$final_md5" != "$expected_md5" ]; then
-        echo "Error: File $(basename "$file_path") MD5 verification failed after download."
-        echo "Expected MD5: $expected_md5"
-        echo "Actual MD5: $final_md5"
-        return 1
-    fi
-
-    echo "File verification successful."
-    return 0
-}
-
-function setup_debian_env() {
-    SUPPORTED_DISTROS=("jammy" "focal" "debian" "bookworm")
-    DISTRO=${BUILD_ROOTFS_NAME:-jammy}
-    SUPPORTED=0
-    for d in "${SUPPORTED_DISTROS[@]}"; do
-        if [ "$d" = "$DISTRO" ]; then
-            SUPPORTED=1
-            break
-        fi
-    done
-
-    if [ $SUPPORTED -eq 0 ]; then
-        echo "warning:not support DISTRO: '$DISTRO',use default 'jammy'"
-        export DISTRO="jammy"
-    fi
-    export ROOT_TOP_DIR="$TOP_DIR"/ubuntu
-    export ROOT_OUT_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}
-    export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
-    export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
-
-    if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
-        export DISTRO_MD5="aebaa36fee0119bca6f286858117764f"
-        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/bookworm_${DISTRO_MD5}.tgz"
-        export FETCH_CMD="dfss"
-    else
-        case "$DISTRO" in
-            "focal")
-                export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
-                ;;
-            "jammy")
-                export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
-                ;;
-        esac
-        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz"
-        export FETCH_CMD="dfss"
-    fi
-
-  export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
-  export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
-  export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
-}
-
-function fetch_debian_based_rootfs() {
-    sudo rm -rf "${EDGE_ROOTFS_DIR}"
-    mkdir -p "${EDGE_ROOTFS_DIR}"
-
-    if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
-        local download_dir="${TOP_DIR}/ubuntu/bookworm"
-        local file_path="${download_dir}/bookworm.tgz"
-        mkdir -p "$download_dir"
-        cd "$download_dir"
-
-        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "$FETCH_CMD" || return 1
-        zcat "$file_path" | sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
-    else
-        local download_dir="${TOP_DIR}/ubuntu/distro"
-        local file_path="${download_dir}/distro_${DISTRO}.tgz"
-        mkdir -p "$download_dir"
-
-        download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "$FETCH_CMD" || return 1
-        zcat "$file_path" | sudo tar -C "${EDGE_ROOTFS_DIR}" -x -f -
-    fi
 }
 
 function build_edge_sdk() {
@@ -1302,6 +1082,60 @@ tftp
 usb
 )
 
+_sdcard_find_partition_xml()
+{
+	local dir="$1" name found=""
+	for name in partition32G_sector.xml partition32G.xml; do
+		if [ -f "$dir/$name" ]; then
+			echo "$dir/$name"
+			return 0
+		fi
+	done
+	found="$(find "$dir" -maxdepth 1 -name 'partition*.xml' -type f 2>/dev/null | head -1)"
+	if [ -n "$found" ]; then
+		echo "$found"
+		return 0
+	fi
+	return 1
+}
+
+_sdcard_partition_format()
+{
+	local f="$1"
+	if grep -q 'size_in_sectors=' "$f" 2>/dev/null; then
+		echo sector
+		return 0
+	fi
+	if grep -q 'size_in_kb=' "$f" 2>/dev/null; then
+		echo kb
+		return 0
+	fi
+	return 1
+}
+
+_cleanup_stale_mounts()
+{
+	local dir name m mp
+	for dir in "$@"; do
+		[ -n "$dir" ] && [ -d "$dir" ] || continue
+		for name in boot_tmp data_tmp rootfs_tmp rootfs_rw_tmp recovery_tmp; do
+			m="$dir/$name"
+			if mountpoint -q "$m" 2>/dev/null; then
+				umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true
+			fi
+		done
+		for m in "$dir"/tmp-[0-9]*; do
+			[ -d "$m" ] || continue
+			if mountpoint -q "$m" 2>/dev/null; then
+				umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true
+			fi
+		done
+	done
+	while read -r mp; do
+		[ -n "$mp" ] && umount -l "$mp" 2>/dev/null || true
+	done < <(mount | awk '/(boot|data|rootfs|rootfs_rw|recovery)_tmp$/ || /\/tmp-[0-9]+$/ {print $3}')
+}
+
 # 传入 sdcard.tgz 文件路径，在当前目录生成 sdcard_out 并解包还原。
 # 用法: revert_sdcard_package <path_to_sdcard.tgz>
 function revert_sdcard_package()
@@ -1319,18 +1153,16 @@ function revert_sdcard_package()
 		return 1
 	fi
 
+	_cleanup_stale_mounts "$PWD/.revert_sdcard_tmp/package_update/update/sdcard"
 	rm -rf "$tmp" "$out"
 	mkdir -p "$tmp/package_update/update/sdcard" "$out"
 	cp -r "$SCRIPTS_DIR/revert_package.sh" "$tmp/package_update/update/sdcard/"
 
 	pushd "$PWD" || return 1
 	tar -zxf "$sdcard_tgz" -m -C "$tmp/package_update/"
-	source_partition_xml="$tmp/package_update/sdcard/partition32G_sector.xml"
-	if [ ! -f "$source_partition_xml" ]; then
-		echo "partition32G_sector.xml not found in sdcard.tgz" >&2
-		popd
-		rm -rf "$tmp"
-		return 1
+	source_partition_xml="$(_sdcard_find_partition_xml "$tmp/package_update/sdcard" 2>/dev/null)" || source_partition_xml=""
+	if [ -z "$source_partition_xml" ]; then
+		echo "warning: no partition*.xml in sdcard.tgz, continue without it" >&2
 	fi
 	cp -r "$tmp/package_update/sdcard/"* "$tmp/package_update/update/sdcard/"
 	shopt -s nullglob
@@ -1338,23 +1170,40 @@ function revert_sdcard_package()
 		cp -r "$f" "$out/"
 	done
 	shopt -u nullglob
-	cd "$tmp/package_update/update/sdcard" || { popd; return 1; }
-	./revert_package.sh boot data rootfs rootfs_rw recovery
+	cd "$tmp/package_update/update/sdcard" || { popd; _cleanup_stale_mounts "$tmp/package_update/update/sdcard"; return 1; }
+	./revert_package.sh boot data rootfs rootfs_rw recovery || {
+		echo "revert_package.sh failed" >&2
+		_cleanup_stale_mounts "$tmp/package_update/update/sdcard"
+		popd
+		rm -rf "$tmp"
+		return 1
+	}
 
 	cd ../
-	sudo rm -rf ./*.tgz
+	rm -rf ./*.tgz
 	mv ./sdcard/*.tgz ./
-	sudo rm -rf ./sdcard
+	rm -rf ./sdcard
 
 	shopt -s nullglob
 	for tgz in ./*.tgz; do
 		part_name="$(basename "$tgz" .tgz)"
 		mkdir -p "$out/$part_name"
-		tar -zxf "$tgz" -C "$out/$part_name"
+		tar -zxf "$tgz" -C "$out/$part_name" \
+			--exclude='dev' --exclude='proc' --exclude='sys' \
+			--exclude='run' --exclude='tmp' || {
+			echo "tar extract failed: $tgz" >&2
+			_cleanup_stale_mounts "$tmp/package_update/update/sdcard"
+			popd
+			rm -rf "$tmp"
+			return 1
+		}
 	done
 	shopt -u nullglob
 
-	cp -f "$source_partition_xml" "$out/"
+	if [ -n "$source_partition_xml" ]; then
+		cp -f "$source_partition_xml" "$out/"
+	fi
+	_cleanup_stale_mounts "$tmp/package_update/update/sdcard"
 	popd || return 1
 
 	rm -rf "$tmp"
@@ -1365,60 +1214,115 @@ function rebuild_sdcard_package()
 {
 	local SCRIPTS_DIR="${TOP_DIR}/build/scripts/"
 	local pkg_dir="${1:?usage: rebuild_sdcard_package <sdcard_out_dir>}"
-	local partition_xml part
+	local partition_xml found fmt part make_script s part_count
+	local -a sdcard_scripts tar_excludes=(--exclude='dev' --exclude='proc' --exclude='sys'
+		--exclude='run' --exclude='tmp')
 	local parts=(boot data rootfs rootfs_rw recovery misc)
 	local created_tgz=()
 
 	pkg_dir="$(cd "$pkg_dir" && pwd)" || return 1
-	partition_xml="$pkg_dir/partition32G_sector.xml"
+	_cleanup_stale_mounts "$pkg_dir" "$pkg_dir/sdcard"
 
-	if [ ! -f "$partition_xml" ]; then
-		echo "partition32G_sector.xml not found in: $pkg_dir" >&2
+	found="$(_sdcard_find_partition_xml "$pkg_dir" 2>/dev/null)" || found=""
+	if [ -z "$found" ]; then
+		echo "error: no partition*.xml in sdcard_out: $pkg_dir" >&2
+		echo "  revert_sdcard_package may not have copied partition xml from the original sdcard.tgz;" >&2
+		echo "  or the tgz itself has no partition32G.xml / partition32G_sector.xml — check the source package first." >&2
 		return 1
 	fi
+	fmt="$(_sdcard_partition_format "$found")" || {
+		echo "unsupported partition xml format: $found" >&2
+		return 1
+	}
+	partition_xml="$(cd "$(dirname "$found")" && pwd)/$(basename "$found")"
 
 	pushd "$pkg_dir" || return 1
 
 	rm -rf sdcard sdcard.tgz
+	part_count=0
 
 	for part in "${parts[@]}"; do
-		if [ -d "$part" ]; then
-			tar -zcf "${part}.tgz" -C "$part" . || { popd; return 1; }
-			created_tgz+=("${part}.tgz")
+		if [ ! -d "$part" ]; then
+			continue
 		fi
+		if [ -z "$(ls -A "$part" 2>/dev/null)" ]; then
+			echo "warning: skip empty partition dir: $part" >&2
+			continue
+		fi
+		tar -zcf "${part}.tgz" -C "$part" "${tar_excludes[@]}" \
+			--numeric-owner --owner=0 --group=0 . || {
+			_cleanup_stale_mounts "$pkg_dir"
+			popd
+			return 1
+		}
+		created_tgz+=("${part}.tgz")
+		part_count=$((part_count + 1))
 	done
 
+	if [ "$part_count" -eq 0 ]; then
+		echo "error: no non-empty partition dirs in $pkg_dir (boot/data/rootfs/...)" >&2
+		popd
+		return 1
+	fi
+
 	pushd "$SCRIPTS_DIR" || { popd; return 1; }
-	if [ ! -e ./mk_gpt ]; then
+	if [ ! -e ./mk_gpt ] || { [ "$fmt" = sector ] && [ ! -e ./mk_sector_gpt ]; }; then
 		pushd mk-gpt || { popd; popd; return 1; }
 		make || { popd; popd; popd; return 1; }
 		popd || { popd; popd; return 1; }
 	fi
 
-	./bm_make_package_sectors.sh sdcard "$partition_xml" "$pkg_dir" || { popd; popd; return 1; }
+	if [ "$fmt" = sector ]; then
+		make_script=bm_make_package_sectors.sh
+		sdcard_scripts=(local_update.sh update_partition_gpt.sh update_gpt check_partition_start_sector.sh)
+	else
+		make_script=bm_make_package.sh
+		sdcard_scripts=(local_update.sh)
+	fi
+	echo "rebuild_sdcard_package: $make_script ($(basename "$partition_xml"))" >&2
+	if ! ./"$make_script" sdcard "$partition_xml" "$pkg_dir"; then
+		_cleanup_stale_mounts "$pkg_dir" "$pkg_dir/sdcard"
+		popd
+		popd
+		return 1
+	fi
 	popd || { popd; return 1; }
+	_cleanup_stale_mounts "$pkg_dir/sdcard"
 
 	if [ ! -d "$pkg_dir/sdcard" ]; then
 		echo "failed to generate $pkg_dir/sdcard" >&2
+		_cleanup_stale_mounts "$pkg_dir"
 		popd
 		return 1
 	fi
 
 	pushd "$pkg_dir/sdcard" || { popd; return 1; }
-	cp "$SCRIPTS_DIR/local_update.sh" .
-	cp "$SCRIPTS_DIR/ota_update.sh" .
-	cp "$SCRIPTS_DIR/update_partition_gpt.sh" .
-	cp "$SCRIPTS_DIR/update_gpt" .
-	cp "$SCRIPTS_DIR/check_partition_start_sector.sh" .
-	md5sum * > md5.txt
+	for s in "${sdcard_scripts[@]}"; do
+		if [ -f "$SCRIPTS_DIR/$s" ]; then
+			cp "$SCRIPTS_DIR/$s" .
+		else
+			echo "warning: missing script $s in $SCRIPTS_DIR" >&2
+		fi
+	done
+	if ! md5sum * > md5.txt 2>/dev/null; then
+		echo "error: md5sum failed in $pkg_dir/sdcard" >&2
+		popd
+		popd
+		return 1
+	fi
 	popd || { popd; return 1; }
 
-	tar -zcf sdcard.tgz sdcard || { popd; return 1; }
+	if ! tar -zcf sdcard.tgz sdcard; then
+		_cleanup_stale_mounts "$pkg_dir"
+		popd
+		return 1
+	fi
 
 	for part in "${created_tgz[@]}"; do
 		rm -f "$part"
 	done
 
+	_cleanup_stale_mounts "$pkg_dir/sdcard"
 	popd || return 1
 	echo "rebuild_sdcard_package finished: $pkg_dir/sdcard.tgz"
 }
@@ -1441,6 +1345,8 @@ function build_update()
 		done
 		return
 	fi
+
+	_cleanup_stale_mounts "${OUTPUT_DIR}/package_edge/${UPDATE_TYPE}" "${OUTPUT_DIR}/package_edge"
 
 	pushd $SCRIPTS_DIR/
 	if [ ! -e ./mk_gpt ]; then
@@ -1474,7 +1380,7 @@ function gen_sd_image()
 
 function build_package()
 {
-    sudo rm -rf $PACKAGE_OUTPUT_DIR
+    rm -rf $PACKAGE_OUTPUT_DIR
     mkdir -p $PACKAGE_OUTPUT_DIR
     mkdir -p $PACKAGE_OUTPUT_DIR/boot
     mkdir -p $PACKAGE_OUTPUT_DIR/rootfs_rw
@@ -1512,8 +1418,13 @@ function build_package()
     update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$OUTPUT_DIR/package_edge"
     update_files_if_newer "sophon-soc-libisp_*_arm64.tar.gz" "${TOP_DIR}/middleware/v2/modules/isp/cv186x/v4l2_adapter" "$OUTPUT_DIR/package_edge"
 
-    mkimage -A arm64 -O linux -T script -C none -a 0 -e 0 -n "${KERNEL_BOOT_TYPE} Boot Script" \
+    if grep -q '^CONFIG_AB_PARTITION=y' "${TOP_DIR}"/build/.config; then
+        mkimage -A arm64 -O linux -T script -C none -a 0 -e 0 -n "${KERNEL_BOOT_TYPE} Boot Script" \
+            -d ${TOP_DIR}/build/boot.cmd_ab.${KERNEL_BOOT_TYPE} ${OUTPUT_DIR}/boot.scr.${KERNEL_BOOT_TYPE}
+    else
+        mkimage -A arm64 -O linux -T script -C none -a 0 -e 0 -n "${KERNEL_BOOT_TYPE} Boot Script" \
             -d ${TOP_DIR}/build/boot.cmd.${KERNEL_BOOT_TYPE} ${OUTPUT_DIR}/boot.scr.${KERNEL_BOOT_TYPE}
+    fi
     cp -rf ${OUTPUT_DIR}/boot.scr.${KERNEL_BOOT_TYPE} $PACKAGE_OUTPUT_DIR/boot/
     pushd $PACKAGE_OUTPUT_DIR
 
@@ -1521,29 +1432,53 @@ function build_package()
     mv ramboot.itb recovery.itb
     tar -zcvf recovery.tgz recovery.itb
 
-    sudo cp -rf  $OUTPUT_DIR/rootfs/mnt/system "${EDGE_ROOTFS_DIR}"/mnt/
+    cp -rf  $OUTPUT_DIR/rootfs/mnt/system "${EDGE_ROOTFS_DIR}"/mnt/
 
     mkdir -p rootfs_rw/overlay/home/linaro
-    sudo mv "${EDGE_ROOTFS_DIR}"/home/linaro/* rootfs_rw/overlay/home/linaro
-    sudo chown 1000:1000 -R rootfs_rw/overlay/home/linaro
+    mv "${EDGE_ROOTFS_DIR}"/home/linaro/* rootfs_rw/overlay/home/linaro
 
-    sudo mkdir -p rootfs_rw/overlay/opt
-    sudo mv "${EDGE_ROOTFS_DIR}"/opt/* rootfs_rw/overlay/opt/
-    sudo tar -zcf .rootfs_rw.tgz -C rootfs_rw .
-    sudo mv .rootfs_rw.tgz "${EDGE_ROOTFS_DIR}"/root/
-    sudo tar -zcf rootfs.tgz --exclude=home/linaro/bsp-debs -C "${EDGE_ROOTFS_DIR}" .
-    sudo tar -zcf rootfs_rw.tgz -C rootfs_rw .
+    mkdir -p rootfs_rw/overlay/opt
+    shopt -s nullglob
+    if [ -d "${EDGE_ROOTFS_DIR}/opt" ] && [ "$(ls -A "${EDGE_ROOTFS_DIR}/opt" 2>/dev/null)" ]; then
+        mv "${EDGE_ROOTFS_DIR}"/opt/* rootfs_rw/overlay/opt/
+    fi
+    shopt -u nullglob
+    tar -zcf .rootfs_rw.tgz --owner=1000 --group=1000 -C rootfs_rw .
+    mv .rootfs_rw.tgz "${EDGE_ROOTFS_DIR}"/root/
+    _clean_rootfs_before_pack "${EDGE_ROOTFS_DIR}"
+    _pack_rootfs_tar rootfs.tgz "${EDGE_ROOTFS_DIR}" \
+      --exclude=home/linaro/bsp-debs --exclude=home/linaro/debs \
+      || { ret=$?; echo "Error: _pack_rootfs_tar failed with exit code $ret" >&2; return $ret; }
+    tar -zcf rootfs_rw.tgz --owner=1000 --group=1000 -C rootfs_rw .
 
     mkdir -p $PACKAGE_OUTPUT_DIR/data
     rsync -av $ROOT_TOP_DIR/bootloader-arm64/distro/data/ $PACKAGE_OUTPUT_DIR/data/
-    tar -zcf data.tgz -C data .
+
+    # 复制 Qwen3VL 模型到 data 目录
+    OPENCLAW_QWEN3VL="${TOP_DIR}/build/tools/cv186x/openclaw-src/data/Qwen3VL"
+    if [ -d "$OPENCLAW_QWEN3VL" ]; then
+        echo "Copying Qwen3VL to data partition..."
+        cp -r "$OPENCLAW_QWEN3VL" "$PACKAGE_OUTPUT_DIR/data/"
+        echo "Qwen3VL copied successfully"
+    fi
+
+    tar -zcf data.tgz --owner=1000 --group=1000 -C data .
+    if grep -q '^CONFIG_AB_PARTITION=y' "${TOP_DIR}"/build/.config; then
+	cp boot.tgz boot_a.tgz
+	cp boot.tgz boot_b.tgz
+	cp rootfs.tgz rootfs_a.tgz
+	cp rootfs.tgz rootfs_b.tgz
+	cp rootfs_rw.tgz rootfs_rw_a.tgz
+	cp rootfs_rw.tgz rootfs_rw_b.tgz
+    fi
     popd
 
-    find "${BSP_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
-    find "${SDK_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
-    find "${MOD_DEBS}" -maxdepth 1 -type f -exec sudo cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
+    find "${BSP_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
+    find "${SDK_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
+    find "${MOD_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${PACKAGE_OUTPUT_DIR}/bsp-debs" \;
     update_files_if_newer "sophon-media-soc-sophon-{ffmpeg,opencv,gstreamer,sample}-dev_*_arm64.deb" "${TOP_DIR}/sophon_media/buildit" "${PACKAGE_OUTPUT_DIR}/bsp-debs"
 
+    _cleanup_stale_mounts "${OUTPUT_DIR}/package_edge" "${PACKAGE_OUTPUT_DIR}"
     pushd $PACKAGE_OUTPUT_DIR
     build_update sdcard
     tar -zcf sdcard.tgz sdcard
@@ -2124,6 +2059,8 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 # import common functions
 # shellcheck source=./common_functions.sh
 source "$TOP_DIR/build/common_functions.sh"
+source "$TOP_DIR/build/scripts/pack_rootfs_tar.sh"
+source "$TOP_DIR/build/scripts/pack_edge_rootfs.sh"
 # shellcheck source=./release_functions.sh
 source "$TOP_DIR/build/release_functions.sh"
 # shellcheck source=./riscv_functions.sh
