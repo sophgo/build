@@ -31,7 +31,7 @@ function gen_fip_bin_with_cid()
 
   source build/build_bin.sh
 
-  local ATF_FIP_PATH="${ATF_PATH}/build/${CHIP}_${SUBTYPE}/release/fip.bin"
+  local ATF_FIP_PATH="${ATF_PATH}/build/${PROJECT_FULLNAME}/fip.bin"
 
   clean_bld
   clean_atf
