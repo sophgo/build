@@ -12,7 +12,6 @@ LOAD_PARTITION_NUM=1
 LOAD_COMMAND=fatload
 
 SECTOR_BYTES=512
-KB_BYTES=1024
 CHUNK_SIZE=200704
 
 BOOT_PART_OFFSET=8192
@@ -22,7 +21,7 @@ IN_ADDR_B="\${ramdisk_addr_b}"
 OUT_ADDR="\${unzip_addr}"
 
 RECOVERY_DIR=recovery_files
-PARTITION_FILE=partition32G_sector.xml
+PARTITION_FILE=partition32G.xml
 
 if [ "${KERNEL_BOOT_TYPE}" == "nvme" ]; then
 	BOOTCMD_SCRIPT=boot_nvme
@@ -72,7 +71,7 @@ function cleanup()
 			rm -f $RECOVERY_DIR/${LABELS[$i]}
 		fi
 		if mountpoint -q $RECOVERY_DIR/$MOUNT_DIR-$i; then
-			umount $RECOVERY_DIR/$MOUNT_DIR-$i
+			sudo umount $RECOVERY_DIR/$MOUNT_DIR-$i
 		fi
 		rm -rf $RECOVERY_DIR/$MOUNT_DIR-*
 	done
@@ -103,25 +102,11 @@ function file_validate()
 	[ -s ${file} ] || panic "$i \"$file\" is empty"
 }
 
-function gzip_validate()
-{
-	local file=$1
-
-	[ -n "${file}" ] || panic "gzip_validate(): empty file path"
-	[ -f "${file}" ] || panic "gzip file \"${file}\" does not exist"
-	[ -r "${file}" ] || panic "gzip file \"${file}\" is not readable"
-	[ -s "${file}" ] || panic "gzip file \"${file}\" is empty"
-
-	if ! gzip -t "${file}" >/dev/null 2>&1; then
-		panic "gzip file \"${file}\" is corrupted, please regenerate it"
-	fi
-}
-
 function suser() {
 	echo
 	echo To continue, superuser credentials are required.
-	# running rootless inside unshare -rm user+mount namespace (already root)
-	true
+	sudo -k || panic "failed to kill superuser privilege"
+	sudo -v || panic "failed to get superuser privilege"
 }
 
 function compute_round_quotient()
@@ -180,17 +165,17 @@ function parse_partition_xml()
 	local offset=${BOOT_PART_OFFSET}
 
 	#find total disk size in kb
-	TOTAL_SIZE=($(grep -Po "physical_partition size_in_sectors=\".+\"" ${PARTITION_FILE} | awk -F\" '{print $2}'))
+	TOTAL_SIZE=($(grep -Po "physical_partition size_in_kb=\".+\"" ${PARTITION_FILE} | awk -F\" '{print $2}'))
 
 	#find partions label size, and flag
 	LABELS=($( grep -Po "label=\".+\"" ${PARTITION_FILE} | awk -F\" '{print tolower($2)}'))
 
-	PART_SIZE_IN_SECTOR=($(grep -Po "size_in_sectors=\".+\"" ${PARTITION_FILE} | awk -F\" '{print $2}'))
-	PART_SIZE_IN_SECTOR=(${PART_SIZE_IN_SECTOR[@]:1})
+	PART_SIZE_IN_KB=($(grep -Po "size_in_kb=\".+\"" ${PARTITION_FILE} | awk -F\" '{print $2}'))
+	PART_SIZE_IN_KB=(${PART_SIZE_IN_KB[@]:1})
 
-	for i in ${!PART_SIZE_IN_SECTOR[*]}; do
-		PART_SIZE_IN_KB[$i]=$(expr ${PART_SIZE_IN_SECTOR[$i]} \* ${SECTOR_BYTES} / ${KB_BYTES})
-		PART_SIZE_IN_BYTE[$i]=$(expr ${PART_SIZE_IN_KB[$i]} \* ${KB_BYTES})
+	for i in ${!PART_SIZE_IN_KB[*]}; do
+		PART_SIZE_IN_SECTOR[$i]=$(expr ${PART_SIZE_IN_KB[$i]} \* 1024 / ${SECTOR_BYTES})
+		PART_SIZE_IN_BYTE[$i]=$(expr ${PART_SIZE_IN_KB[$i]} \* 1024)
 	done
 
 	P_FLAG=($(grep -Po "readonly=\".+\"" ${PARTITION_FILE} | awk -F\" '{print $2}'))
@@ -305,7 +290,7 @@ function create_partition_script()
 
 	local part_num=$(expr $(echo ${description} | awk '{print $2}') + 1)
 	if [ "$part_num" = "" ]; then
-		#script_update "if test -n \$load_partition; then echo \"skip empty part_num partition \";  exit; fi;"
+		script_update "if test -n \$load_partition; then echo \"skip empty part_num partition \";  exit; fi;"
 		script_update ""
 	elif [ $part_num != 3 ]; then
 		script_update "if test -n \$ota_one_partition; then \
@@ -528,13 +513,6 @@ function split_and_compress_img()
 		return
 	fi
 
-	if [ "${PART_FORMAT[${part_number}]}" = "2" ]; then
-		e2fsck -f -p "${part_name}" >/dev/null 2>&1 || true
-		if resize2fs -M "${part_name}" >/dev/null 2>&1; then
-			e2fsck -f -p "${part_name}" >/dev/null 2>&1 || true
-		fi
-	fi
-
 	size=$(du -b ${part_name} | awk '{print $1}')
 	size=$(expr \( ${size} + ${SECTOR_BYTES} - 1 \) / ${SECTOR_BYTES})
 	limit=$(compute_round_quotient ${size} ${chunk_size})
@@ -563,64 +541,6 @@ function split_and_compress_img()
 	create_partition_script_done
 }
 
-_fat_image_size_kb() {
-	local popdir="$1" part_kb="$2"
-	local need_kb
-	need_kb=$(du -sk "$popdir" | awk '{print $1}')
-	need_kb=$(expr ${need_kb} + 16384)
-	if [ "${need_kb}" -lt 8192 ]; then
-		need_kb=8192
-	fi
-	if [ "${need_kb}" -gt "${part_kb}" ]; then
-		need_kb=${part_kb}
-	fi
-	echo "${need_kb}"
-}
-
-_ext4_max_size_kb_for_part() {
-	local part_idx="$1"
-	echo "${PART_SIZE_IN_KB[$part_idx]}"
-}
-
-_ext4_size_kb_for_popdir() {
-	local popdir="$1" max_kb="$2"
-	local alloc_blocks meta_blocks blocks_4k size_kb
-
-	alloc_blocks=$(find "$popdir" -type f -printf '%s\n' 2>/dev/null | awk '{s+=int(($1+4095)/4096)} END{print s+0}')
-	meta_blocks=$(find "$popdir" \( -type d -o -type l \) 2>/dev/null | wc -l)
-	blocks_4k=$(( alloc_blocks + meta_blocks * 2 + 131072 ))
-	blocks_4k=$(( blocks_4k + alloc_blocks / 8 + 65536 ))
-	size_kb=$(( blocks_4k * 4 ))
-	if [ "${size_kb}" -lt 32768 ]; then
-		size_kb=32768
-	fi
-	if [ -n "${max_kb}" ] && [ "${max_kb}" -gt 0 ] && [ "${size_kb}" -gt "${max_kb}" ]; then
-		size_kb=${max_kb}
-	fi
-	echo "${size_kb}"
-}
-
-_populate_ext4_from_popdir() {
-	local popdir="$1" image="$2" part_idx="$3"
-	local max_kb size_kb
-
-	max_kb=$(_ext4_max_size_kb_for_part "${part_idx}")
-	size_kb=$(_ext4_size_kb_for_popdir "${popdir}" "${max_kb}")
-	while true; do
-		rm -f "${image}"
-		if fakeroot mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
-			return 0
-		fi
-		if [ "${size_kb}" -ge "${max_kb}" ]; then
-			return 1
-		fi
-		size_kb=$(( size_kb * 2 ))
-		if [ "${size_kb}" -gt "${max_kb}" ]; then
-			size_kb=${max_kb}
-		fi
-	done
-}
-
 # arguments:
 # $3: file system type: 0 for raw partition; 1 for FAT32; 2 for ext4
 # $4: shrink file system for not
@@ -631,6 +551,20 @@ function do_gen_partition_subimg()
 {
 	local part_image_exists=0
 
+
+	dd if=/dev/zero of=$RECOVERY_DIR/$1 bs=${SECTOR_BYTES} count=${PART_SIZE_IN_SECTOR[$2]}
+
+	if [ $3 -eq 1 ]; then
+		mkfs.fat $RECOVERY_DIR/$1
+	elif [ $3 -eq 2 ]; then
+		mkfs.ext4 $RECOVERY_DIR/$1
+	else
+		echo $1 partition has no filesystem
+		if [ -f ${PART_IMAGE_FILE_NAME[$2]} ]; then
+			cp ${PART_IMAGE_FILE_NAME[$2]} $RECOVERY_DIR/$1
+		fi
+	fi
+
 	if [ $3 -eq 1 -o $3 -eq 2 ]; then
 		if [ -f ${PART_IMAGE_FILE_NAME[$2]} -a "${P_FLAG[$2]}" == "true" ]; then
 			if [ $(ls -l ${PART_IMAGE_FILE_NAME[$2]} | awk '{print $5}') == ${PART_SIZE_IN_BYTE[$2]} ]; then
@@ -640,47 +574,27 @@ function do_gen_partition_subimg()
 			else
 				panic "$1 size mismatch: $(ls -l ${PART_IMAGE_FILE_NAME[$2]} | awk '{print $5}') against ${PART_SIZE_IN_BYTE[$2]}"
 			fi
-		elif [ -f ${PART_COMPRESS_FILE_NAME[$2]} ]; then
-			gzip_validate "${PART_COMPRESS_FILE_NAME[$2]}"
-			local _popdir=$(mktemp -d)
-			rm -f $RECOVERY_DIR/$1
-			if [ $3 -eq 1 ]; then
-				tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} --no-same-owner -C ${_popdir}
-				local _fat_kb
-				_fat_kb=$(_fat_image_size_kb "${_popdir}" "${PART_SIZE_IN_KB[$2]}")
-				mkfs.fat -C $RECOVERY_DIR/$1 ${_fat_kb} || {
-					rm -rf "${_popdir}"
-					panic "failed to create fat image $1"
-				}
-				( cd ${_popdir} && shopt -s nullglob dotglob && [ -n "$(ls -A .)" ] && mcopy -i $RECOVERY_DIR/$1 -s * :: )
-			elif [ $3 -eq 2 ]; then
-				if ! fakeroot tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
-					rm -rf "${_popdir}"
-					panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
-				fi
-				if ! _populate_ext4_from_popdir "${_popdir}" "$RECOVERY_DIR/$1" "$2"; then
-					rm -rf "${_popdir}"
-					panic "failed to populate ext4 image $1 from ${PART_COMPRESS_FILE_NAME[$2]}"
-				fi
-				e2fsck -f -p $RECOVERY_DIR/$1 || panic "e2fsck failed on $1"
-			fi
-			sync
-			rm -rf ${_popdir}
 		else
-			rm -f $RECOVERY_DIR/$1
-			if [ $3 -eq 1 ]; then
-				mkfs.fat -C $RECOVERY_DIR/$1 8192
-			elif [ $3 -eq 2 ]; then
-				mkfs.ext4 -F -O ^metadata_csum $RECOVERY_DIR/$1 32768
+			if [ -f ${PART_COMPRESS_FILE_NAME[$2]} ]; then
+				mkdir -p $RECOVERY_DIR/$MOUNT_DIR-$2
+				sudo mount $RECOVERY_DIR/$1 $RECOVERY_DIR/$MOUNT_DIR-$2
+				if [ $3 -eq 1 ]; then
+					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} --no-same-owner -C $RECOVERY_DIR/$MOUNT_DIR-$2
+				else
+					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} -C $RECOVERY_DIR/$MOUNT_DIR-$2
+				fi
+				sync
+				sleep 1 # wait for sync
+				sudo umount $RECOVERY_DIR/$MOUNT_DIR-$2
+			else
+				echo $1 may be an empty parition.
 			fi
-			echo $1 may be an empty parition.
 		fi
-	else
-		dd if=/dev/zero of=$RECOVERY_DIR/$1 bs=${SECTOR_BYTES} count=${PART_SIZE_IN_SECTOR[$2]}
-		echo $1 partition has no filesystem
-		if [ -f ${PART_IMAGE_FILE_NAME[$2]} ]; then
-			cp ${PART_IMAGE_FILE_NAME[$2]} $RECOVERY_DIR/$1
-		fi
+	fi
+
+	if [ $part_image_exists -ne 1 -a $4 -eq 1 ]; then
+		e2fsck -f -p $RECOVERY_DIR/$1
+		resize2fs -M $RECOVERY_DIR/$1
 	fi
 }
 
@@ -722,7 +636,7 @@ function make_gpt_img()
 	local filename=${RECOVERY_DIR}/gpt
 	local desc="${KERNEL_BOOT_TYPE} gpt file"
 
-	./mk_sector_gpt -p ${PARTITION_FILE} -d ${filename} 1 >/dev/null || true
+	./mk_gpt -p ${PARTITION_FILE} -d ${filename} 1 >/dev/null || true
 
 	create_partition_script $(basename ${filename}) "${desc}"
 
