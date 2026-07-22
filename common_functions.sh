@@ -157,7 +157,7 @@ function clean_rootfs
 function pack_system
 {(
   print_notice "Run ${FUNCNAME[0]}_${STORAGE_TYPE}() function"
-  export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML
+  export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML ROOTFS_DIR OUTPUT_DIR
 
   cd "$BUILD_PATH" || return
   if [ "$STORAGE_TYPE" == "emmc" ] || [ "$STORAGE_TYPE" == "spinor" ] || [ "$STORAGE_TYPE" == "spinand" ]; then
@@ -205,7 +205,7 @@ function copy_tools
   if [[ "${chip_cv[*]}" =~ "$CHIP" ]] && [[ ${BOARD} != "fpga" &&  ${BOARD} != "palladium" ]]; then
     command rm -rf "$OUTPUT_DIR"/tools
     command mkdir -p "$OUTPUT_DIR"/tools/
-    if [[ "$CHIP_ARCH" == SOPHON ]]; then
+    if [[ "$CHIP_ARCH" == SOPHON || "$CHIP_ARCH" == "88a2" ]]; then
       command cp -rf "$TOOLS_PATH"/sophon/usb_dl/ "$OUTPUT_DIR"/tools/
     else
       command cp -rf "$TOOLS_PATH"/"${CHIP_ARCH,,}"/usb_dl/ "$OUTPUT_DIR"/tools/
@@ -361,7 +361,6 @@ function _call_kconfig_script()
     "${BUILD_PATH}/scripts/savedefconfig.py" --out "${BUILD_PATH}/.defconfig"
   )
   ret=$?; if [ $ret -ne 0 ]; then return $ret; fi
-
   cvi_setup_env || return $?
   cvi_print_env
   (
@@ -422,6 +421,41 @@ function _build_add_bash_completion()
   _boards=$(find "${BUILD_PATH}/boards" -mindepth 2 -maxdepth 2 -type d -not -path '*/default/*' -printf '%f ')
   complete -W "$_boards" defconfig
   complete -r setconfig 2> /dev/null || return 0
+}
+
+update_files_if_newer() {
+    local filename_pattern="$1"
+    local source_path="$2"
+    local target_path="$3"
+
+    if [[ ! -d "$source_path" ]]; then
+        return 1
+    fi
+    if [[ ! -d "$target_path" ]]; then
+        mkdir -p "$target_path" || { echo "Failed to create target path."; return 1; }
+    fi
+
+    local expanded_patterns
+    expanded_patterns=$(eval echo "$source_path/$filename_pattern")
+    local files=($expanded_patterns)
+
+    for source_file in "${files[@]}"; do
+        if [[ ! -e "$source_file" ]]; then
+            continue
+        fi
+        local target_file="${target_path}/$(basename "$source_file")"
+        if [[ ! -e "$target_file" ]]; then
+            echo "update $target_file"
+            cp "$source_file" "$target_file" || echo "update failed."
+            continue
+        fi
+        local source_mtime=$(stat -c %Y "$source_file")
+        local target_mtime=$(stat -c %Y "$target_file")
+        if [[ "$source_mtime" -gt "$target_mtime" ]]; then
+            echo "update  $target_file"
+            cp "$source_file" "$target_file" || echo "update failed."
+        fi
+    done
 }
 
 function _gen_build_env()

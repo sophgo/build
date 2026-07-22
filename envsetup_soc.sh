@@ -44,49 +44,6 @@ function gettop()
 }
 
 
-update_files_if_newer() {
-    local filename_pattern="$1"
-    local source_path="$2"
-    local target_path="$3"
-
-
-    if [[ ! -d "$source_path" ]]; then
-        return 1
-    fi
-
-    if [[ ! -d "$target_path" ]]; then
-        mkdir -p "$target_path" || { echo "Failed to create target path."; return 1; }
-    fi
-
-    local expanded_patterns
-    expanded_patterns=$(eval echo "$source_path/$filename_pattern")
-
-    local files=($expanded_patterns)
-
-    for source_file in "${files[@]}"; do
-        if [[ ! -e "$source_file" ]]; then
-            #echo "No files matching pattern in $source_path."
-            continue
-        fi
-
-        local target_file="${target_path}/$(basename "$source_file")"
-
-        if [[ ! -e "$target_file" ]]; then
-            echo "update $target_file"
-            cp "$source_file" "$target_file" || echo "update failed."
-            continue
-        fi
-
-        local source_mtime=$(stat -c %Y "$source_file")
-        local target_mtime=$(stat -c %Y "$target_file")
-
-        if [[ "$source_mtime" -gt "$target_mtime" ]]; then
-            echo "update  $target_file"
-            cp "$source_file" "$target_file" || echo "update failed."
-        fi
-    done
-}
-
 function _build_fsbl_env()
 {
   export FSBL_PATH
@@ -214,8 +171,10 @@ function build_uboot()
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_uboot_env
   _build_opensbi_env
+  _build_atf_env
   cd "$BUILD_PATH" || return
-  make u-boot
+  make u-boot-build || return "$?"
+  make arm-trusted-firmware
 )}
 
 function build_uboot_env_tools()
@@ -397,7 +356,9 @@ function build_osdrv()
 {(
   print_notice "Run ${FUNCNAME[0]}() ${1} function"
 
+  _build_kernel_env
   cd "$BUILD_PATH" || return
+  make kernel-prepare || return "$?"
   make "$ROOTFS_DIR"
 
   local osdrv_target="$1"
@@ -782,7 +743,7 @@ function build_edge_sdk() {
     build_libsophon || { ret=$?; echo "Error: build_libsophon failed with exit code $ret"; return $ret; }
     build_sophon_media || { ret=$?; echo "Error: build_sophon_media failed with exit code $ret"; return $ret; }
     ## build pcie deb
-    if [[ -z "$MINI_BUILD" ]]; then
+    if [[ -n "$PCIE_BUILD" ]]; then
     	build_bmsophon || { ret=$?; echo "Error: build_bmsophon failed with exit code $ret"; return $ret; }
     	build_amd64_bmsophon || { ret=$?; echo "Error: build_amd64_bmsophon failed with exit code $ret"; return $ret; }
     	build_pcie_arm64_sophon_media || { ret=$?; echo "Error: build_pcie_arm64_sophon_media failed with exit code $ret"; return $ret; }
@@ -806,6 +767,7 @@ function build_edge_all(){
 
 function clean_edge_all(){
   clean_uboot
+  clean_atf
   clean_kernel
   clean_osdrv
   clean_ramdisk
@@ -1188,7 +1150,7 @@ function revert_sdcard_package()
 	for tgz in ./*.tgz; do
 		part_name="$(basename "$tgz" .tgz)"
 		mkdir -p "$out/$part_name"
-		tar -zxf "$tgz" -C "$out/$part_name" \
+		tar -zxpf "$tgz" -C "$out/$part_name" \
 			--exclude='dev' --exclude='proc' --exclude='sys' \
 			--exclude='run' --exclude='tmp' || {
 			echo "tar extract failed: $tgz" >&2
@@ -1349,7 +1311,7 @@ function build_update()
 	_cleanup_stale_mounts "${OUTPUT_DIR}/package_edge/${UPDATE_TYPE}" "${OUTPUT_DIR}/package_edge"
 
 	pushd $SCRIPTS_DIR/
-	if [ ! -e ./mk_gpt ]; then
+	if [ ! -e ./mk_gpt ] || [ ! -e ./mk_sector_gpt ]; then
 		pushd mk-gpt
 		make
 		popd
@@ -1385,9 +1347,11 @@ function build_package()
     mkdir -p $PACKAGE_OUTPUT_DIR/boot
     mkdir -p $PACKAGE_OUTPUT_DIR/rootfs_rw
     mkdir -p $PACKAGE_OUTPUT_DIR/bsp-debs
+    if [[ -n "$PCIE_BUILD" ]]; then
     mkdir -p $PACKAGE_OUTPUT_DIR/pcie
     mkdir -p $PACKAGE_OUTPUT_DIR/pcie/arm64
     mkdir -p $PACKAGE_OUTPUT_DIR/pcie/x86
+    fi
     mkdir -p $PACKAGE_OUTPUT_DIR/nvr_release
 
     cp -rf $RAMDISK_PATH/$RAMDISK_OUTPUT_FOLDER/boot.itb $PACKAGE_OUTPUT_DIR/boot/
@@ -1398,6 +1362,7 @@ function build_package()
 
     cp -rf $OUTPUT_DIR/fip.bin $PACKAGE_OUTPUT_DIR/
     cp -rf $OUTPUT_DIR/ramboot.itb $PACKAGE_OUTPUT_DIR/
+    if [[ -n "$PCIE_BUILD" ]]; then
     update_files_if_newer "libsophon_0.4.*_aarch64.tar.gz" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
     update_files_if_newer "sophon-driver_*_arm64.deb" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
     update_files_if_newer "sophon-libsophon_*_arm64.deb" "$LIBSOPHON_PATH/pcie_build" "$PACKAGE_OUTPUT_DIR/pcie/arm64"
@@ -1413,6 +1378,7 @@ function build_package()
 
     update_files_if_newer "sophon-media_*_x86_64.tar.gz" "${TOP_DIR}/sophon_media/pcie_amd64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/x86"
     update_files_if_newer "sophon-media-sophon*_amd64.deb" "${TOP_DIR}/sophon_media/pcie_amd64_buildit" "$PACKAGE_OUTPUT_DIR/pcie/x86"
+    fi
 
     update_files_if_newer "sophon-media-soc_*_aarch64.tar.gz" "${TOP_DIR}/sophon_media/buildit" "$OUTPUT_DIR/package_edge"
     update_files_if_newer "libsophon_soc_*_aarch64.tar.gz" "$LIBSOPHON_PATH/build" "$OUTPUT_DIR/package_edge"
@@ -1443,13 +1409,13 @@ function build_package()
         mv "${EDGE_ROOTFS_DIR}"/opt/* rootfs_rw/overlay/opt/
     fi
     shopt -u nullglob
-    tar -zcf .rootfs_rw.tgz --owner=1000 --group=1000 -C rootfs_rw .
+    _pack_rootfs_rw_tar .rootfs_rw.tgz rootfs_rw
     mv .rootfs_rw.tgz "${EDGE_ROOTFS_DIR}"/root/
     _clean_rootfs_before_pack "${EDGE_ROOTFS_DIR}"
     _pack_rootfs_tar rootfs.tgz "${EDGE_ROOTFS_DIR}" \
       --exclude=home/linaro/bsp-debs --exclude=home/linaro/debs \
       || { ret=$?; echo "Error: _pack_rootfs_tar failed with exit code $ret" >&2; return $ret; }
-    tar -zcf rootfs_rw.tgz --owner=1000 --group=1000 -C rootfs_rw .
+    _pack_rootfs_rw_tar rootfs_rw.tgz rootfs_rw
 
     mkdir -p $PACKAGE_OUTPUT_DIR/data
     rsync -av $ROOT_TOP_DIR/bootloader-arm64/distro/data/ $PACKAGE_OUTPUT_DIR/data/
@@ -1482,12 +1448,10 @@ function build_package()
     pushd $PACKAGE_OUTPUT_DIR
     build_update sdcard
     tar -zcf sdcard.tgz sdcard
-    if [[ -z "$MINI_BUILD" ]]; then
-      build_update usb
-      tar -zcf usb.tgz usb
-      build_update tftp
-      tar -zcf tftp.tgz tftp
-    fi
+    build_update usb
+    tar -zcf usb.tgz usb
+    build_update tftp
+    tar -zcf tftp.tgz tftp
     popd
 }
 
@@ -1720,7 +1684,7 @@ function clean_device_all()
   clean_rtos
   clean_libsophon
   clean_bmcpu
-  [[ "$ATF_SRC" == y ]] && clean_atf
+  clean_atf
   clean_kernel
   clean_ramdisk
   clean_3rd_party
@@ -1827,8 +1791,12 @@ function cvi_setup_env()
   if [[ "$CHIP_ARCH" == "SOPHON" ]];then
   export  CVIARCH="SOPHON"
   fi
-
-  export BRAND BUILD_VERBOSE DEBUG PROJECT_FULLNAME BACKUP_TOP_DIR BACKUP_OUTPUT_DIR
+  if [[ "$CHIP_ARCH" == "88a2" ]];then
+  export  CVIARCH="88a2"
+  fi
+  if [[ "$CHIP_ARCH" == "84x6" ]];then
+  export  CVIARCH="84x6"
+  fi
   export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH
   export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH LIBSOPHON_PATH BMCPU_PATH
 
@@ -1844,7 +1812,7 @@ function cvi_setup_env()
 
   # source file folders
   FSBL_PATH="$TOP_DIR"/fsbl
-  ATF_PATH="$TOP_DIR"/arm-trusted-firmware
+  ATF_PATH="$TOP_DIR"/trusted-firmware-a
   UBOOT_PATH="$TOP_DIR/$UBOOT_SRC"
   FREERTOS_PATH="$TOP_DIR"/freertos
   ALIOS_PATH="$TOP_DIR"/alios
@@ -1871,7 +1839,7 @@ function cvi_setup_env()
   TDL_SDK_PATH="$TOP_DIR"/tdl_sdk
   CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
   CVI_RTSP_PATH="$TOP_DIR"/cvi_rtsp
-  OPENSBI_PATH="$TOP_DIR"/opensbi
+  OPENSBI_PATH="$TOP_DIR"/opensbi-common
   TOOLS_PATH="$BUILD_PATH"/tools
   COMMON_TOOLS_PATH="$TOOLS_PATH"/common
   VENC_PATH="$MW_PATH"/modules/venc
@@ -1948,6 +1916,9 @@ function cvi_setup_env()
       ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-linux-gnu-gcc
       ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-linux-gnu-g++
       ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-linux-gnu-c++
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-none-linux-gnu-gcc
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-none-linux-gnu-g++
+      ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/aarch64-none-linux-gnu-c++
       ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-linux-gnueabihf-gcc
       ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-linux-gnueabihf-g++
       ln -s "$(which ccache)" "$BUILD_PATH"/output/bin/arm-linux-gnueabihf-c++
@@ -2035,9 +2006,13 @@ function print_usage()
   printf "        ex: $ menuconfig\n\n"
   printf "    (2)\33[96m defconfig \$CHIP_ARCH \33[0m- List EVB boards(\$BOARD) by CHIP_ARCH.\n"
   "${BUILD_PATH}/scripts/boards_scan.py" --list-side-arch
-  printf "        ex: $ defconfig edge\n\n"
+  printf "        ex: $ defconfig 88a2\n\n"
   printf "    (3)\33[92m defconfig \$BOARD\33[0m - Choose EVB board settings.\n"
-  printf "        ex: $ defconfig edge_wevb_emmc\n"
+  printf "        ex: $ defconfig edge_88a2_wevb_emmc\n"
+  printf "\n"
+  printf "    Common build commands after defconfig:\n"
+  printf "      $ build_edge_all     # build edge sdk\n"
+  printf "      $ build_device_all   # build device sdk\n"
   printf "  -------------------------------------------------------------------------------------------------------\n"
 }
 
@@ -2061,6 +2036,8 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 source "$TOP_DIR/build/common_functions.sh"
 source "$TOP_DIR/build/scripts/pack_rootfs_tar.sh"
 source "$TOP_DIR/build/scripts/pack_edge_rootfs.sh"
+export DISTRO_URL_BASE="${DISTRO_URL_BASE:-open@sophgo.com:/gemini-sdk/rootfs}"
+export FETCH_CMD="${FETCH_CMD:-dfss}"
 # shellcheck source=./release_functions.sh
 source "$TOP_DIR/build/release_functions.sh"
 # shellcheck source=./riscv_functions.sh

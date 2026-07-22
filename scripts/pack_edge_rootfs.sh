@@ -84,21 +84,19 @@ setup_debian_env() {
     export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
     export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
 
+    export DISTRO_URL_BASE="${DISTRO_URL_BASE:-ftp://AI:SophgoRelease2022@172.28.141.89/distro}"
+    export FETCH_CMD="${FETCH_CMD:-wget}"
+
     if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
         export DISTRO_MD5="f506f82aeb01215568f9b0c1afb0cbe1"
         export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/bookworm_${DISTRO_MD5}.tgz"
         export FETCH_CMD="dfss"
     else
         case "$DISTRO" in
-            "focal")
-                export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf"
-                ;;
-            "jammy")
-                export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58"
-                ;;
+            "focal") export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf";;
+            "jammy") export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58";;
         esac
-        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz"
-        export FETCH_CMD="dfss"
+        export DISTRO_URL="${DISTRO_URL_BASE}/distro_${DISTRO}_${DISTRO_MD5}.tgz"
     fi
 
     export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
@@ -260,17 +258,50 @@ pack_edge_rootfs() {
         find "${SDK_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${EDGE_ROOTFS_DIR}/home/linaro/debs" \;
         find "${MOD_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${EDGE_ROOTFS_DIR}/home/linaro/debs" \;
 
+        shopt -s nullglob
+        local _n=0
+        echo "=== debs to install (home/linaro/debs) ==="
+        for _f in "${EDGE_ROOTFS_DIR}/home/linaro/debs"/*.deb; do
+            echo "  $(basename "${_f}")"
+            _n=$((_n+1))
+        done
+        echo "=== ${_n} debs to install ==="
+        _n=0
+        echo "=== debs shipped only (home/linaro/bsp-debs, not installed in rootfs) ==="
+        for _f in "${EDGE_ROOTFS_DIR}/home/linaro/bsp-debs"/*.deb; do
+            echo "  $(basename "${_f}")"
+            _n=$((_n+1))
+        done
+        [ ${_n} -gt 0 ] && echo "=== ${_n} bsp debs shipped ==="
+        shopt -u nullglob
+
         echo "install packages (dpkg unpack)..."
         _rootfs_run "${EDGE_ROOTFS_DIR}" /bin/bash <<'EOT'
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
 echo -e "LC_ALL=C.UTF-8\n" > /etc/default/locale
 echo "Defaults timestamp_timeout=43200" | tee -a /etc/sudoers
+_failed=0
 for deb_dir in /debs /home/linaro/debs; do
-    if [ -d "${deb_dir}" ] && ls "${deb_dir}"/*.deb >/dev/null 2>&1; then
-        dpkg --unpack "${deb_dir}"/*.deb
-    fi
+    [ -d "${deb_dir}" ] || continue
+    shopt -s nullglob
+    for deb in "${deb_dir}"/*.deb; do
+        echo ">>> unpack $(basename "${deb}")"
+        if dpkg --unpack "${deb}" >/tmp/dpkg_$$.out 2>&1; then
+            echo "<<< ok   $(basename "${deb}")"
+        else
+            echo "<<< FAIL $(basename "${deb}")"
+            grep -E "error|Error|cannot|unable|dpkg:" /tmp/dpkg_$$.out 2>/dev/null | head -3 | sed 's/^/    /'
+            _failed=1
+        fi
+        rm -f /tmp/dpkg_$$.out
+    done
+    shopt -u nullglob
 done
+if [ ${_failed} -ne 0 ]; then
+    echo "ERROR: one or more debs failed to unpack" >&2
+    exit 1
+fi
 EOT
 
         _fix_maintainer_scripts "${EDGE_ROOTFS_DIR}" || true
@@ -279,7 +310,16 @@ EOT
         _rootfs_run "${EDGE_ROOTFS_DIR}" /bin/bash <<'EOT'
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
-dpkg --configure -a
+dpkg --configure -a >/tmp/dpkg_cfg_$$.out 2>&1
+_cfg_ret=$?
+if [ ${_cfg_ret} -ne 0 ]; then
+    echo "ERROR: dpkg --configure -a failed (exit ${_cfg_ret})" >&2
+    grep -E "error|Error|cannot|unable|dpkg:|dependency|broken" /tmp/dpkg_cfg_$$.out 2>/dev/null | head -20 | sed 's/^/    /'
+    dpkg -l 2>/dev/null | awk '/^[^i][^iF ]/{next} $1=="iU"||$1=="iF"||$1=="hU"||$1=="hF"{print "    "$1" "$2}' | head -30
+    rm -f /tmp/dpkg_cfg_$$.out
+    exit 1
+fi
+rm -f /tmp/dpkg_cfg_$$.out
 for deb_dir in /debs /home/linaro/debs; do
     for file in "${deb_dir}"/*; do
         file=$(basename "${file}")
@@ -292,6 +332,11 @@ done
 systemctl disable apt-daily.timer apt-daily-upgrade.timer
 systemctl disable apt-daily.service apt-daily-upgrade.service unattended-upgrades.service
 systemctl mask     unattended-upgrades.service apt-daily.service apt-daily-upgrade.service
+EOT
+
+        echo "=== installed sdk/sophon packages in rootfs ==="
+        _rootfs_run "${EDGE_ROOTFS_DIR}" /bin/bash <<'EOT'
+dpkg -l 2>/dev/null | awk '/^ii/ && ($2 ~ /sophon|openclaw|sophgo|bmssm|sophliteos|libisp|tdlsdk|middleware|linux-image|linux-headers|linux-libc/) {print "  "$2" "$3}'
 EOT
 
         if [ "$(id -u)" = "0" ]; then
