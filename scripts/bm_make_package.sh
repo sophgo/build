@@ -71,7 +71,7 @@ function cleanup()
 			rm -f $RECOVERY_DIR/${LABELS[$i]}
 		fi
 		if mountpoint -q $RECOVERY_DIR/$MOUNT_DIR-$i; then
-			sudo umount $RECOVERY_DIR/$MOUNT_DIR-$i
+			umount $RECOVERY_DIR/$MOUNT_DIR-$i
 		fi
 		rm -rf $RECOVERY_DIR/$MOUNT_DIR-*
 	done
@@ -103,10 +103,9 @@ function file_validate()
 }
 
 function suser() {
-	echo
-	echo To continue, superuser credentials are required.
-	sudo -k || panic "failed to kill superuser privilege"
-	sudo -v || panic "failed to get superuser privilege"
+	# Rootless: partition images are built with fakeroot mkfs.ext4 -d / mcopy,
+	# no mount/loop device. Kept as a no-op for the trailing suser call site.
+	true
 }
 
 function compute_round_quotient()
@@ -547,23 +546,89 @@ function split_and_compress_img()
 #
 # if there is a xxx.img file and the size is legal, used it; if not, use xxx.tgz instead.
 # and this rule only applies to read-only partion.
+
+_fat_image_size_kb() {
+	local popdir="$1" part_kb="$2"
+	local need_kb
+	need_kb=$(du -sk "$popdir" | awk '{print $1}')
+	need_kb=$(expr ${need_kb} + 16384)
+	if [ "${need_kb}" -lt 8192 ]; then
+		need_kb=8192
+	fi
+	if [ "${need_kb}" -gt "${part_kb}" ]; then
+		need_kb=${part_kb}
+	fi
+	echo "${need_kb}"
+}
+
+_ext4_max_size_kb_for_part() {
+	local part_idx="$1"
+	echo "${PART_SIZE_IN_KB[$part_idx]}"
+}
+
+_ext4_size_kb_for_popdir() {
+	local popdir="$1" max_kb="$2"
+	local alloc_blocks meta_blocks blocks_4k size_kb
+
+	alloc_blocks=$(find "$popdir" -type f -printf '%s\n' 2>/dev/null | awk '{s+=int(($1+4095)/4096)} END{print s+0}')
+	meta_blocks=$(find "$popdir" \( -type d -o -type l \) 2>/dev/null | wc -l)
+	blocks_4k=$(( alloc_blocks + meta_blocks * 2 + 131072 ))
+	blocks_4k=$(( blocks_4k + alloc_blocks / 8 + 65536 ))
+	size_kb=$(( blocks_4k * 4 ))
+	if [ "${size_kb}" -lt 32768 ]; then
+		size_kb=32768
+	fi
+	if [ -n "${max_kb}" ] && [ "${max_kb}" -gt 0 ] && [ "${size_kb}" -gt "${max_kb}" ]; then
+		size_kb=${max_kb}
+	fi
+	echo "${size_kb}"
+}
+
+_populate_ext4_from_popdir() {
+	local popdir="$1" image="$2" part_idx="$3" fakedb="${4:-}"
+	local max_kb size_kb
+
+	max_kb=$(_ext4_max_size_kb_for_part "${part_idx}")
+	size_kb=$(_ext4_size_kb_for_popdir "${popdir}" "${max_kb}")
+	while true; do
+		rm -f "${image}"
+		if [ -n "$fakedb" ]; then
+			if fakeroot -i "$fakedb" -s "$fakedb" -- mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
+				return 0
+			fi
+		elif fakeroot mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
+			return 0
+		fi
+		if [ "${size_kb}" -ge "${max_kb}" ]; then
+			return 1
+		fi
+		size_kb=$(( size_kb * 2 ))
+		if [ "${size_kb}" -gt "${max_kb}" ]; then
+			size_kb=${max_kb}
+		fi
+	done
+}
+
+function gzip_validate()
+{
+	local file=$1
+
+	[ -n "${file}" ] || panic "gzip_validate(): empty file path"
+	[ -f "${file}" ] || panic "gzip file \"${file}\" does not exist"
+	[ -r "${file}" ] || panic "gzip file \"${file}\" is not readable"
+	[ -s "${file}" ] || panic "gzip file \"${file}\" is empty"
+
+	if ! gzip -t "${file}" >/dev/null 2>&1; then
+		panic "gzip file \"${file}\" is corrupted, please regenerate it"
+	fi
+}
+
+# arguments:
+# $3: file system type: 0 for raw partition; 1 for FAT32; 2 for ext4
+# $4: shrink file system for not
 function do_gen_partition_subimg()
 {
 	local part_image_exists=0
-
-
-	dd if=/dev/zero of=$RECOVERY_DIR/$1 bs=${SECTOR_BYTES} count=${PART_SIZE_IN_SECTOR[$2]}
-
-	if [ $3 -eq 1 ]; then
-		mkfs.fat $RECOVERY_DIR/$1
-	elif [ $3 -eq 2 ]; then
-		mkfs.ext4 $RECOVERY_DIR/$1
-	else
-		echo $1 partition has no filesystem
-		if [ -f ${PART_IMAGE_FILE_NAME[$2]} ]; then
-			cp ${PART_IMAGE_FILE_NAME[$2]} $RECOVERY_DIR/$1
-		fi
-	fi
 
 	if [ $3 -eq 1 -o $3 -eq 2 ]; then
 		if [ -f ${PART_IMAGE_FILE_NAME[$2]} -a "${P_FLAG[$2]}" == "true" ]; then
@@ -574,21 +639,51 @@ function do_gen_partition_subimg()
 			else
 				panic "$1 size mismatch: $(ls -l ${PART_IMAGE_FILE_NAME[$2]} | awk '{print $5}') against ${PART_SIZE_IN_BYTE[$2]}"
 			fi
-		else
-			if [ -f ${PART_COMPRESS_FILE_NAME[$2]} ]; then
-				mkdir -p $RECOVERY_DIR/$MOUNT_DIR-$2
-				sudo mount $RECOVERY_DIR/$1 $RECOVERY_DIR/$MOUNT_DIR-$2
-				if [ $3 -eq 1 ]; then
-					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} --no-same-owner -C $RECOVERY_DIR/$MOUNT_DIR-$2
-				else
-					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} -C $RECOVERY_DIR/$MOUNT_DIR-$2
+		elif [ -f ${PART_COMPRESS_FILE_NAME[$2]} ]; then
+			gzip_validate "${PART_COMPRESS_FILE_NAME[$2]}"
+			local _popdir=$(mktemp -d)
+			rm -f $RECOVERY_DIR/$1
+			if [ $3 -eq 1 ]; then
+				tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} --no-same-owner -C ${_popdir}
+				local _fat_kb
+				_fat_kb=$(_fat_image_size_kb "${_popdir}" "${PART_SIZE_IN_KB[$2]}")
+				mkfs.fat -C $RECOVERY_DIR/$1 ${_fat_kb} || {
+					rm -rf "${_popdir}"
+					panic "failed to create fat image $1"
+				}
+				( cd ${_popdir} && shopt -s nullglob dotglob && [ -n "$(ls -A .)" ] && mcopy -i $RECOVERY_DIR/$1 -s * :: )
+			elif [ $3 -eq 2 ]; then
+				local _fakedb
+				_fakedb=$(mktemp)
+				if ! fakeroot -s "$_fakedb" -- tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
+					rm -f "$_fakedb"
+					rm -rf "${_popdir}"
+					panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
 				fi
-				sync
-				sleep 1 # wait for sync
-				sudo umount $RECOVERY_DIR/$MOUNT_DIR-$2
-			else
-				echo $1 may be an empty parition.
+				if ! _populate_ext4_from_popdir "${_popdir}" "$RECOVERY_DIR/$1" "$2" "$_fakedb"; then
+					rm -f "$_fakedb"
+					rm -rf "${_popdir}"
+					panic "failed to populate ext4 image $1 from ${PART_COMPRESS_FILE_NAME[$2]}"
+				fi
+				rm -f "$_fakedb"
+				e2fsck -f -p $RECOVERY_DIR/$1 || panic "e2fsck failed on $1"
 			fi
+			sync
+			rm -rf ${_popdir}
+		else
+			rm -f $RECOVERY_DIR/$1
+			if [ $3 -eq 1 ]; then
+				mkfs.fat -C $RECOVERY_DIR/$1 8192
+			elif [ $3 -eq 2 ]; then
+				mkfs.ext4 -F -O ^metadata_csum $RECOVERY_DIR/$1 32768
+			fi
+			echo $1 may be an empty parition.
+		fi
+	else
+		dd if=/dev/zero of=$RECOVERY_DIR/$1 bs=${SECTOR_BYTES} count=${PART_SIZE_IN_SECTOR[$2]}
+		echo $1 partition has no filesystem
+		if [ -f ${PART_IMAGE_FILE_NAME[$2]} ]; then
+			cp ${PART_IMAGE_FILE_NAME[$2]} $RECOVERY_DIR/$1
 		fi
 	fi
 

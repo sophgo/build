@@ -601,14 +601,18 @@ _ext4_size_kb_for_popdir() {
 }
 
 _populate_ext4_from_popdir() {
-	local popdir="$1" image="$2" part_idx="$3"
+	local popdir="$1" image="$2" part_idx="$3" fakedb="${4:-}"
 	local max_kb size_kb
 
 	max_kb=$(_ext4_max_size_kb_for_part "${part_idx}")
 	size_kb=$(_ext4_size_kb_for_popdir "${popdir}" "${max_kb}")
 	while true; do
 		rm -f "${image}"
-		if fakeroot mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
+		if [ -n "$fakedb" ]; then
+			if fakeroot -i "$fakedb" -s "$fakedb" -- mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
+				return 0
+			fi
+		elif fakeroot mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
 			return 0
 		fi
 		if [ "${size_kb}" -ge "${max_kb}" ]; then
@@ -654,14 +658,19 @@ function do_gen_partition_subimg()
 				}
 				( cd ${_popdir} && shopt -s nullglob dotglob && [ -n "$(ls -A .)" ] && mcopy -i $RECOVERY_DIR/$1 -s * :: )
 			elif [ $3 -eq 2 ]; then
-				if ! fakeroot tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
+				local _fakedb
+				_fakedb=$(mktemp)
+				if ! fakeroot -s "$_fakedb" -- tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
+					rm -f "$_fakedb"
 					rm -rf "${_popdir}"
 					panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
 				fi
-				if ! _populate_ext4_from_popdir "${_popdir}" "$RECOVERY_DIR/$1" "$2"; then
+				if ! _populate_ext4_from_popdir "${_popdir}" "$RECOVERY_DIR/$1" "$2" "$_fakedb"; then
+					rm -f "$_fakedb"
 					rm -rf "${_popdir}"
 					panic "failed to populate ext4 image $1 from ${PART_COMPRESS_FILE_NAME[$2]}"
 				fi
+				rm -f "$_fakedb"
 				e2fsck -f -p $RECOVERY_DIR/$1 || panic "e2fsck failed on $1"
 			fi
 			sync
@@ -704,6 +713,29 @@ function make_partition_imgs()
 		gen_partition_img $i ${LABELS[$i]} ${PART_FORMAT[$i]}
 	) done
 
+	if [ "${AB_PARTITION}" == "y" -o "${UPTYPE}" = sdcard ]; then
+		rm -rf $OUTPUT_DIR/package_edge/raw_images
+		mkdir -p $OUTPUT_DIR/package_edge/raw_images
+
+		for i in $(seq 0 $[${#LABELS[@]}-1]); do (
+			label=${LABELS[$i]}
+			img_file="${label}"
+
+			if [[ "${label}" == *_a ]]; then
+				prefix=${label%_a}
+				b_label="${prefix}_b"
+
+				if [[ " ${LABELS[@]} " =~ " ${b_label} " ]]; then
+					echo "AB: $label <-> $b_label"
+
+					IMG_DEST=$OUTPUT_DIR/package_edge/raw_images/${prefix}.img
+					cp -f $RECOVERY_DIR/${img_file} ${IMG_DEST}
+
+					md5sum ${IMG_DEST} | awk '{print $1}' > ${IMG_DEST}.md5
+				fi
+			fi
+		) done
+	fi
 
 	for i in $(seq 0 $[${#LABELS[@]}-1]); do (
 	    if [ $i -ne 2 ]; then
