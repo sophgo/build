@@ -725,7 +725,7 @@
 	};
 
 	sata: sata@20bc0000 {
-		compatible = "ahci,cv186x-sata";
+		compatible = "ahci,cv186x-sata", "snps,dwc-ahci";
 		reg = <0x0 0x20bc0000 0x0 0x1000>;
 		clocks = <&clk CV186X_SATA_CLK>;
 		status = "okay";
