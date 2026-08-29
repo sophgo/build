@@ -32,7 +32,7 @@ qstrip = $(strip $(subst ",,$(1)))
 ################################################################################
 NPROC := $(shell nproc)
 export CHIP_ARCH_L := $(shell echo $(CHIP_ARCH) | tr A-Z a-z)
-export BORAD_FOLDER_PATH := ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}
+export BOARD_FOLDER_PATH := ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}
 
 ifneq ($(origin OUTPUT_DIR),environment)
     $(error Please execute defconfig/menuconfig/oldconfig first)
