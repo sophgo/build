@@ -6,11 +6,11 @@ SIZE_1K = 1024
 class MemoryMap:
     # No prefix "CVIMMAP_" for the items in _no_prefix[]
     _no_prefix = [
-        "CONFIG_SYS_TEXT_BASE"  # u-boot's CONFIG_SYS_TEXT_BASE is used without CPP.
+        "CONFIG_SYS_TEXT_BASE"  # u-boot's CONFIG_SYS_TEXT_BASE used.
     ]
 
-    DRAM_BASE = 0x100000000
-    DRAM_SIZE = 2047 * SIZE_1M
+    DRAM_BASE = 0x1000000000
+    DRAM_SIZE = 1024 * SIZE_1M
 
     # Bootlogo
     BOOTLOGO_ADDR = DRAM_BASE + 24 * SIZE_1M
@@ -35,7 +35,7 @@ class MemoryMap:
     FSBL_C906L_START_ADDR = FREERTOS_ADDR
 
     # uboot-2021 defconfig
-    CONFIG_SYS_TEXT_BASE = DRAM_BASE + 640 * SIZE_1K
+    CONFIG_SYS_TEXT_BASE = DRAM_BASE + 1024 * SIZE_1K
     CONFIG_SYS_INIT_SP_ADDR = DRAM_BASE + 63 * SIZE_1M
 
     UIMAG_ADDR = DRAM_BASE + 64 * SIZE_1M

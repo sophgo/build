@@ -46,7 +46,7 @@ GEN_REL_BIN_EXCLUDE = [
 
 ATF_REPO_BRANCH = {}
 
-ATF_REPO_PATH = "arm-trusted-firmware"
+ATF_REPO_PATH = "trusted-firmware-a"
 BLD_REPO_PATH = "bm_bld"
 REL_BIN_ATF = "rel_bin/release_bin_atf"
 REL_BIN_BLDS = {

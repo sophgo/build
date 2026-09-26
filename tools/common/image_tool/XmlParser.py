@@ -16,6 +16,24 @@ LBA_SIZE = 512
 
 class XmlParser:
     @staticmethod
+    def image_payload_size(path):
+        with open(path, "rb") as f:
+            if f.read(4) != b"CIMG":
+                return os.path.getsize(path)
+            f.seek(64)
+            payload = 0
+            while True:
+                hdr = f.read(64)
+                if len(hdr) < 64:
+                    break
+                chunk_sz = int.from_bytes(hdr[4:8], "little")
+                if chunk_sz == 0:
+                    break
+                f.seek(chunk_sz, 1)
+                payload += chunk_sz
+            return payload
+
+    @staticmethod
     def parse_size(size):
         units = {"B": 1, "K": 2 ** 10, "M": 2 ** 20, "G": 2 ** 30, "T": 2 ** 40}
         size = size.upper()
@@ -59,10 +77,11 @@ class XmlParser:
                     file_size = os.stat(path).st_size
                 except Exception:
                     file_size = 0
-                if file_size > p["part_size"]:
+                payload_size = self.image_payload_size(path) if file_size else 0
+                if payload_size > p["part_size"]:
                     logging.error(
-                        "Image: %s(%d) is larger than partition size(%d)"
-                        % (part.attrib["file"], file_size, p["part_size"])
+                        "Image: %s(payload %d, file %d) is larger than partition size(%d)"
+                        % (part.attrib["file"], payload_size, file_size, p["part_size"])
                     )
                     raise OverflowError
                 p["file_path"] = path

@@ -23,8 +23,8 @@ except ImportError:
 
 build_helper.check_python_min_version()
 
-Board = collections.namedtuple("Board", "chip, board, ddr_cfg, info")
-Arch = collections.namedtuple("Arch", "chip, board")
+Board = collections.namedtuple("Board", "api, board, ddr_cfg, info")
+Arch = collections.namedtuple("Arch", "api, board")
 
 ENVS_FROM_CONFIG = [
     "CHIP",
@@ -37,6 +37,7 @@ ENVS_FROM_CONFIG = [
     "UBOOT_SRC",
     "USE_CCACHE",
     "MULTI_FIP",
+    "AB_PARTITION",
     "STORAGE_TYPE",
     "KERNEL_BOOT_TYPE",
     "ROOTFS_UBUNTU",
@@ -56,7 +57,8 @@ ENVS_FROM_CONFIG = [
     "PANEL_LANE_SWAP_TUNING_PARAM",
     "MTRACE",
     "KERNEL_ENTRY_HACK_ADDR",
-    "BUILD_ROOTFS_NAME"
+    "BUILD_ROOTFS_NAME",
+    "KERNEL_ENTRY_HACK_ADDR_H",
 ]
 
 
@@ -117,7 +119,6 @@ def scan_boards_config():
     configs_saved = sorted(glob.glob(build_helper.BOARD_KCONFIG_SAVED_GLOB))
 
     boards = {}
-
     for n, path in enumerate(configs_saved):
         *_, arch, board, conf = path.split("/")
         if arch == "default":
@@ -132,14 +133,13 @@ def scan_boards_config():
         #)
 
         br = Board(
-            kconf.syms["CHIP"].str_value,
+            kconf.syms["SIDE_TYPE"].str_value,
             kconf.syms["BOARD"].str_value,
             kconf.syms["DDR_CFG"].str_value,
             "",
         )
         logging.debug("%d: %s", n, br)
-        boards.setdefault(br.chip, []).append(br)
-
+        boards.setdefault(br.api, []).append(br)
     return boards
 
 
@@ -159,7 +159,7 @@ config CHIP
   string
   {chip_config}
 
-{side_type_config}
+{api_type_config}
 
 
 choice
@@ -184,23 +184,31 @@ config DDR_CFG
 
 
 def board_dir_to_name(board_dir):
-    chips = build_helper.get_chip_list()
-    sides = build_helper.get_side_list()
-    chip_list = list(itertools.chain(*chips.values()))
-    side_list = list(itertools.chain(*sides.values()))
+    api_type_list = build_helper.get_api_type_list()
+    chip_list = build_helper.get_chip_list()
+    chip_arch_list = build_helper.get_chip_arch_list()
+    
     m = re.search(
         r"^([0-9a-z]+)_(.+)$", os.path.basename(board_dir), flags=re.IGNORECASE
     )
-    side_type, br_name = m.groups()
-    if side_type not in side_list:
+    api_type, br_name = m.groups()
+    
+    m = re.search(
+        r"^([0-9a-z]+)_(.+)$", os.path.basename(br_name), flags=re.IGNORECASE
+    )
+    chip_arch, br_name = m.groups()
+    if api_type not in api_type_list:
         raise Exception(
-            "%r of %r is unknown (missing in chip_list.json?)" % (side_type, board_dir)
+            "%r of %r is unknown (missing in chip_list.json?)" % (api_type, board_dir)
         )
 
-    chip_arch = list(chips.keys());
-    logging.debug("chip_arch side_type br_name :%s %s %s", chip_arch, side_type, br_name);
+    if chip_arch not in chip_arch_list:
+        raise Exception(
+            "%r of %r is unknown (missing in chip_list.json?)" % (chip_arch, board_dir)
+        )
+    
 
-    return chip_arch, side_type, br_name
+    return chip_arch, api_type, br_name
 
 
 def gen_build_kconfig():
@@ -209,7 +217,7 @@ def gen_build_kconfig():
         "chip_choice": "",
         "chip_arch_config": "",
         "chip_config": "",
-        "side_type_config": "",
+        "api_type_config": "",
         "board_choice": "",
         "board_config": "",
         "ddr_cfg_choice": "",
@@ -219,9 +227,10 @@ def gen_build_kconfig():
 
     os.makedirs(build_helper.BUILD_OUTPUT_DIR, exist_ok=True)
 
+
     kconfig_path = os.path.join(build_helper.BUILD_OUTPUT_DIR, "Kconfig")
 
-    for chip_arch in build_helper.get_chip_list():
+    for chip_arch in build_helper.get_chip_arch_list():
         _dir = os.path.join(build_helper.BOARD_DIR, chip_arch)
 
         for board_dir in sorted(os.listdir(_dir)):
@@ -232,31 +241,28 @@ def gen_build_kconfig():
                 continue
 
             logging.debug("board_dir=%r", board_dir)
-            _, chip, br_name = board_dir_to_name(board_dir)
+            arch, api, br_name = board_dir_to_name(board_dir)
 
+            logging.debug("board_dir arch api br %s %s %s", arch, api, br_name);
             cj_path = os.path.join(board_dir, "config.json")
             with open(cj_path, "r", encoding="utf-8") as fp:
                 cj = json.load(fp)
 
-            br = Board(chip, br_name, cj["ddr_cfg_list"], cj["board_information"])
-            board_list.setdefault(chip, []).append(br)
+            br = Board(api, br_name, cj["ddr_cfg_list"], cj["board_information"])
+            board_list.setdefault(api, []).append(br)
 
-    chip_list = build_helper.get_chip_list()
-    side_list = build_helper.get_side_list()
-    chip_list["none"] = ["none"]
-    side_list["none"] = ["none"]
-    chip_list_r = {c: k for k, v in chip_list.items() for c in v}
-    side_list_r = {c: k for k, v in side_list.items() for c in v}
-    logging.debug("chip_list_r : %s", chip_list_r);
-    logging.debug("side_list_r : %s", side_list_r);
-    for chip_arch, xlist in chip_list.items():
-        if chip in xlist:
-            break
-    xlist = list(chip_list_r.keys());
-    side_type_list = list(side_list_r.keys());
+    arch_chip_list = build_helper.get_arch_chip_dict()
+    api_list = build_helper.get_arch_api_dict()
+    arch_chip_list["none"] = ["none"]
+    api_list["none"] = ["none"]
+    chip_list_r = {c: k for k, v in arch_chip_list.items() for c in v}
+    api_list_r = {c: k for k, v in api_list.items() for c in v}
+
+    chip_list = build_helper.get_chip_list();
+    side_type_list = list(api_list_r.keys());
     for side_type, br_list in board_list.items():
         for br in br_list:
-            logging.debug("br side_type %s", side_type);
+            logging.debug("br side_type %s",  side_type);
 
     #we don not choose the real chip whatever edge or device
     config_str["chip_choice"] = "\n  ".join(
@@ -264,27 +270,30 @@ def gen_build_kconfig():
             'config CHIP_{chip}\n    bool "{chip}"\n    select CHIP_ARCH_{chip_arch}'.format(
                 chip=chip, chip_arch=chip_list_r[chip]
             ).strip()
-            for chip in xlist
+            for chip in chip_list
         )
     )
 
+    logging.debug("chip_choice %s", config_str["chip_choice"]);
     config_str["chip_config"] = "\n  ".join(
         [
             'default "{chip}" if CHIP_{chip}'.format(chip=chip).strip()
-            for chip in xlist
+            for chip in chip_list
         ]
     )
 
+    logging.debug("chip_config %s", config_str["chip_config"]);
     config_str["chip_arch_config"] = "\n".join(
         (
             "config CHIP_ARCH_{chip_arch}\n    def_bool n".format(
                 chip_arch=chip_arch
             ).strip()
-            for chip_arch in chip_list
+            for chip_arch in arch_chip_list
         )
     )
 
-    config_str["side_type_config"] = "\n".join(
+    logging.debug("chip_arch_config %s", config_str["chip_arch_config"]);
+    config_str["api_type_config"] = "\n".join(
         (
             'config SIDE_TYPE_{side_type}\n    bool "({side_type})"\n    default n'.format(
                 side_type=side_type
@@ -293,16 +302,18 @@ def gen_build_kconfig():
         )
     )
 
+    logging.debug("api_type_config %s", config_str["api_type_config"]);
     config_str["board_choice"] = "\n  ".join(
         [
-            'config BOARD_{br}\n    bool "{br} ({br_info})"\n    depends on SIDE_TYPE_{side_type}'.format(
-                side_type=side_type, br=br.board, br_info=br.info if br.info else "none"
+            'config BOARD_{br}\n    bool "{br} ({br_info})"\n    depends on SIDE_TYPE_{api_type}'.format(
+                api_type=api_type, br=br.board, br_info=br.info if br.info else "none"
             ).strip()
-            for side_type, br_list in board_list.items()
+            for api_type, br_list in board_list.items()
             for br in br_list
         ]
     )
 
+    logging.debug("board_choice %s", config_str["board_choice"]);
     config_str["board_config"] = "\n  ".join(
         [
             'default "{br}" if BOARD_{br}'.format(br=br.board).strip()
@@ -316,10 +327,10 @@ def gen_build_kconfig():
             'config DDR_CFG_{ddf_cfg}\n    bool "{ddf_cfg}"\n    depends on CHIP_{chip} && BOARD_{br}'.format(
                 chip=chip, br=br.board, ddf_cfg=ddr_cfg if ddr_cfg else "none"
             ).strip()
-            for side_type, br_list in board_list.items()
+            for api_type, br_list in board_list.items()
             for br in br_list
             for ddr_cfg in br.ddr_cfg
-            for chip in xlist
+            for chip in chip_list
         ]
     )
 
@@ -340,7 +351,7 @@ def gen_build_kconfig():
 
 
 def gen_build_env(boards):
-    chips = build_helper.get_chip_list()
+    chips = build_helper.get_arch_chip_dict()
 
     # Chip definition
     for chip_arch, chip_list in sorted(chips.items()):
@@ -376,20 +387,23 @@ def gen_board_env(full_board_name):
         pass
     kconf = load_board_config(config_path)
 
-    chips = build_helper.get_chip_list()
-    sides = build_helper.get_side_list()
+    chips = build_helper.get_arch_chip_dict()
+    sides = build_helper.get_arch_api_dict()
     chip = kconf.syms["CHIP"].str_value
-    side_type = kconf.syms["SIDE_TYPE"].str_value
-    for chip_arch, side_list in sides.items():
-        if side_type in side_list:
-            print('export SIDE_TYPE="%s"' % side_type)
+
+    api_type = kconf.syms["SIDE_TYPE"].str_value
+    for chip_arch, api_type_list in sides.items():
+        if api_type in api_type_list:
+            print('export SIDE_TYPE="%s"' % api_type)
             break
     else:
-        raise Exception("Can't find SIDE_TYPE for %r" % side_type)
+        raise Exception("Can't find SIDE_TYPE for %r" % api_type)
 
     for chip_arch, chip_list in chips.items():
         if chip in chip_list:
-            print('export CHIP_ARCH="%s"' % chip_arch.upper())
+            #print('export CHIP_ARCH="%s"' % chip_arch.upper())
+            print('export CHIP_ARCH="%s"' % chip_arch)
+            print('export CHIP_ARCH_L="%s"' % chip_arch.lower())
             break
     else:
         raise Exception("Can't find CHIP_ARCH for %r" % chip)
@@ -397,7 +411,10 @@ def gen_board_env(full_board_name):
     print('export CHIP_SEGMENT="%s"' % build_helper.get_segment_from_chip(chip))
 
     for name in ENVS_FROM_CONFIG:
-        print('export %s="%s"' % (name, kconf.syms[name].str_value))
+        if name in kconf.syms:
+            print('export %s="%s"' % (name, kconf.syms[name].str_value))
+        else:
+            print('export %s=""' % name)
 
     board = kconf.syms["BOARD"].str_value
     subtype = [i for i in ["palladium", "fpga"] if i in board]
@@ -410,28 +427,49 @@ def gen_board_env(full_board_name):
 
 def get_chip_arch(board):
     if not board:
-        return
-    board_split, *_ = board.split("_")
-    if board == board_split:
-        return
-    for arch, sides in build_helper.get_side_list().items():
-        if board_split in sides:
-            print(arch)
-            return
+        logging.warning("Input board name is empty.")
+        return None
+    parts = board.split("_")
+    logging.debug("Splitted board parts: %s", parts)
+
+    if len(parts) < 2:
+        logging.error("Board name '%s' does not follow expected format '{{api}}_{{arch}}_...'.", board)
+        return None
+
+    board_api = parts[0]
+    board_arch = parts[1]
+
+    logging.debug("Extracted API: %s, Extracted Arch: %s from board: %s", board_api, board_arch, board)
+
+    arch_api_dict = build_helper.get_arch_api_dict()
+    logging.debug("Available architectures and their supported APIs: %s", arch_api_dict)
+
+    if board_arch not in build_helper.get_chip_arch_list():
+        logging.error("Extracted architecture '%s' is not found in the available architectures.", board_arch)
+        return None 
+
+    supported_apis = arch_api_dict[board_arch]
+    if board_api not in supported_apis:
+        logging.error("API '%s' extracted from board name is not in the supported API list %s for architecture '%s'.", board_api, supported_apis, board_arch)
+
+    logging.debug("Validation passed (if enabled). Returning architecture: %s", board_arch)
+    print(board_arch)
+    return board_arch
 
 
 def list_chip_arch():
     for arch, chips in build_helper.get_chip_list().items():
         print("       ** %6s ** -> %s" % (arch, chips))
 
-def list_side_arch():
-    for arch, sides in build_helper.get_side_list().items():
-        print("       ** %6s ** -> %s" % (arch, sides))
+def list_arch_apis():
+    for arch, apis in build_helper.get_arch_api_dict().items():
+        print("       ** %6s ** -> %s" % (arch, apis))
 
 
 
 def list_boards_by_chip_arch(chip_arch):
     boards = {}
+    logging.debug("list_boards_by_chip_arch chip_arch %s", chip_arch);
     if chip_arch not in build_helper.get_chip_list():
         print(" \033[1;31;47m Input chip arch '", chip_arch, "' is ERROR\033[0m")
         return
@@ -441,17 +479,17 @@ def list_boards_by_chip_arch(chip_arch):
     for board in sorted(os.listdir(board_dir)):
         m = re.search(r"^([0-9a-z]+)_(.+)$", board, flags=re.IGNORECASE)
         chip, _ = m.groups()
-
         conf_path = os.path.join(board_dir, board, "config.json")
         with open(conf_path, "r", encoding="utf-8") as fp:
             conf = json.load(fp)
             boards[chip].append({"board": board, "info": conf["board_information"]})
 
     print("\033[93m*", chip_arch, "* the avaliable cvitek EVB boards\033[0m")
+    
     for chip, board_list in boards.items():
         if not board_list:
             continue
-
+        logging.error("board_list: %s", board_list);
         jump = 0
         print("%8s - " % chip, end="")
         for board in board_list:
@@ -621,8 +659,10 @@ def gen_board_its(input_arch, skip_ramdisk=False):
     its_path = os.path.join(build_helper.BUILD_OUTPUT_DIR, "multi.its.tmp")
 
     board_list = []
+    arch_chip_dict = build_helper.get_arch_chip_dict()
+    chip_name = arch_chip_dict[input_arch][0]
 
-    for _arch in build_helper.get_chip_list():
+    for _arch in build_helper.get_chip_arch_list():
         _dir = os.path.join(build_helper.BOARD_DIR, _arch)
 
         for board_dir in sorted(os.listdir(_dir)):
@@ -632,12 +672,12 @@ def gen_board_its(input_arch, skip_ramdisk=False):
             if not os.path.isdir(board_dir):
                 continue
 
-            chip_arch, chip, br_name = board_dir_to_name(board_dir)
+            chip_arch, _, br_name = board_dir_to_name(board_dir)
             if chip_arch == input_arch:
                 # skip FPGA & PLD board
                 if "fpga" in br_name or "palladium" in br_name:
                     continue
-                board_list.append(Arch(chip, br_name))
+                board_list.append(Arch(chip_name, br_name))
 
     cfg_tmpl = config_noramdisk_tmpl if skip_ramdisk else config_tmpl
     its_str["fdt"] = "\n".join(
@@ -687,7 +727,7 @@ def main():
         list_chip_arch()
 
     if args.list_side_arch:
-        list_side_arch()
+        list_arch_apis()
 
     if args.list_boards:
         list_boards_by_chip_arch(args.list_boards)

@@ -40,6 +40,7 @@ ERASE_PARTITION=false
 
 SOURCE_FILES_PATH=
 
+EXT4_MKFS_OPTS="-O none,has_journal,extent,huge_file,flex_bg,dir_nlink,extra_isize,sparse_super,resize_inode,filetype -E resize=128G"
 
 
 # help function
@@ -345,7 +346,9 @@ function create_top_script()
 	script_update "led error off"
 	script_update "setenv light 1"
 	script_update ""
-	script_update "if test \"\$reset_after\" = \"1\"; then reset; fi;"
+	script_update "echo Booting from eMMC..."
+	script_update "mmc dev 0; load mmc 0:1 \${scriptaddr} boot.scr.emmc && source \${scriptaddr}"
+	script_update "echo eMMC boot failed"
 	script_update ""
 	if [ "${UPTYPE}" != usb ]; then
 		script_update "while true; do"
@@ -593,10 +596,10 @@ _populate_ext4_from_popdir() {
 	while true; do
 		rm -f "${image}"
 		if [ -n "$fakedb" ]; then
-			if fakeroot -i "$fakedb" -s "$fakedb" -- mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
+			if fakeroot -i "$fakedb" -s "$fakedb" -- mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}"; then
 				return 0
 			fi
-		elif fakeroot mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
+		elif fakeroot mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}"; then
 			return 0
 		fi
 		if [ "${size_kb}" -ge "${max_kb}" ]; then
@@ -675,7 +678,7 @@ function do_gen_partition_subimg()
 			if [ $3 -eq 1 ]; then
 				mkfs.fat -C $RECOVERY_DIR/$1 8192
 			elif [ $3 -eq 2 ]; then
-				mkfs.ext4 -F -O ^metadata_csum $RECOVERY_DIR/$1 32768
+				mkfs.ext4 -F ${EXT4_MKFS_OPTS} $RECOVERY_DIR/$1 32768
 			fi
 			echo $1 may be an empty parition.
 		fi
@@ -750,8 +753,7 @@ function storage_upgrade_done()
 	elif [ "${KERNEL_BOOT_TYPE}" == "sata" ]; then
 		script_update "bm_savelog scsi 0:1 end.log"
 	fi
-	script_update "if test \"\$update_all\" != \"1\" -a \"\$reset_after\" = \"1\"; then reset; fi;"
-	script_update "if test \"\$update_all\" != \"1\"; then while true; do; echo \"Please remove the installation medium, then reboot\"; sleep 0.5; done; fi;"
+		script_update "if test \"\$update_all\" != \"1\"; then echo Booting from eMMC...; mmc dev 0; load mmc 0:1 \${scriptaddr} boot.scr.emmc && source \${scriptaddr}; echo eMMC boot failed; while true; do; echo \"Please remove the installation medium, then reboot\"; sleep 0.5; done; fi;"
 	compile_script $(basename ${CURRENT_SCRIPT} .cmd)
 
 	#move boot partition to final update for tftp upgrade.

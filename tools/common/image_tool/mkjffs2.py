@@ -59,8 +59,7 @@ def log_subprocess_output(pipe):
 def main():
     args = parse_Args()
     xmlParser = XmlParser(args.xml)
-    install_dir = path.dirname(args.output_file)
-    parts = xmlParser.parse(install_dir)
+    parts = xmlParser.parse()
     storage = xmlParser.getStorage()
     verbose = args.verbose
 

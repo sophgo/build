@@ -23,13 +23,60 @@ fi
 
 echo ">>>>>start upgrade app package..."
 
-echo ">>>>>md5sum check ..."
 CHECK_SCRIPT="./check_partition_start_sector.sh"
 UPDATE_GPT_SCRIPT="./update_partition_gpt.sh"
 IGNORE_MD5_FILES=("md5.txt" "ota_versino.txt")
 basepath=$(cd `dirname $0`; pwd)
 echo $basepath
 cd $basepath
+
+read_hw_chip() {
+        local val=""
+        val=$(busybox devmem 0x28100000 32 2>/dev/null)
+        if [ -z "$val" ]; then
+                val=$(sudo busybox devmem 0x28100000 32 2>/dev/null)
+        fi
+        val=$(printf '%s' "$val" | tr '[:upper:]' '[:lower:]' | tr -d ' \t\r\n')
+        case "$val" in
+                0x1686a200) echo "88a2" ;;
+                0x16940000) echo "cv84x6" ;;
+                *) echo "" ;;
+        esac
+}
+
+echo ">>>>>chip type check ..."
+PKG_CHIP=""
+if [ -f chip.txt ]; then
+        PKG_CHIP=$(tr -d ' \t\r\n' < chip.txt)
+fi
+HW_CHIP=$(read_hw_chip)
+need_chip_check=false
+case "$HW_CHIP" in
+        88a2|cv84x6) need_chip_check=true ;;
+esac
+case "$PKG_CHIP" in
+        88a2|cv84x6) need_chip_check=true ;;
+esac
+if [ "$need_chip_check" = true ]; then
+        if [ -z "$HW_CHIP" ]; then
+                echo ">>>>> cannot identify current chip from 0x28100000, stop upgrade..."
+                echo "update failed"
+                exit 1
+        fi
+        if [ -z "$PKG_CHIP" ]; then
+                echo ">>>>> chip.txt not found in upgrade package, stop upgrade..."
+                echo "update failed"
+                exit 1
+        fi
+        if [ "$HW_CHIP" != "$PKG_CHIP" ]; then
+                echo ">>>>> chip mismatch: current is ${HW_CHIP}, package is ${PKG_CHIP}, stop upgrade..."
+                echo "update failed"
+                exit 1
+        fi
+        echo ">>>>> chip type check passed: ${HW_CHIP}"
+fi
+
+echo ">>>>>md5sum check ..."
 rm -rf ota_versino.txt
 md5sum -c "$1" > ota_versino.txt 2>&1
 ret=$?

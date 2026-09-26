@@ -9,6 +9,10 @@ ifeq (${CONFIG_C906_HART1}, y)
 	BOARD_MMAP_PATH := ${BORAD_FOLDER_PATH}/memmap_hart1.py
 else ifeq (${CONFIG_C906_HART2}, y)
 	BOARD_MMAP_PATH := ${BORAD_FOLDER_PATH}/memmap_hart2.py
+else ifeq (${CONFIG_C906_HART3}, y)
+	BOARD_MMAP_PATH := ${BORAD_FOLDER_PATH}/memmap_hart3.py
+else ifeq (${CONFIG_C906_HART4}, y)
+	BOARD_MMAP_PATH := ${BORAD_FOLDER_PATH}/memmap_hart4.py
 else
 	BOARD_MMAP_PATH := ${BORAD_FOLDER_PATH}/memmap.py
 endif

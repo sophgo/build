@@ -1,0 +1,712 @@
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/cv84x6-clock.h>
+#include <dt-bindings/reset/cv186x-resets.h>
+#include <dt-bindings/dma/cv84x6-dmamap.h>
+
+/memreserve/	0x1000000000 0x0000000000100000; // ATF BL31 + BL32
+
+#include "soph_base.dtsi"
+
+/ {
+	model = "Sophon. CV84X6 ASIC. ARM64.";
+	interrupt-parent = <&gic>;
+
+	#size-cells = <0x2>;
+	#address-cells = <0x2>;
+
+	gic: interrupt-controller {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		interrupt-controller;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		ranges;
+		#redistributor-regions = <1>;
+		reg = <0x0 0x36000000 0x0 0x10000>,  /* GICD - Distributor */
+			<0x0 0x36080000 0x0 0x200000>;  /* GICR - Redistributor */
+		reg-names = "gicd", "gicr";
+		its0: msi-controller@36040000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x0 0x36040000 0x0 0x30000>;
+		};
+	};
+
+	timer {
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+		always-on;
+		clock-frequency = <100000000>;
+		compatible = "arm,armv8-timer";
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
+	psci {
+		migrate = <0xc4000005>;
+		cpu_on = <0xc4000003>;
+		cpu_off = <0x84000002>;
+		cpu_suspend = <0xc4000001>;
+		sys_poweroff = <0x84000008>;
+		sys_reset = <0x84000009>;
+		method = "smc";
+		compatible = "arm,psci-0.2", "arm,psci";
+	};
+
+	cpus {
+		#size-cells = <0x0>;
+		#address-cells = <0x2>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+				core4 {
+					cpu = <&cpu4>;
+				};
+				core5 {
+					cpu = <&cpu5>;
+				};
+				core6 {
+					cpu = <&cpu6>;
+				};
+				core7 {
+					cpu = <&cpu7>;
+				};
+			};
+		};
+
+		cpu0: cpu@0 {
+			reg = <0x0 0x0>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l0>;
+		};
+
+		cpu1: cpu@1 {
+			reg = <0x0 0x100>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l1>;
+		};
+
+		cpu2: cpu@2 {
+			reg = <0x0 0x200>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l2>;
+		};
+
+		cpu3: cpu@3 {
+			reg = <0x0 0x300>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l3>;
+		};
+
+		cpu4: cpu@4 {
+			reg = <0x0 0x400>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l4>;
+		};
+
+		cpu5: cpu@5 {
+			reg = <0x0 0x500>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l5>;
+		};
+
+		cpu6: cpu@6 {
+			reg = <0x0 0x600>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l6>;
+		};
+
+		cpu7: cpu@7 {
+			reg = <0x0 0x700>;
+			enable-method = "psci";
+			compatible = "arm,cortex-a55";
+			device_type = "cpu";
+			i-cache-size = <32768>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <64>;
+			d-cache-size = <32768>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <64>;
+			next-level-cache = <&l2_cache_l7>;
+		};
+
+		l2_cache_l0: l2-cache-l0 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l1: l2-cache-l1 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l2: l2-cache-l2 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l3: l2-cache-l3 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l4: l2-cache-l4 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l5: l2-cache-l5 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l6: l2-cache-l6 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l2_cache_l7: l2-cache-l7 {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <2>;
+			cache-size = <131072>;
+			cache-line-size = <64>;
+			cache-sets = <256>;
+			next-level-cache = <&l3_cache>;
+		};
+
+		l3_cache: l3-cache {
+			compatible = "cache";
+			cache-unified;
+			cache-level = <3>;
+			cache-size = <2097152>;
+			cache-line-size = <64>;
+			cache-sets = <4096>;
+		};
+	};
+
+	/*
+	 * ARM64 interrupt assignments for CV84X6 peripherals.
+	 * These override the nodes defined in soph_base.dtsi with
+	 * architecture-specific SPI interrupt numbers.
+	 */
+
+	/* DMA */
+	dmac0: dma@0x29330000 {
+		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	dmac1: dma@0x29340000 {
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* SPI */
+	spi0:spi@29200000 {
+		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spi1: spi@29210000 {
+		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spi2: spi@29220000 {
+		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spi3: spi@29230000 {
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* UART */
+	uart0: serial@29180000 {
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart1: serial@29190000 {
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart2: serial@291a0000 {
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart3: serial@291b0000 {
+		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart4: serial@291c0000 {
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart5: serial@291d0000 {
+		interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart6: serial@291e0000 {
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart7: serial@291f0000 {
+		interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	uart8: serial@05022000 {
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* CAN */
+	can0: can@29240000 {
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "int0";
+	};
+
+	can1: can@29250000 {
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "int0";
+	};
+
+	/* GPIO */
+	gpio0: gpio@27010000 {
+		porta: gpio-controller@0 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio1: gpio@27011000 {
+		portb: gpio-controller@1 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio2: gpio@27012000 {
+		portc: gpio-controller@2 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio3: gpio@27013000 {
+		portd: gpio-controller@3 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio4: gpio@27014000 {
+		porte: gpio-controller@4 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio5: gpio@27015000 {
+		portf: gpio-controller@5 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio6: gpio@27016000 {
+		portg: gpio-controller@6 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	gpio7: gpio@27017000 {
+		porth: gpio-controller@7 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	rtc_gpio: gpio@5021000 {
+		portrtc: gpio-controller@8 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	/* I2C */
+	i2c0: i2c@29000000 {
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c1: i2c@29010000 {
+		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c2: i2c@29020000 {
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c3: i2c@29030000 {
+		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c4: i2c@29040000 {
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c5: i2c@29050000 {
+		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c6: i2c@29060000 {
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c7: i2c@29070000 {
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c8: i2c@29080000 {
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c9: i2c@29090000 {
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c10: i2c@0502b000 {
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* Ethernet */
+	ethernet0: ethernet@290d0000 {
+		interrupt-names = "macirq";
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	ethernet1: ethernet@290e0000 {
+		interrupt-names = "macirq";
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* Storage */
+	emmc:cv-emmc@29300000 {
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	sd:cv-sd@29310000 {
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	sd1:cv-sd1@29320000 {
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* SATA */
+	satac0: sata@21310000 {
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	satac1: sata@21350000 {
+		interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* USB */
+	usbdrd3_0: usb@39170000 {
+		usbdrd_dwc3_0: usb@39170000 {
+			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	usbdrd3_1: usb@391f0000 {
+		usbdrd_dwc3_1: usb@391f0000 {
+			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	/* Thermal */
+	thermal:thermal@270D0000 {
+		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tempsen";
+	};
+
+	/* SARADC */
+	saradc {
+		interrupts = <GIC_SPI 171 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	/* PKA */
+	pka: pka@34010000 {
+		interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* AXI Monitor */
+	mon: cvi-mon {
+		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>,	/* F0S1_WR */
+					<GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>,	/* F0S1_RD */
+					<GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>,	/* F1S1_WR */
+					<GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>,	/* F1S1_RD */
+					<GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>,	/* F2S1_WR */
+					<GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>,	/* F2S1_RD */
+					<GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>,	/* F3S1_WR */
+					<GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>,	/* F3S1_RD */
+					<GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>,	/* F5S1_WR */
+					<GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,	/* F5S1_RD */
+					<GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,	/* VD0_MON0_WR */
+					<GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,	/* VD0_MON0_RD */
+					<GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,	/* VD0_MON1_WR */
+					<GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,	/* VD0_MON1_RD */
+					<GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,	/* VD1_MON0_WR */
+					<GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,	/* VD1_MON0_RD */
+					<GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,	/* VD1_MON1_WR */
+					<GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>,	/* VD1_MON1_RD */
+					<GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>,	/* VD2_MON0_WR */
+					<GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,	/* VD2_MON0_RD */
+					<GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,	/* VD2_MON1_WR */
+					<GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,	/* VD2_MON1_RD */
+					<GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,	/* VD3_MON0_WR */
+					<GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,	/* VD3_MON0_RD */
+					<GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,	/* VD3_MON1_WR */
+					<GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>,	/* VD3_MON1_RD */
+					<GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>,	/* VE_WR */
+					<GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>;	/* VE_RD */
+		interrupt-names = "f0s1_wr", "f0s1_rd", "f1s1_wr", "f1s1_rd",
+						"f2s1_wr", "f2s1_rd", "f3s1_wr", "f3s1_rd",
+						"f5s1_wr", "f5s1_rd",
+						"vd0_mon0_wr", "vd0_mon0_rd", "vd0_mon1_wr", "vd0_mon1_rd",
+						"vd1_mon0_wr", "vd1_mon0_rd", "vd1_mon1_wr", "vd1_mon1_rd",
+						"vd2_mon0_wr", "vd2_mon0_rd", "vd2_mon1_wr", "vd2_mon1_rd",
+						"vd3_mon0_wr", "vd3_mon0_rd", "vd3_mon1_wr", "vd3_mon1_rd",
+						"ve_wr", "ve_rd";
+	};
+
+#ifndef __UBOOT__
+	/* TPU */
+	tpu: bmtpu {
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* VPSS */
+	vpss {
+		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpss_t0","vpss_t1","vpss_t2",
+						"vpss_t3","vpss_t4","vpss_t5",
+						"vpss_t6","vpss_t7","vpss_t8",
+						"vpss_t9","vpss_t10","vpss_t11",
+						"vpss_d";
+	};
+
+	/* IVE */
+	ive {
+		interrupts = <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>,
+			    <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>,
+			    <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ive_irq0", "ive_irq1", "ive_irq2";
+	};
+
+	/* GDC/LDC */
+	gdc {
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ldc0";
+	};
+
+	/* Video Codec */
+	vc_drv {
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+	};
+#endif
+
+	/* RTC */
+	rtc {
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* HDMI audio I2S */
+	i2s_hdmi: i2s_hdmi@290f0000 {
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* Watchdog */
+	watchdog0: cv-wd@0x27000000 {
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	watchdog1: cv-wd@0x27001000 {
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	watchdog2: cv-wd@0x27002000 {
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* Display / HDMI */
+#ifndef __UBOOT__
+	disp0: disp0 {
+		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	hdmi: hdmi@67200000 {
+		interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	vo_2de0: vo_2de@67001000 {
+		interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
+				 <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+	};
+#endif
+
+	/* SPI flash / NAND */
+	rtc_spif:cvi-spif@5400000  {
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	hs_spif:cvi-spif@30000000  {
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	spinand:cv-spinf@290c0000 {
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	/* PCIe interrupt-map is already defined in soph_base.dtsi */
+
+};

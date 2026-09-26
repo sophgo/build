@@ -41,6 +41,10 @@ ERASE_PARTITION=false
 
 SOURCE_FILES_PATH=
 
+EXT4_MKFS_OPTS="-O none,has_journal,extent,huge_file,flex_bg,dir_nlink,extra_isize,sparse_super,resize_inode,filetype -E resize=128G"
+
+
+
 
 
 # help function
@@ -608,11 +612,15 @@ _populate_ext4_from_popdir() {
 	size_kb=$(_ext4_size_kb_for_popdir "${popdir}" "${max_kb}")
 	while true; do
 		rm -f "${image}"
-		if [ -n "$fakedb" ]; then
-			if fakeroot -i "$fakedb" -s "$fakedb" -- mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
-				return 0
-			fi
-		elif fakeroot mkfs.ext4 -F -O ^metadata_csum -d "${popdir}" "${image}" "${size_kb}"; then
+		_mkfs_ok=0
+		if [ "$(id -u)" = "0" ]; then
+			mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}" && _mkfs_ok=1
+		elif [ -n "$fakedb" ]; then
+			fakeroot -i "$fakedb" -s "$fakedb" -- mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}" && _mkfs_ok=1
+		else
+			fakeroot mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}" && _mkfs_ok=1
+		fi
+		if [ "${_mkfs_ok}" = "1" ]; then
 			return 0
 		fi
 		if [ "${size_kb}" -ge "${max_kb}" ]; then
@@ -658,12 +666,21 @@ function do_gen_partition_subimg()
 				}
 				( cd ${_popdir} && shopt -s nullglob dotglob && [ -n "$(ls -A .)" ] && mcopy -i $RECOVERY_DIR/$1 -s * :: )
 			elif [ $3 -eq 2 ]; then
-				local _fakedb
-				_fakedb=$(mktemp)
-				if ! fakeroot -s "$_fakedb" -- tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
-					rm -f "$_fakedb"
-					rm -rf "${_popdir}"
-					panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
+				local _fakedb=""
+				if [ "$(id -u)" = "0" ]; then
+					if ! tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
+						rm -rf "${_popdir}"
+						panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
+					fi
+					[ -d "${_popdir}/home/linaro" ] && chown -R 1000:1000 "${_popdir}/home/linaro"
+					[ -d "${_popdir}/overlay/home/linaro" ] && chown -R 1000:1000 "${_popdir}/overlay/home/linaro"
+				else
+					_fakedb=$(mktemp)
+					if ! fakeroot -s "$_fakedb" -- tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
+						rm -f "$_fakedb"
+						rm -rf "${_popdir}"
+						panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
+					fi
 				fi
 				if ! _populate_ext4_from_popdir "${_popdir}" "$RECOVERY_DIR/$1" "$2" "$_fakedb"; then
 					rm -f "$_fakedb"
@@ -680,7 +697,7 @@ function do_gen_partition_subimg()
 			if [ $3 -eq 1 ]; then
 				mkfs.fat -C $RECOVERY_DIR/$1 8192
 			elif [ $3 -eq 2 ]; then
-				mkfs.ext4 -F -O ^metadata_csum $RECOVERY_DIR/$1 32768
+				mkfs.ext4 -F ${EXT4_MKFS_OPTS} $RECOVERY_DIR/$1 32768
 			fi
 			echo $1 may be an empty parition.
 		fi

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SYSTEM_DIR=$1
-if [[ ${STORAGE_TYPE} == "spinor" ]];then
+if [[ ${STORAGE_TYPE} == "spinor" || ${STORAGE_TYPE} == "spinand" ]];then
 rm -rf $SYSTEM_DIR/mnt/system/usr/*
 rm -rf $SYSTEM_DIR/mnt/system/lib/*
 fi

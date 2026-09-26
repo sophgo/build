@@ -313,11 +313,31 @@ function clean_v4l2_isp()
 	export V4L2_ISP_ENABLE=0
 }
 
+# 设置sophon-sdk信息
+function get_bm_sdk_info {
+    bm_root_dir=${bm_root_dir:-ftp://172.28.141.89/athena2}
+    bm_user_name=AI
+    bm_user_psword=SophgoRelease2022
+    bm_date_ID=latest_release
+    bm_sdk_name=tpu_kernel
+    bm_chip_name=$1
+    bm_build_type=$2
+}
 
 # 拉取解压sophon-sdk
 function build_bm1686_sdk {
     # bm1686 tpu_kernel
-    echo "build_bm1686_sdk"
+    get_bm_sdk_info 1686 daily_build
+    tpu_kernel_file_name=tpu-kernel-tpulv6_v*.tar.gz
+    tpu_kernel_full_path=$bm_root_dir/tpu-kernel/$bm_build_type/$bm_date_ID/$tpu_kernel_file_name
+
+    echo "Try to download ${tpu_kernel_file_name} ..."
+    wget -P ${TPU_SDK_PATH} ${tpu_kernel_full_path} --ftp-user $bm_user_name --ftp-password $bm_user_psword -q
+    mkdir -p ${TPU_SDK_PATH}/
+    tar -xzf ${TPU_SDK_PATH}/$tpu_kernel_file_name -C ${TPU_SDK_PATH}/ --strip-components 1
+    echo "Extract"
+
+    rm -rf ${TPU_SDK_PATH}/${tpu_kernel_file_name}
 }
 function clean_bm1686_sdk {
 	rm -rf ${TPU_SDK_PATH}
@@ -327,6 +347,7 @@ function clean_tdl_sdk()
 {
   pushd "$TDL_SDK_PATH"
   ./build_tdl_sdk.sh clean
+  rm -f install/SOPHON
   popd
 }
 
@@ -349,6 +370,7 @@ function build_tdl_sdk()
     rm -rf pkg_root 
     echo "package tdlsdk done"
     fi
+  ln -sf ${CHIP_ARCH} install/SOPHON
   popd
 }
 
@@ -356,9 +378,7 @@ function build_osdrv()
 {(
   print_notice "Run ${FUNCNAME[0]}() ${1} function"
 
-  _build_kernel_env
   cd "$BUILD_PATH" || return
-  make kernel-prepare || return "$?"
   make "$ROOTFS_DIR"
 
   local osdrv_target="$1"
@@ -494,6 +514,7 @@ function build_bmtpu()
     popd
 }
 
+
 function build_libsophon()
 {
   clean_libsophon
@@ -508,6 +529,18 @@ function build_libsophon()
 
   local lib_dir="$LIBSOPHON_PATH"/3rdparty/soc/
   local toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux.cmake
+  local chip_name="bm1688"
+  case "${CHIP_ARCH}" in
+    SOPHON)
+      chip_name="bm1688"
+      ;;
+    84x6)
+      chip_name="cv84x6"
+      ;;
+    *)
+      chip_name="bm1688"
+      ;;
+  esac
   if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' ${TOP_DIR}/build/.config; then
     lib_dir="$LIBSOPHON_PATH"/3rdparty/lib930/
     toolchain_file="$LIBSOPHON_PATH"/toolchain-aarch64-linux-930.cmake
@@ -522,7 +555,8 @@ function build_libsophon()
     -B build \
     -G Ninja \
     -DPLATFORM=soc \
-    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$BOARD" \
+    -DCHIP_NAME="${chip_name}" \
+    -DSOC_LINUX_DIR="$KERNEL_PATH"/build/"$SIDE_TYPE"_"$CHIP_ARCH"_"$BOARD" \
     -DLIB_DIR="${lib_dir}" \
     -DCROSS_COMPILE_PATH="$CROSS_COMPILE_PATH_64" \
     -DCMAKE_TOOLCHAIN_FILE="${toolchain_file}" \
@@ -530,11 +564,12 @@ function build_libsophon()
     -DCMAKE_INSTALL_PREFIX="${_install_prefix}" \
     -DDEBUG=OFF \
     -DCMAKE_BUILD_TYPE=Release \
+    || { ret=$?; echo "Error: build_libsophon cmake configure failed with exit code $ret"; popd; return $ret; }
 
-  cmake --build build --parallel "$(nproc)"
-  cmake --build build --target driver --verbose
+  cmake --build build --parallel "$(nproc)" || { ret=$?; echo "Error: build_libsophon cmake build failed with exit code $ret"; popd; return $ret; }
+  cmake --build build --target driver --verbose || { ret=$?; echo "Error: build_libsophon cmake build driver failed with exit code $ret"; popd; return $ret; }
 
-  cmake --build build --target package install --parallel "$(nproc)"
+  cmake --build build --target package install --parallel "$(nproc)" || { ret=$?; echo "Error: build_libsophon cmake package install failed with exit code $ret"; popd; return $ret; }
   if [ "${BUILD_DOC}" == "1" ]; then
     cmake --build build --target doc
     cmake --build build --target rtdoc
@@ -617,11 +652,16 @@ function build_sdk_rootfs()
         build_edge_package || { ret=$?; echo "Error: build_edge_package failed with exit code $ret"; return $ret; }
     fi
   fi
-
 }
 
 function build_sophon_media(){
   if [ ! -d "${TOP_DIR}/sophon_media" ]; then
+    #only for gerrit compile,not for github
+    mkdir -p ${SDK_DEBS}
+    for _pattern in "ffmpeg" "opencv" "gstreamer" "sample"; do
+        rm -f "${SDK_DEBS}"/sophon-media-soc-sophon-${_pattern}_*_arm64.deb*
+        wget -q -P "${SDK_DEBS}" "${SOPHON_MEDIA_URL}/sophon-media-soc-sophon-${_pattern}_*_arm64.deb"
+    done
     return 0
   fi
 
@@ -645,14 +685,25 @@ function build_sophon_media(){
     #source build/build_cmake.sh 630 soc
     GCC_V="630"
   fi
-  cmake -DPLATFORM=soc -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
+  local chip_name="bm1688"
+  case "${CHIP_ARCH}" in
+    84x6) chip_name="cv84x6" ;;
+    *)    chip_name="bm1688" ;;
+  esac
+  echo "===== build_sophon_media debug ====="
+  echo "CHIP_ARCH   = ${CHIP_ARCH}"
+  echo "chip_name   = ${chip_name}"
+  echo "PLATFORM    = soc"
+  echo "GCC_V       = ${GCC_V}"
+  echo "===================================="
+  cmake -DPLATFORM=soc -DCHIP_NAME="${chip_name}" -DGCC_VERSION=$GCC_V -DSUBTYPE=asic \
 	-DCMAKE_INSTALL_PREFIX=../install \
 	-DDEBUG=$MEDIA_DEBUG \
         -DCMAKE_BINARY_DIR=${TOP_DIR}/sophon_media/buildit \
-	-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ..
-  cmake --build . --target all -- -j`nproc`
-  cmake --build . --target sophon_sample
-  cmake --build . --target package
+	-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE .. || { ret=$?; echo "Error: build_sophon_media cmake configure failed with exit code $ret"; popd; return $ret; }
+  cmake --build . --target all -- -j`nproc` || { ret=$?; echo "Error: build_sophon_media cmake build all failed with exit code $ret"; popd; return $ret; }
+  cmake --build . --target sophon_sample || { ret=$?; echo "Error: build_sophon_media cmake build sophon_sample failed with exit code $ret"; popd; return $ret; }
+  cmake --build . --target package || { ret=$?; echo "Error: build_sophon_media cmake build package failed with exit code $ret"; popd; return $ret; }
   popd
 
   if [ -d "$TOP_DIR/buildroot" ]; then
@@ -735,8 +786,10 @@ function build_edge_sdk() {
   build_kernel || { ret=$?; echo "Error: build_kernel failed with exit code $ret"; return $ret; }
   build_osdrv || { ret=$?; echo "Error: build_osdrv failed with exit code $ret"; return $ret; }
   build_ramboot || { ret=$?; echo "Error: build_ramboot failed with exit code $ret"; return $ret; }
-  build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
-
+  if [[ "${CHIP_ARCH}" == "88a2" ]]; then
+  	build_v4l2_isp || { ret=$?; echo "Error: build_v4l2_isp failed with exit code $ret"; return $ret; }
+  	echo "84x6_dev do not execte  build_v4l2_isp "
+  fi
   if [ "${target}" == "regression" ]; then
     build_libsophon || { echo "Error: build_libsophon failed with exit code $?"; return $?; }
   else
@@ -754,7 +807,14 @@ function build_edge_sdk() {
 
 function build_edge_package(){
   cd ${TOP_DIR}
-  cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update.sh ${TOP_DIR}/build/scripts
+  # Route OTA update script by chip: 84x6 uses the SE13 yellow-led variant,
+  # others use the default red/green variant. Staged name stays ota_update.sh
+  # so downstream packaging (cp $SCRIPTS_DIR/ota_update.sh .) is unchanged.
+  if [[ "${CHIP_ARCH}" == "84x6" ]]; then
+    cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update_84x6.sh ${TOP_DIR}/build/scripts/ota_update.sh
+  else
+    cp ${TOP_DIR}/ubuntu/bootloader-arm64/scripts/ota_update_88a2.sh ${TOP_DIR}/build/scripts/ota_update.sh
+  fi
   build_package
 }
 
@@ -771,7 +831,9 @@ function clean_edge_all(){
   clean_kernel
   clean_osdrv
   clean_ramdisk
-  clean_v4l2_isp
+  if [[ "${CHIP_ARCH}" == "88a2" ]]; then
+    clean_v4l2_isp
+  fi
   cd ${TOP_DIR}
   clean_libsophon
   clean_bmsophon
@@ -794,7 +856,9 @@ function build_bmcpu()
 
   pushd "$BMCPU_PATH"/build || return "$?"
   rm -rf "$BMCPU_PATH"/build/*
-  cmake -DCMAKE_TOOLCHAIN_FILE=$BMCPU_PATH/riscv_linux.cmake -DPLATFORM=bm1688 ..
+  if [[ "${CHIP_ARCH}" == "84x6" ]]; then
+  cmake -DCMAKE_TOOLCHAIN_FILE=$BMCPU_PATH/riscv_linux.cmake -DPLATFORM=cv84x6 ..
+  fi
   make
   cp -f $BMCPU_PATH/build/app/bmcpu/bmcpu $RAMDISK_PATH/initramfs/glibc_riscv64/bin/bmcpu || return "$?"
   popd
@@ -847,8 +911,6 @@ function build_cvi_rtsp()
   _build_cvi_rtsp_env
 
   cd "$CVI_RTSP_PATH" || return
-  mkdir -p prebuilt
-  cp ${OSS_TARBALL_PATH}/live555.tar.gz prebuilt/
   BUILD_SERVICE=1 MW_DIR=${MW_PATH} ./build.sh
   test $? -ne 0 && print_notice "build_cvi_rtsp failed !!" && return 1
   BUILD_SERVICE=1 make install DESTDIR="$(pwd)/install"
@@ -898,16 +960,6 @@ function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
 
-  if [ -d "${OSS_PATH}/oss_release_tarball" ]; then
-    echo "oss prebuilt tarball found!"
-  else
-    echo "Try to download oss_release_tarball.tar tarball ..."
-    #wget ...
-    #tar -xvf ${OSS_PATH}/oss_release_tarball.tar -C ${OSS_PATH}
-  fi
-  echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
-  cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
-
   local oss_list=(
     "zlib"
     "glog"
@@ -939,14 +991,20 @@ function build_3rd_party()
   do
     if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
       echo "$name found"
-      "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
-        echo "$name successfully downloaded and untared."
     else
-      echo "$name not found"
+      echo "Try to download $name tarball ..."
+      wget ftp://swftp:cvitek@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/${name}.tar.gz \
+          -T 3 -t 3 -q -P ${OSS_TARBALL_PATH}
+      if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
+        "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+        echo "$name successfully downloaded and untared."
+      else
+        echo "No prebuilt tarball, build oss $name"
+        "$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
+      fi
     fi
   done
 }
-
 
 function clean_3rd_party()
 {
@@ -1172,6 +1230,22 @@ function revert_sdcard_package()
 	echo "revert_sdcard_package finished: $out"
 }
 
+function write_ota_chip_file()
+{
+	local dest="${1:?}"
+	local chip_name
+	case "${CHIP_ARCH}" in
+		88a2) chip_name="88a2" ;;
+		84x6|cv84x6) chip_name="cv84x6" ;;
+		*) chip_name="${CHIP_ARCH}" ;;
+	esac
+	if [ -z "$chip_name" ]; then
+		echo "error: CHIP_ARCH is empty, cannot write chip.txt" >&2
+		return 1
+	fi
+	echo "$chip_name" > "${dest}/chip.txt"
+}
+
 function rebuild_sdcard_package()
 {
 	local SCRIPTS_DIR="${TOP_DIR}/build/scripts/"
@@ -1266,6 +1340,11 @@ function rebuild_sdcard_package()
 			echo "warning: missing script $s in $SCRIPTS_DIR" >&2
 		fi
 	done
+	if ! write_ota_chip_file .; then
+		popd
+		popd
+		return 1
+	fi
 	if ! md5sum * > md5.txt 2>/dev/null; then
 		echo "error: md5sum failed in $pkg_dir/sdcard" >&2
 		popd
@@ -1317,8 +1396,11 @@ function build_update()
 		popd
 	fi
 	echo packing update image...
-
-	./bm_make_package_sectors.sh $UPDATE_TYPE ./partition32G_sector.xml "$OUTPUT_DIR"/package_edge
+	if grep -q '^CONFIG_AB_PARTITION=y' "${TOP_DIR}"/build/.config; then
+		./bm_make_package_sectors.sh $UPDATE_TYPE ./partition32G_sector_ab.xml "$OUTPUT_DIR"/package_edge
+	else
+		./bm_make_package_sectors.sh $UPDATE_TYPE ./partition32G_sector.xml "$OUTPUT_DIR"/package_edge
+	fi
 	popd
 
 	pushd $OUTPUT_DIR/package_edge/$1
@@ -1327,6 +1409,7 @@ function build_update()
 	cp $SCRIPTS_DIR/update_partition_gpt.sh .
 	cp $SCRIPTS_DIR/update_gpt .
 	cp $SCRIPTS_DIR/check_partition_start_sector.sh .
+	write_ota_chip_file . || { popd; return 1; }
 	md5sum * > md5.txt
 	popd
 
@@ -1338,6 +1421,15 @@ function gen_sd_image()
     _build_uboot_env
     echo "Using partition xml: $FLASH_PARTITION_XML"
     python ${TOP_DIR}/build/tools/common/image_tool/mk_sd_image.py $FLASH_PARTITION_XML $OUTPUT_DIR
+}
+
+function gen_emmc_image()
+{
+    _build_kernel_env
+    _build_uboot_env
+    echo "Using partition xml: $BUILD_PATH/scripts/partition32G_sector.xml"
+    cp $PACKAGE_OUTPUT_DIR/sdcard/gpt.gz $PACKAGE_OUTPUT_DIR
+    python ${TOP_DIR}/build/tools/common/image_tool/mk_emmc_firmware.py -x $BUILD_PATH/scripts/partition32G_sector.xml -o $PACKAGE_OUTPUT_DIR/emmc_firmware/emmc_master_image -d $PACKAGE_OUTPUT_DIR
 }
 
 function build_package()
@@ -1402,6 +1494,10 @@ function build_package()
 
     mkdir -p rootfs_rw/overlay/home/linaro
     mv "${EDGE_ROOTFS_DIR}"/home/linaro/* rootfs_rw/overlay/home/linaro
+    if [ "$(id -u)" = "0" ]; then
+        chown -R 1000:1000 rootfs_rw/overlay/home/linaro
+        chown -R 1000:1000 "${EDGE_ROOTFS_DIR}/home/linaro" 2>/dev/null || true
+    fi
 
     mkdir -p rootfs_rw/overlay/opt
     shopt -s nullglob
@@ -1797,10 +1893,12 @@ function cvi_setup_env()
   if [[ "$CHIP_ARCH" == "84x6" ]];then
   export  CVIARCH="84x6"
   fi
+
+  export BRAND BUILD_VERBOSE DEBUG PROJECT_FULLNAME BACKUP_TOP_DIR BACKUP_OUTPUT_DIR
   export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH
   export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH LIBSOPHON_PATH BMCPU_PATH
 
-  PROJECT_FULLNAME="$SIDE_TYPE"_"$BOARD"
+  PROJECT_FULLNAME="$SIDE_TYPE"_"${CHIP_ARCH}"_"$BOARD"
 
   # output folder path
   INSTALL_PATH="$TOP_DIR"/install
@@ -2030,14 +2128,12 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
-
+export FTP_SERVER_IP=${FTP_SERVER_IP:-10.80.0.5}
 # import common functions
 # shellcheck source=./common_functions.sh
 source "$TOP_DIR/build/common_functions.sh"
 source "$TOP_DIR/build/scripts/pack_rootfs_tar.sh"
 source "$TOP_DIR/build/scripts/pack_edge_rootfs.sh"
-export DISTRO_URL_BASE="${DISTRO_URL_BASE:-open@sophgo.com:/gemini-sdk/rootfs}"
-export FETCH_CMD="${FETCH_CMD:-dfss}"
 # shellcheck source=./release_functions.sh
 source "$TOP_DIR/build/release_functions.sh"
 # shellcheck source=./riscv_functions.sh
@@ -2046,6 +2142,16 @@ source "$TOP_DIR/build/riscv_functions.sh"
 source "$TOP_DIR/build/alios_functions.sh"
 # pack backdoor file for PLD env
 source "$TOP_DIR/build/pld_backdoor.sh"
+function pack_backdoor_88a2() { pack_backdoor "$@"; }
+source "$TOP_DIR/build/tools/cv84x6/pld_tools/pld_backdoor.sh"
+function pack_backdoor_84x6() { pack_backdoor "$@"; }
+function pack_backdoor() {
+  if [ "${CHIP_ARCH}" = "84x6" ]; then
+    pack_backdoor_84x6 "$@"
+  else
+    pack_backdoor_88a2 "$@"
+  fi
+}
 source "$TOP_DIR/build/deb_utils.sh"
 
 print_usage

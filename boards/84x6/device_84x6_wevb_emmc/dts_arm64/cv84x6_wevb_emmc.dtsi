@@ -1,0 +1,112 @@
+/ {
+	serial-number = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	thermal-zones {
+		soc_thermal_1: soc_thermal_1 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+			thermal-sensors = <&thermal 1>;
+
+			trips {
+				soc_thermal_crtical_1: soc_thermal_crtical_1 {
+					temperature = <125000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
+		soc_thermal_2: soc_thermal_2 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+			thermal-sensors = <&thermal 2>;
+
+			trips {
+				soc_thermal_crtical_2: soc_thermal_crtical_2 {
+					temperature = <125000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+	};
+};
+
+&emmc {
+	status = "okay";
+	bus-width = <8>;
+	non-removable;
+	no-sdio;
+	no-sd;
+	src-frequency = <400000000>;
+	min-frequency = <400000>;
+	max-frequency = <200000000>;
+	64_addressing;
+	reset_tx_rx_phy;
+};
+
+&sd {
+	compatible = "cvitek,cv84x6-sd";
+	status = "okay";
+	bus-width = <4>;
+	cap-sd-highspeed;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	no-sdio;
+	no-mmc;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_default>;
+	clocks = <&clk CV84X6_CLK_SD0>,
+		 <&clk CV84X6_CLK_SD0_100K>,
+		 <&clk CV84X6_CLK_AXI4_SD0>;
+	clock-names = "core", "100k", "axi";
+	src-frequency = <400000000>;
+	min-frequency = <200000>;
+	max-frequency = <200000000>;
+	64_addressing;
+	pwr-gpios = <&portc 2 GPIO_ACTIVE_HIGH>;
+};
+
+&sd1 {
+	compatible = "cvitek,cv84x6-sd1";
+	status = "okay";
+	bus-width = <4>;
+	cap-sd-highspeed;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	no-sdio;
+	no-mmc;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd1_default>;
+	clocks = <&clk CV84X6_CLK_SD1>,
+		 <&clk CV84X6_CLK_SD1_100K>,
+		 <&clk CV84X6_CLK_AXI4_SD1>;
+	clock-names = "core", "100k", "axi";
+	src-frequency = <400000000>;
+	min-frequency = <200000>;
+	max-frequency = <200000000>;
+	64_addressing;
+	pwr-gpios = <&portc 1 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_default>;
+
+	rtc@68 {
+		compatible = "dallas,ds1307";
+		reg = <0x68>;
+	};
+};

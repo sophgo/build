@@ -102,6 +102,9 @@ setup_debian_env() {
     export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
     export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
     export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
+
+    export SOPHLITEOS_URL="${SOPHLITEOS_URL:-ftp://AI:SophgoRelease2022@172.28.141.75/sophliteos/release_build/latest_release}"
+    export SOPHON_MEDIA_URL="${SOPHON_MEDIA_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/athena2/sophon_media/release_build/latest_release}"
 }
 
 fetch_debian_based_rootfs() {
@@ -245,6 +248,7 @@ pack_edge_rootfs() {
                 ;;
             *) echo "error, SIDE_TYPE should be 'device' or 'edge'." >&2;;
         esac
+        rm -f "${SDK_DEBS}"/sophon-soc-libsophon*.deb
         update_files_if_newer "sophon-soc-libsophon*.deb" "${TOP_DIR}/libsophon/build" "${SDK_DEBS}" || true
         shopt -u nullglob
 
@@ -310,6 +314,30 @@ EOT
         _rootfs_run "${EDGE_ROOTFS_DIR}" /bin/bash <<'EOT'
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
+mkdir -p /tmp/pack-bin
+cat > /tmp/pack-bin/systemctl << 'WRAP'
+#!/bin/sh
+real=/usr/bin/systemctl
+cmd=$1
+while [ -n "$cmd" ]; do
+  case "$cmd" in
+    --*) shift; cmd=$1; continue ;;
+  esac
+  break
+done
+case "$cmd" in
+  start|stop|restart|reload|try-restart|reload-or-restart|try-reload-or-restart|daemon-reload|daemon-reexec|isolate|kill|reset-failed|is-active|is-failed)
+    exit 0
+    ;;
+esac
+if [ -x "$real" ]; then
+  SYSTEMD_OFFLINE=1 exec "$real" "$@"
+fi
+exit 0
+WRAP
+chmod +x /tmp/pack-bin/systemctl
+export PATH="/tmp/pack-bin:${PATH}"
+export SYSTEMD_OFFLINE=1
 dpkg --configure -a >/tmp/dpkg_cfg_$$.out 2>&1
 _cfg_ret=$?
 if [ ${_cfg_ret} -ne 0 ]; then
@@ -317,6 +345,7 @@ if [ ${_cfg_ret} -ne 0 ]; then
     grep -E "error|Error|cannot|unable|dpkg:|dependency|broken" /tmp/dpkg_cfg_$$.out 2>/dev/null | head -20 | sed 's/^/    /'
     dpkg -l 2>/dev/null | awk '/^[^i][^iF ]/{next} $1=="iU"||$1=="iF"||$1=="hU"||$1=="hF"{print "    "$1" "$2}' | head -30
     rm -f /tmp/dpkg_cfg_$$.out
+    rm -rf /tmp/pack-bin
     exit 1
 fi
 rm -f /tmp/dpkg_cfg_$$.out
@@ -331,7 +360,8 @@ for deb_dir in /debs /home/linaro/debs; do
 done
 systemctl disable apt-daily.timer apt-daily-upgrade.timer
 systemctl disable apt-daily.service apt-daily-upgrade.service unattended-upgrades.service
-systemctl mask     unattended-upgrades.service apt-daily.service apt-daily-upgrade.service
+systemctl mask     unattended-upgrades.service apt-daily.service apt-daily-upgrade.service apt-daily.timer apt-daily-upgrade.timer
+rm -rf /tmp/pack-bin
 EOT
 
         echo "=== installed sdk/sophon packages in rootfs ==="
@@ -341,6 +371,7 @@ EOT
 
         if [ "$(id -u)" = "0" ]; then
             chown 1000:1000 -R "${EDGE_ROOTFS_DIR}/data" 2>/dev/null || true
+            chown 1000:1000 -R "${EDGE_ROOTFS_DIR}/home/linaro" 2>/dev/null || true
         fi
 
         echo "pack_edge_rootfs: done"

@@ -155,15 +155,20 @@ class ImagerBuilder(object):
 def main():
     args = parse_Args()
     xmlParser = XmlParser(args.xml)
-    install_dir = os.path.dirname(args.file_path)
-    parts = xmlParser.parse(install_dir)
+    parts = xmlParser.parse()
     storage = xmlParser.getStorage()
     tmp = TemporaryDirectory()
     imgBuilder = ImagerBuilder(storage, tmp.name)
     for p in parts:
-        # Since xml parser will parse with abspath and the user input path can
-        # be relative path, use file name to check.
         if os.path.basename(args.file_path) == p["file_name"]:
+            p["file_path"] = args.file_path
+            p["file_size"] = os.stat(args.file_path).st_size
+            if XmlParser.image_payload_size(args.file_path) > p["part_size"]:
+                logging.error(
+                    "Image: %s(%d) is larger than partition size(%d)"
+                    % (p["file_name"], p["file_size"], p["part_size"])
+                )
+                raise OverflowError
             if (
                 storage != "emmc"
                 and storage != "spinor"

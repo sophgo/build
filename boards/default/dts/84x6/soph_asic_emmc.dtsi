@@ -1,0 +1,11 @@
+&emmc {
+	status = "okay";
+};
+
+&sd {
+	status = "disable";
+};
+
+&sd1 {
+	status = "disable";
+};

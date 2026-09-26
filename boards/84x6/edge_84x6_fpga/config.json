@@ -1,0 +1,6 @@
+{
+    "ddr_cfg_list": [
+        "lp5x_2r_8533"
+    ],
+    "board_information": "fpga"
+}

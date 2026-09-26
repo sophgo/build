@@ -1,0 +1,42 @@
+/ {
+	memory@100000000 {
+		device_type = "memory";
+		reg = <0x10 0x00000000 0x6 0x00000000>;	//24G
+	};
+
+	reserved-memory {
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		ranges;
+#ifndef __UBOOT__
+		scalar_reserved: scalar_mem {
+			reg = <0x10 0x40000000 0x0 0x10000000>;	//256MB for TPU firmware
+			no-map;
+		};
+
+		scaler_shm_reserved: scaler_shm_mem {
+			reg = <0x10 0x50000000 0x0 0x00C00000>;	//12MB for TPU firmware
+			no-map;
+		};
+
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x8000000>; // 128MB
+			alignment = <0x0 0x2000>; // 8KB
+			alloc-ranges = <0x10 0x58000000 0x0 0x8000000>;
+			linux,cma-default;
+		};
+
+		ion_for_npu: ion_npu_mem {
+			compatible = "npu-region";
+			reg = <0x12 0x00000000 0x0 0xC0000000>; // 3G, for npu
+		};
+
+		ion_for_vpp: ion_vpp_mem {
+			compatible = "vpp-region";
+			reg = <0x13 0x00400000 0x1 0xFFC00000>; // ~8G, for vpp
+		};
+#endif
+	};
+};

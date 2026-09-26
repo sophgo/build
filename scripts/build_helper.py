@@ -77,35 +77,92 @@ def init_logging(log_file=None, file_level="DEBUG", stdout_level="WARNING"):
         )
 
 
+def get_isp_tuning_arch_alias():
+    return {
+        "sophon": "88a2",
+    }
+
+
+def map_isp_tuning_arch_to_board_arch(isp_tuning_arch):
+    return get_isp_tuning_arch_alias().get(isp_tuning_arch.lower(), isp_tuning_arch)
+
+
+def map_board_arch_to_isp_tuning_arch(board_arch):
+    alias = {v: k for k, v in get_isp_tuning_arch_alias().items()}
+    return alias.get(board_arch.lower(), board_arch)
+
+
 def get_segment_from_chip(chip):
     with open(CHIP_LIST_PATH, "r", encoding="utf-8") as fp:
         din = json.load(fp)
 
-    for arch, segments in din.items():
-        for chips, seg in segments.items():
-            if chip in chips:
-                return chip
-
+    if 'architectures' in din:
+        for arch, arch_info in din['architectures'].items():
+            if 'chips' in arch_info and chip in arch_info['chips']:
+                logging.debug("Found chip %s in architecture %s", chip, arch)
+                return arch
+    
+    logging.error("Chip %s not found in any architecture in chip_list.json", chip)
     raise IndexError("%s is not in chip_list.json" % chip)
 
 
 def get_chip_list():
     with open(CHIP_LIST_PATH, "r", encoding="utf-8") as fp:
         din = json.load(fp)
+    
+    all_chips_set = {chip for arch_info in din['architectures'].values() for chip in arch_info['chips']}
+    all_chips_list = list(all_chips_set)
+    
+    return all_chips_list
 
-    chips = {}
-    for arch, segments in din.items():
-        chips[arch] = list(segments.keys())
-
-    return chips
-
-def get_side_list():
+def get_api_type_list():
     with open(CHIP_LIST_PATH, "r", encoding="utf-8") as fp:
         din = json.load(fp)
+    
+    all_apis_set = {api for arch_info in din['architectures'].values() for api in arch_info['apis']}
+    all_apis_list = list(all_apis_set)
+    
+    return all_apis_list
 
-    chips = {}
-    for arch, segments in din.items():
-        chips[arch] = [j for i in segments.values() for j in i]
+def get_chip_arch_list():
+    with open(CHIP_LIST_PATH, "r", encoding="utf-8") as fp:
+        din = json.load(fp)
+    
+    chip_arch_dict = list(din['architectures'].keys())
+    
+    return chip_arch_dict
 
-    return chips
+def get_arch_api_dict():
 
+    with open(CHIP_LIST_PATH, "r", encoding="utf-8") as fp:
+        din = json.load(fp)
+    
+    arch_api_dict = {}
+    if 'architectures' in din:
+        for arch, arch_info in din['architectures'].items():
+            if 'apis' in arch_info:
+                arch_api_dict[arch] = arch_info['apis']
+            else:
+                arch_api_dict[arch] = []
+                logging.warning(f"Architecture {arch} does not have 'apis' key.")
+    else:
+        logging.error("'architectures' key not found in JSON structure.")
+    
+    return arch_api_dict
+
+def get_arch_chip_dict():
+    with open(CHIP_LIST_PATH, "r", encoding="utf-8") as fp:
+        din = json.load(fp)
+    
+    arch_chip_dict = {} 
+    if 'architectures' in din:
+        for arch, arch_info in din['architectures'].items():
+            if 'chips' in arch_info:
+                arch_chip_dict[arch] = arch_info['chips'] 
+            else:
+                arch_chip_dict[arch] = [] 
+                logging.warning(f"Architecture {arch} does not have 'chips' key.")
+    else:
+        logging.error("'architectures' key not found in JSON structure.")
+    
+    return arch_chip_dict

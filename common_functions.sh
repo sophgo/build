@@ -354,6 +354,8 @@ function _call_kconfig_script()
   shift
 
   print_notice "Run ${script} function"
+  "${BUILD_PATH}/scripts/gen_sensor_config.py" || return $?
+  "${BUILD_PATH}/scripts/gen_panel_config.py" || return $?
   (
     set -e
     cd "$BUILD_PATH" || return

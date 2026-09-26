@@ -1,0 +1,7 @@
+int cvi_board_init(void)
+{
+	PINMUX_CONFIG(SD1_CD_X, SD1_CD_X, G3);
+	PINMUX_CONFIG(SD1_PWR_EN, SD1_PWR_EN, G3);
+	PINMUX_CONFIG(IIC3_SDA, GPIO65, G3);
+	return 0;
+}
