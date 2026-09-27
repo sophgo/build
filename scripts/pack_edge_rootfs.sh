@@ -84,7 +84,6 @@ setup_debian_env() {
     export EDGE_ROOTFS_DIR=${ROOT_TOP_DIR}/install/soc_${CVIARCH}/rootfs
     export DISTRO_OVERLAY_DIR="${TOP_DIR}"/ubuntu/bootloader-arm64/distro/overlay
 
-    export DISTRO_URL_BASE="${DISTRO_URL_BASE:-ftp://AI:SophgoRelease2022@172.28.141.89/distro}"
     export FETCH_CMD="${FETCH_CMD:-wget}"
 
     if [ "$DISTRO" = "debian" ] || [ "$DISTRO" = "bookworm" ]; then
@@ -96,15 +95,13 @@ setup_debian_env() {
             "focal") export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf";;
             "jammy") export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58";;
         esac
-        export DISTRO_URL="${DISTRO_URL_BASE}/distro_${DISTRO}_${DISTRO_MD5}.tgz"
+        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/${DISTRO}_${DISTRO_MD5}.tgz"
+        export FETCH_CMD="dfss"
     fi
 
     export BSP_DEBS=${ROOT_OUT_DIR}/bsp-debs
     export SDK_DEBS=${ROOT_OUT_DIR}/sdk-debs
     export MOD_DEBS=${ROOT_OUT_DIR}/mod-debs
-
-    export SOPHLITEOS_URL="${SOPHLITEOS_URL:-ftp://AI:SophgoRelease2022@172.28.141.75/sophliteos/release_build/latest_release}"
-    export SOPHON_MEDIA_URL="${SOPHON_MEDIA_URL:-ftp://AI:SophgoRelease2022@172.28.141.89/athena2/sophon_media/release_build/latest_release}"
 }
 
 fetch_debian_based_rootfs() {
@@ -126,6 +123,7 @@ fetch_debian_based_rootfs() {
         local download_dir="${TOP_DIR}/ubuntu/distro"
         local file_path="${download_dir}/distro_${DISTRO}.tgz"
         mkdir -p "$download_dir"
+        cd "$download_dir"
 
         download_and_verify_file "$DISTRO_URL" "$file_path" "$DISTRO_MD5" "$FETCH_CMD" || return 1
         _extract_rootfs_tar "$file_path" "$staging" || return 1

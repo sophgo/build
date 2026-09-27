@@ -313,31 +313,9 @@ function clean_v4l2_isp()
 	export V4L2_ISP_ENABLE=0
 }
 
-# 设置sophon-sdk信息
-function get_bm_sdk_info {
-    bm_root_dir=${bm_root_dir:-ftp://172.28.141.89/athena2}
-    bm_user_name=AI
-    bm_user_psword=SophgoRelease2022
-    bm_date_ID=latest_release
-    bm_sdk_name=tpu_kernel
-    bm_chip_name=$1
-    bm_build_type=$2
-}
-
 # 拉取解压sophon-sdk
 function build_bm1686_sdk {
-    # bm1686 tpu_kernel
-    get_bm_sdk_info 1686 daily_build
-    tpu_kernel_file_name=tpu-kernel-tpulv6_v*.tar.gz
-    tpu_kernel_full_path=$bm_root_dir/tpu-kernel/$bm_build_type/$bm_date_ID/$tpu_kernel_file_name
-
-    echo "Try to download ${tpu_kernel_file_name} ..."
-    wget -P ${TPU_SDK_PATH} ${tpu_kernel_full_path} --ftp-user $bm_user_name --ftp-password $bm_user_psword -q
-    mkdir -p ${TPU_SDK_PATH}/
-    tar -xzf ${TPU_SDK_PATH}/$tpu_kernel_file_name -C ${TPU_SDK_PATH}/ --strip-components 1
-    echo "Extract"
-
-    rm -rf ${TPU_SDK_PATH}/${tpu_kernel_file_name}
+    echo "build_bm1686_sdk"
 }
 function clean_bm1686_sdk {
 	rm -rf ${TPU_SDK_PATH}
@@ -656,12 +634,6 @@ function build_sdk_rootfs()
 
 function build_sophon_media(){
   if [ ! -d "${TOP_DIR}/sophon_media" ]; then
-    #only for gerrit compile,not for github
-    mkdir -p ${SDK_DEBS}
-    for _pattern in "ffmpeg" "opencv" "gstreamer" "sample"; do
-        rm -f "${SDK_DEBS}"/sophon-media-soc-sophon-${_pattern}_*_arm64.deb*
-        wget -q -P "${SDK_DEBS}" "${SOPHON_MEDIA_URL}/sophon-media-soc-sophon-${_pattern}_*_arm64.deb"
-    done
     return 0
   fi
 
@@ -911,6 +883,8 @@ function build_cvi_rtsp()
   _build_cvi_rtsp_env
 
   cd "$CVI_RTSP_PATH" || return
+  mkdir -p prebuilt
+  cp ${OSS_TARBALL_PATH}/live555.tar.gz prebuilt/
   BUILD_SERVICE=1 MW_DIR=${MW_PATH} ./build.sh
   test $? -ne 0 && print_notice "build_cvi_rtsp failed !!" && return 1
   BUILD_SERVICE=1 make install DESTDIR="$(pwd)/install"
@@ -960,6 +934,16 @@ function build_3rd_party()
 {
   mkdir -p "$OSS_TARBALL_PATH"
 
+  if [ -d "${OSS_PATH}/oss_release_tarball" ]; then
+    echo "oss prebuilt tarball found!"
+  else
+    echo "Try to download oss_release_tarball.tar tarball ..."
+    #wget ...
+    #tar -xvf ${OSS_PATH}/oss_release_tarball.tar -C ${OSS_PATH}
+  fi
+  echo "cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}"
+  cp -rpf ${OSS_PATH}/oss_release_tarball/${SDK_VER}/*  ${OSS_TARBALL_PATH}
+
   local oss_list=(
     "zlib"
     "glog"
@@ -991,17 +975,10 @@ function build_3rd_party()
   do
     if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
       echo "$name found"
-    else
-      echo "Try to download $name tarball ..."
-      wget ftp://swftp:cvitek@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/${name}.tar.gz \
-          -T 3 -t 3 -q -P ${OSS_TARBALL_PATH}
-      if [ -f "${OSS_TARBALL_PATH}/${name}.tar.gz" ]; then
-        "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
+      "$OSS_PATH"/run_build.sh -n "$name" -e -t "$OSS_TARBALL_PATH" -i "$TPU_SDK_INSTALL_PATH"
         echo "$name successfully downloaded and untared."
-      else
-        echo "No prebuilt tarball, build oss $name"
-        "$OSS_PATH"/run_build.sh -n "$name" -t "$OSS_TARBALL_PATH" -r "$SYSROOT_PATH" -s "$SDK_VER"
-      fi
+    else
+      echo "$name not found"
     fi
   done
 }
@@ -2128,7 +2105,6 @@ export TOP_DIR BUILD_PATH SOC_LINUX_HEADER_DIR KERNEL_HEADER_FILE
 "${BUILD_PATH}/scripts/boards_scan.py" --gen-build-kconfig
 "${BUILD_PATH}/scripts/gen_sensor_config.py"
 "${BUILD_PATH}/scripts/gen_panel_config.py"
-export FTP_SERVER_IP=${FTP_SERVER_IP:-10.80.0.5}
 # import common functions
 # shellcheck source=./common_functions.sh
 source "$TOP_DIR/build/common_functions.sh"
