@@ -95,7 +95,7 @@ setup_debian_env() {
             "focal") export DISTRO_MD5="f93ebbaa47adb3231aef80661e9d01bf";;
             "jammy") export DISTRO_MD5="c6d415287309d0f61f05186621e5bb58";;
         esac
-        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/${DISTRO}_${DISTRO_MD5}.tgz"
+        export DISTRO_URL="open@sophgo.com:/gemini-sdk/rootfs/distro_${DISTRO}_${DISTRO_MD5}.tgz"
         export FETCH_CMD="dfss"
     fi
 
