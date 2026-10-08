@@ -1543,8 +1543,6 @@
 		compatible = "cvitek,cv84x2-dvfs";
 		clocks = <&clk CV84X6_CLK_AP_CA55>, <&clk CV84X6_CLK_TPU_SYS>;
 		clock-names = "cpu", "tpu";
-		/* MPS MP2985B PMIC, PMBus I2C slave 0x20 */
-		pmic-addr = <0x20>;
 		/* PMBus PAGE: 0=CPU, 1=TPU  */
 		cpu-rail-page = <0>;
 		tpu-rail-page = <1>;
@@ -1554,6 +1552,10 @@
 		tpu-volt-min-mv = <600>;
 		tpu-volt-max-mv = <1200>;
 		status = "okay";
+
+		pmic {
+			reg = <0x20>;	/* default: sm13/evb (JWH63782/MP2985B) */
+		};
 	};
 };
 

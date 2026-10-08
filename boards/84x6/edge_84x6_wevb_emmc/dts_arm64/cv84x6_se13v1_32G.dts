@@ -131,3 +131,9 @@
 	pinctrl-0 = <&pwm4_default>;
 };
 
+&cv84x2_dvfs {
+	pmic {
+		reg = <0x00>;	/* SE13: JWH PMIC @ 0x00 */
+	};
+};
+
