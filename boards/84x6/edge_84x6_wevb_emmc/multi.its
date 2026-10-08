@@ -126,6 +126,39 @@
 				algo = "sha256";
 			};
 		};
+
+		fdt-cv84x6_se13v1_64G {
+			description = "cvitek device tree - cv84x6_se13v1_64G";
+			data = /incbin/("./cv84x6_se13v1_64G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv84x6_sm13v1_64G {
+			description = "cvitek device tree - cv84x6_sm13v1_64G";
+			data = /incbin/("./cv84x6_sm13v1_64G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt-cv84x6_wevb_emmc_64G {
+			description = "cvitek device tree - cv84x6_wevb_emmc_64G";
+			data = /incbin/("./cv84x6_wevb_emmc_64G.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
 	};
 
 	configurations {
@@ -186,6 +219,27 @@
 			kernel = "kernel-1";
 			ramdisk = "ramdisk-1";
 			fdt = "fdt-cv84x6_sm13v1_32G";
+		};
+
+		config-cv84x6_se13v1_64G {
+			description = "boot cvitek system with board cv84x6_se13v1_64G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv84x6_se13v1_64G";
+		};
+
+		config-cv84x6_sm13v1_64G {
+			description = "boot cvitek system with board cv84x6_sm13v1_64G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv84x6_sm13v1_64G";
+		};
+
+		config-cv84x6_wevb_emmc_64G {
+			description = "boot cvitek system with board cv84x6_wevb_emmc_64G";
+			kernel = "kernel-1";
+			ramdisk = "ramdisk-1";
+			fdt = "fdt-cv84x6_wevb_emmc_64G";
 		};
 	};
 };
