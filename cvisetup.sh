@@ -6,7 +6,7 @@ function _build_default_env()
   DEBUG=${DEBUG:-0}
   RELEASE_VERSION=${RELEASE_VERSION:-0}
   BUILD_VERBOSE=${BUILD_VERBOSE:-1}
-  ATF_BL32=${ATF_BL32:-1}
+  ATF_BL32=${ATF_BL32:-0}
   UBOOT_VBOOT=${UBOOT_VBOOT:-0}
   COMPRESSOR=${COMPRESSOR:-xz}
   COMPRESSOR_UBOOT=${COMPRESSOR_UBOOT:-lzma} # or none to disable
@@ -73,8 +73,10 @@ function _build_atf_env()
 function build_atf()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
+  _build_uboot_env
   _build_atf_env
   cd "$BUILD_PATH" || return
+  make u-boot-build || return "$?"
   make arm-trusted-firmware
 )}
 
@@ -91,7 +93,7 @@ function _build_uboot_env()
   _build_atf_env
   _build_fsbl_env
   export UBOOT_OUTPUT_FOLDER IMGTOOL_PATH FLASH_PARTITION_XML FIP_BIN_PATH
-  export UBOOT_VBOOT RELEASE_VERSION ENABLE_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT
+  export UBOOT_VBOOT RELEASE_VERSION ENABLE_BOOTLOGO STORAGE_TYPE COMPRESSOR_UBOOT KERNEL_BOOT_TYPE
   export PANEL_TUNING_PARAM PANEL_LANE_NUM_TUNING_PARAM PANEL_LANE_SWAP_TUNING_PARAM
 }
 
@@ -168,6 +170,7 @@ function build_uboot()
   print_notice "Run ${FUNCNAME[0]}() function"
   _build_uboot_env
   _build_opensbi_env
+  _build_atf_env
   _link_uboot_logo
 
   cd "$BUILD_PATH" || return
@@ -175,7 +178,8 @@ function build_uboot()
     cp -f "$OUTPUT_DIR"/fip_pre/fip_pre_${ATF_KEY_SEL}.bin \
     "$OUTPUT_DIR"/fip_pre/fip_pre.bin
 
-  make u-boot
+  make u-boot-build || return "$?"
+  make arm-trusted-firmware
 )}
 
 function build_uboot_env_tools()
@@ -398,6 +402,11 @@ function build_update()
 
   pushd $OUTPUT_DIR/package_edge/$1
   cp $SCRIPTS_DIR/local_update.sh .
+  case "${CHIP_ARCH}" in
+    88a2) echo "88a2" > chip.txt ;;
+    84x6|cv84x6) echo "cv84x6" > chip.txt ;;
+    *) echo "${CHIP_ARCH}" > chip.txt ;;
+  esac
   md5sum * > md5.txt
   popd
 
@@ -426,6 +435,7 @@ function build_device_all()
 function clean_all()
 {
   clean_uboot
+  clean_atf
   clean_kernel
   clean_ramdisk
   clean_middleware
@@ -515,7 +525,7 @@ function cvi_setup_env()
   export OUTPUT_DIR ATF_PATH BM_BLD_PATH OPENSBI_PATH UBOOT_PATH FREERTOS_PATH
   export KERNEL_PATH RAMDISK_PATH OSDRV_PATH TOOLS_PATH COMMON_TOOLS_PATH
 
-  PROJECT_FULLNAME="$CHIP"_"$BOARD"
+  PROJECT_FULLNAME="$SIDE_TYPE"_"$BOARD"
 
   # output folder path
   INSTALL_PATH="$TOP_DIR"/install
@@ -525,7 +535,7 @@ function cvi_setup_env()
 
   # source file folders
   FSBL_PATH="$TOP_DIR"/fsbl
-  ATF_PATH="$TOP_DIR"/arm-trusted-firmware
+  ATF_PATH="$TOP_DIR"/trusted-firmware-a
   UBOOT_PATH="$TOP_DIR/$UBOOT_SRC"
   FREERTOS_PATH="$TOP_DIR"/freertos
   ALIOS_PATH="$TOP_DIR"/alios
@@ -548,7 +558,7 @@ function cvi_setup_env()
   IPC_APP_PATH="$TOP_DIR"/framework/applications/ipc
   AI_SDK_PATH="$TOP_DIR"/tdl_sdk
   CVI_PIPELINE_PATH="$TOP_DIR"/cvi_pipeline
-  OPENSBI_PATH="$TOP_DIR"/opensbi
+  OPENSBI_PATH="$TOP_DIR"/opensbi-common
   TOOLS_PATH="$BUILD_PATH"/tools
   COMMON_TOOLS_PATH="$TOOLS_PATH"/common
   VENC_PATH="$MW_PATH"/modules/venc
@@ -674,7 +684,7 @@ function print_usage()
   "${BUILD_PATH}/scripts/boards_scan.py" --list-chip-arch
   printf "        ex: $ defconfig sophon\n\n"
   printf "    (3)\33[92m defconfig \$BOARD\33[0m - Choose EVB board settings.\n"
-  printf "        ex: $ defconfig cv186ah_wevb_emmc\n"
+  printf "        ex: $ defconfig device_wevb_emmc\n"
   printf "  -------------------------------------------------------------------------------------------------------\n"
 }
 

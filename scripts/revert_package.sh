@@ -5,9 +5,7 @@ CHUNK_SIZE=200704
 
 
 function suser() {
-	sudo -k || panic "failed to kill superuser privilege"
-	sudo -v || panic "failed to get superuser privilege"
-
+	true
 }
 
 function revert_system() {
@@ -37,14 +35,58 @@ function revert_system() {
 		rm -rf $tmp_path
 	fi
 	mkdir $tmp_path
-	sudo mount $output_file $tmp_path
-	pushd $tmp_path
-	sudo tar zcvSf ../$name.tgz *
-	popd
-	sudo sync
-	sudo umount $tmp_path
-    sleep 3
-    sudo rm -rf $tmp_path
+
+	REVERT_TMP="$(pwd)/$tmp_path" REVERT_OUT="$(pwd)/$output_file" \
+	REVERT_NAME="$name" fakeroot -- bash -c '
+		_extract_mcopy() { mcopy -i "$2" -s -n ::/ "$1" 2>/dev/null; }
+		fs=$(file -b "$REVERT_OUT")
+		echo "  fs: $fs" >&2
+		case "$fs" in
+			*FAT*)
+				_extract_mcopy "$REVERT_TMP" "$REVERT_OUT"
+				;;
+			*ext[234]*)
+				debugfs -R "rdump / $REVERT_TMP" "$REVERT_OUT" 2>/dev/null
+				find "$REVERT_TMP" -mindepth 1 \( -type f -o -type d \) -printf "stat /%P\n" \
+				| debugfs -f /dev/stdin "$REVERT_OUT" 2>/dev/null | {
+					p=""
+					while IFS= read -r line; do
+						case "$line" in
+							"debugfs: stat "*)
+								p="${line#"debugfs: stat "}"
+								;;
+							*"Mode:"*)
+								m="${line#*Mode:}"
+								m="${m#"${m%%[![:space:]]*}"}"
+								m="${m%%[!0-7]*}"
+								if [ -n "$m" ] && [ -n "$p" ]; then
+									chmod "$m" "$REVERT_TMP/$p" 2>/dev/null
+								fi
+								;;
+						esac
+					done
+				}
+				;;
+			*)
+				echo "  unrecognized fs, trying mcopy then debugfs" >&2
+				_extract_mcopy "$REVERT_TMP" "$REVERT_OUT"
+				;;
+		esac
+		if [ -z "$(ls -A "$REVERT_TMP" 2>/dev/null)" ]; then
+			echo "  primary tool empty, trying fallback" >&2
+			debugfs -R "rdump / $REVERT_TMP" "$REVERT_OUT" 2>/dev/null
+			[ -z "$(ls -A "$REVERT_TMP" 2>/dev/null)" ] && _extract_mcopy "$REVERT_TMP" "$REVERT_OUT"
+		fi
+		_cnt=$(ls -A "$REVERT_TMP" 2>/dev/null | wc -l)
+		echo "  extracted entries: $_cnt" >&2
+		if [ "$_cnt" -gt 0 ]; then
+			( cd "$REVERT_TMP" && shopt -s nullglob dotglob && tar --numeric-owner -zcf "../$REVERT_NAME.tgz" * )
+		else
+			echo "  WARNING: $REVERT_OUT extracted nothing, producing empty tgz" >&2
+			tar --numeric-owner -zcf "../$REVERT_NAME.tgz" -T /dev/null
+		fi
+	'
+	rm -rf $tmp_path
 }
 
 echo "Start"
@@ -52,10 +94,13 @@ if [ $# -lt 1   ] ; then
     echo "./revert_package.sh system"
     exit -1
 fi
+for c in file mcopy debugfs fakeroot dd tar gzip; do
+	command -v "$c" >/dev/null 2>&1 || { echo "ERROR: missing command: $c" >&2; exit 1; }
+done
 suser
 for arg in $*
 do
-  echo "arg: $index = $arg"
+  echo "arg: $arg"
   revert_system "$arg"
 
 done

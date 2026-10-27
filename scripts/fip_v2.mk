@@ -2,6 +2,11 @@ opensbi: export CROSS_COMPILE=$(CONFIG_CROSS_COMPILE_SDK)
 opensbi: u-boot-build
 	$(call print_target)
 	${Q}$(MAKE) -j${NPROC} -C ${OPENSBI_PATH} PLATFORM=generic \
+	    PLATFORM_DEFCONFIG=defconfig_sophgo_tc906 \
+	    CHIP=${CHIP} \
+	    KERNEL_ENTRY_HACK_ADDR=$(CONFIG_KERNEL_ENTRY_HACK_ADDR) \
+	    KERNEL_ENTRY_HACK_ADDR_H="$(CONFIG_KERNEL_ENTRY_HACK_ADDR_H)" \
+	    CC_SUPPORT_VECTOR=n \
 	    FW_PAYLOAD_PATH=${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/u-boot-raw.bin \
 	    FW_FDT_PATH=${UBOOT_PATH}/${UBOOT_OUTPUT_FOLDER}/arch/riscv/dts/${CHIP}_${BOARD}.dtb
 
@@ -10,6 +15,11 @@ opensbi-clean:
 	${Q}$(MAKE) -C ${OPENSBI_PATH} PLATFORM=generic distclean
 
 FSBL_OUTPUT_PATH = ${FSBL_PATH}/build/${PROJECT_FULLNAME}
+
+#FSBL_AVAILABLE := $(if $(wildcard ${FSBL_PATH}/.),y,) 
+FSBL_AVAILABLE :=
+
+ifeq (${FSBL_AVAILABLE},y)
 ifeq ($(call qstrip,${CONFIG_ARCH}),riscv)
 fsbl-build: opensbi
 endif
@@ -27,6 +37,48 @@ fsbl%: export RTOS_FAST_IMAGE_TYPE=${CONFIG_FAST_IMAGE_TYPE}
 fsbl%: export RTOS_ENABLE_FREERTOS=${CONFIG_ENABLE_FREERTOS}
 endif
 fsbl%: export FSBL_SECURE_BOOT_SUPPORT=${CONFIG_FSBL_SECURE_BOOT_SUPPORT}
+# PCIe configuration for 84x6 (driven by build Kconfig "PCIe settings",
+# see boards/84x6/<board>/<board>_defconfig)
+ifeq ($(call qstrip,${CONFIG_CHIP_ARCH_84x6}),y)
+fsbl%: export CONFIG_IGNORE_PCIE_TRAP:=${CONFIG_FSBL_IGNORE_PCIE_TRAP}
+fsbl%: export CONFIG_SSMODE:=${CONFIG_FSBL_PCIE_SSMODE}
+
+# Controller 0
+ifdef CONFIG_FSBL_PCIE_CTRL0_DISABLED
+fsbl%: export CONFIG_PCIE_CTRL0_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL0_RC
+fsbl%: export CONFIG_PCIE_CTRL0_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL0_EP
+fsbl%: export CONFIG_PCIE_CTRL0_MODE_EP=y
+endif
+
+# Controller 1
+ifdef CONFIG_FSBL_PCIE_CTRL1_DISABLED
+fsbl%: export CONFIG_PCIE_CTRL1_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL1_RC
+fsbl%: export CONFIG_PCIE_CTRL1_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL1_EP
+fsbl%: export CONFIG_PCIE_CTRL1_MODE_EP=y
+endif
+
+# Controller 2
+ifdef CONFIG_FSBL_PCIE_CTRL2_DISABLED
+fsbl%: export CONFIG_PCIE_CTRL2_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL2_RC
+fsbl%: export CONFIG_PCIE_CTRL2_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL2_EP
+fsbl%: export CONFIG_PCIE_CTRL2_MODE_EP=y
+endif
+
+# Controller 3
+ifdef CONFIG_FSBL_PCIE_CTRL3_DISABLED
+fsbl%: export CONFIG_PCIE_CTRL3_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL3_RC
+fsbl%: export CONFIG_PCIE_CTRL3_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL3_EP
+fsbl%: export CONFIG_PCIE_CTRL3_MODE_EP=y
+endif
+endif
 fsbl%: export ARCH=$(call qstrip,${CONFIG_ARCH})
 fsbl%: export OD_CLK_SEL=${CONFIG_OD_CLK_SEL}
 fsbl%: export VC_CLK_OVERDRIVE=${CONFIG_VC_CLK_OVERDRIVE}
@@ -47,9 +99,9 @@ else
 	${Q}cp ${FSBL_OUTPUT_PATH}/fip.bin ${OUTPUT_DIR}/fip_spl.bin
 endif
 
-fsbl-clean: rtos-clean 
+fsbl-clean: rtos-clean
 	$(call print_target)
-	${Q}$(MAKE) -C ${FSBL_PATH} clean O=${FSBL_OUTPUT_PATH}
+	${Q}$(MAKE) -C ${FSBL_PATH} ${SPD_MAKE_OPT} clean O=${FSBL_OUTPUT_PATH}
 
 u-boot-dep: fsbl-build ${OUTPUT_DIR}/elf
 	$(call print_target)
@@ -58,7 +110,23 @@ ifeq ($(call qstrip,${CONFIG_ARCH}),riscv)
 	${Q}cp ${OPENSBI_PATH}/build/platform/generic/firmware/fw_payload.elf ${OUTPUT_DIR}/elf/fw_payload_uboot.elf
 endif
 
+u-boot-clean: fsbl-clean
+
+else
+
+fsbl-build:
+	$(call print_target)
+	@echo "FSBL not available at ${FSBL_PATH}, skip fsbl-build"
+
+fsbl-clean:
+	$(call print_target)
+	@echo "FSBL not available at ${FSBL_PATH}, skip fsbl-clean"
+
+u-boot-dep: ${OUTPUT_DIR}/elf
+	$(call print_target)
+
+endif
+
 ifeq ($(call qstrip,${CONFIG_ARCH}),riscv)
 u-boot-clean: opensbi-clean
 endif
-u-boot-clean: fsbl-clean

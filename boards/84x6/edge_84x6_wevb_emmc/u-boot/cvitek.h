@@ -1,0 +1,1 @@
+../../../default/u-boot/cvitek_cv84x6.h

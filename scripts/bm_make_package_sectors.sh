@@ -41,6 +41,10 @@ ERASE_PARTITION=false
 
 SOURCE_FILES_PATH=
 
+EXT4_MKFS_OPTS="-O none,has_journal,extent,huge_file,flex_bg,dir_nlink,extra_isize,sparse_super,resize_inode,filetype -E resize=128G"
+
+
+
 
 
 # help function
@@ -72,7 +76,7 @@ function cleanup()
 			rm -f $RECOVERY_DIR/${LABELS[$i]}
 		fi
 		if mountpoint -q $RECOVERY_DIR/$MOUNT_DIR-$i; then
-			sudo umount $RECOVERY_DIR/$MOUNT_DIR-$i
+			umount $RECOVERY_DIR/$MOUNT_DIR-$i
 		fi
 		rm -rf $RECOVERY_DIR/$MOUNT_DIR-*
 	done
@@ -120,8 +124,8 @@ function gzip_validate()
 function suser() {
 	echo
 	echo To continue, superuser credentials are required.
-	sudo -k || panic "failed to kill superuser privilege"
-	sudo -v || panic "failed to get superuser privilege"
+	# running rootless inside unshare -rm user+mount namespace (already root)
+	true
 }
 
 function compute_round_quotient()
@@ -528,6 +532,13 @@ function split_and_compress_img()
 		return
 	fi
 
+	if [ "${PART_FORMAT[${part_number}]}" = "2" ]; then
+		e2fsck -f -p "${part_name}" >/dev/null 2>&1 || true
+		if resize2fs -M "${part_name}" >/dev/null 2>&1; then
+			e2fsck -f -p "${part_name}" >/dev/null 2>&1 || true
+		fi
+	fi
+
 	size=$(du -b ${part_name} | awk '{print $1}')
 	size=$(expr \( ${size} + ${SECTOR_BYTES} - 1 \) / ${SECTOR_BYTES})
 	limit=$(compute_round_quotient ${size} ${chunk_size})
@@ -556,6 +567,72 @@ function split_and_compress_img()
 	create_partition_script_done
 }
 
+_fat_image_size_kb() {
+	local popdir="$1" part_kb="$2"
+	local need_kb
+	need_kb=$(du -sk "$popdir" | awk '{print $1}')
+	need_kb=$(expr ${need_kb} + 16384)
+	if [ "${need_kb}" -lt 8192 ]; then
+		need_kb=8192
+	fi
+	if [ "${need_kb}" -gt "${part_kb}" ]; then
+		need_kb=${part_kb}
+	fi
+	echo "${need_kb}"
+}
+
+_ext4_max_size_kb_for_part() {
+	local part_idx="$1"
+	echo "${PART_SIZE_IN_KB[$part_idx]}"
+}
+
+_ext4_size_kb_for_popdir() {
+	local popdir="$1" max_kb="$2"
+	local alloc_blocks meta_blocks blocks_4k size_kb
+
+	alloc_blocks=$(find "$popdir" -type f -printf '%s\n' 2>/dev/null | awk '{s+=int(($1+4095)/4096)} END{print s+0}')
+	meta_blocks=$(find "$popdir" \( -type d -o -type l \) 2>/dev/null | wc -l)
+	blocks_4k=$(( alloc_blocks + meta_blocks * 2 + 131072 ))
+	blocks_4k=$(( blocks_4k + alloc_blocks / 8 + 65536 ))
+	size_kb=$(( blocks_4k * 4 ))
+	if [ "${size_kb}" -lt 32768 ]; then
+		size_kb=32768
+	fi
+	if [ -n "${max_kb}" ] && [ "${max_kb}" -gt 0 ] && [ "${size_kb}" -gt "${max_kb}" ]; then
+		size_kb=${max_kb}
+	fi
+	echo "${size_kb}"
+}
+
+_populate_ext4_from_popdir() {
+	local popdir="$1" image="$2" part_idx="$3" fakedb="${4:-}"
+	local max_kb size_kb
+
+	max_kb=$(_ext4_max_size_kb_for_part "${part_idx}")
+	size_kb=$(_ext4_size_kb_for_popdir "${popdir}" "${max_kb}")
+	while true; do
+		rm -f "${image}"
+		_mkfs_ok=0
+		if [ "$(id -u)" = "0" ]; then
+			mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}" && _mkfs_ok=1
+		elif [ -n "$fakedb" ]; then
+			fakeroot -i "$fakedb" -s "$fakedb" -- mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}" && _mkfs_ok=1
+		else
+			fakeroot mkfs.ext4 -F ${EXT4_MKFS_OPTS} -d "${popdir}" "${image}" "${size_kb}" && _mkfs_ok=1
+		fi
+		if [ "${_mkfs_ok}" = "1" ]; then
+			return 0
+		fi
+		if [ "${size_kb}" -ge "${max_kb}" ]; then
+			return 1
+		fi
+		size_kb=$(( size_kb * 2 ))
+		if [ "${size_kb}" -gt "${max_kb}" ]; then
+			size_kb=${max_kb}
+		fi
+	done
+}
+
 # arguments:
 # $3: file system type: 0 for raw partition; 1 for FAT32; 2 for ext4
 # $4: shrink file system for not
@@ -566,20 +643,6 @@ function do_gen_partition_subimg()
 {
 	local part_image_exists=0
 
-
-	dd if=/dev/zero of=$RECOVERY_DIR/$1 bs=${SECTOR_BYTES} count=${PART_SIZE_IN_SECTOR[$2]}
-
-	if [ $3 -eq 1 ]; then
-		mkfs.fat $RECOVERY_DIR/$1
-	elif [ $3 -eq 2 ]; then
-		mkfs.ext4 $RECOVERY_DIR/$1
-	else
-		echo $1 partition has no filesystem
-		if [ -f ${PART_IMAGE_FILE_NAME[$2]} ]; then
-			cp ${PART_IMAGE_FILE_NAME[$2]} $RECOVERY_DIR/$1
-		fi
-	fi
-
 	if [ $3 -eq 1 -o $3 -eq 2 ]; then
 		if [ -f ${PART_IMAGE_FILE_NAME[$2]} -a "${P_FLAG[$2]}" == "true" ]; then
 			if [ $(ls -l ${PART_IMAGE_FILE_NAME[$2]} | awk '{print $5}') == ${PART_SIZE_IN_BYTE[$2]} ]; then
@@ -589,28 +652,61 @@ function do_gen_partition_subimg()
 			else
 				panic "$1 size mismatch: $(ls -l ${PART_IMAGE_FILE_NAME[$2]} | awk '{print $5}') against ${PART_SIZE_IN_BYTE[$2]}"
 			fi
-		else
-			if [ -f ${PART_COMPRESS_FILE_NAME[$2]} ]; then
-				gzip_validate "${PART_COMPRESS_FILE_NAME[$2]}"
-				mkdir -p $RECOVERY_DIR/$MOUNT_DIR-$2
-				sudo mount $RECOVERY_DIR/$1 $RECOVERY_DIR/$MOUNT_DIR-$2
-				if [ $3 -eq 1 ]; then
-					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} --no-same-owner -C $RECOVERY_DIR/$MOUNT_DIR-$2
+		elif [ -f ${PART_COMPRESS_FILE_NAME[$2]} ]; then
+			gzip_validate "${PART_COMPRESS_FILE_NAME[$2]}"
+			local _popdir=$(mktemp -d)
+			rm -f $RECOVERY_DIR/$1
+			if [ $3 -eq 1 ]; then
+				tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} --no-same-owner -C ${_popdir}
+				local _fat_kb
+				_fat_kb=$(_fat_image_size_kb "${_popdir}" "${PART_SIZE_IN_KB[$2]}")
+				mkfs.fat -C $RECOVERY_DIR/$1 ${_fat_kb} || {
+					rm -rf "${_popdir}"
+					panic "failed to create fat image $1"
+				}
+				( cd ${_popdir} && shopt -s nullglob dotglob && [ -n "$(ls -A .)" ] && mcopy -i $RECOVERY_DIR/$1 -s * :: )
+			elif [ $3 -eq 2 ]; then
+				local _fakedb=""
+				if [ "$(id -u)" = "0" ]; then
+					if ! tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
+						rm -rf "${_popdir}"
+						panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
+					fi
+					[ -d "${_popdir}/home/linaro" ] && chown -R 1000:1000 "${_popdir}/home/linaro"
+					[ -d "${_popdir}/overlay/home/linaro" ] && chown -R 1000:1000 "${_popdir}/overlay/home/linaro"
 				else
-					sudo tar -xzf ${PART_COMPRESS_FILE_NAME[$2]} -C $RECOVERY_DIR/$MOUNT_DIR-$2
+					_fakedb=$(mktemp)
+					if ! fakeroot -s "$_fakedb" -- tar -xzf "${PART_COMPRESS_FILE_NAME[$2]}" -C "${_popdir}"; then
+						rm -f "$_fakedb"
+						rm -rf "${_popdir}"
+						panic "failed to extract ${PART_COMPRESS_FILE_NAME[$2]}"
+					fi
 				fi
-				sync
-				sleep 1 # wait for sync
-				sudo umount $RECOVERY_DIR/$MOUNT_DIR-$2
-			else
-				echo $1 may be an empty parition.
+				if ! _populate_ext4_from_popdir "${_popdir}" "$RECOVERY_DIR/$1" "$2" "$_fakedb"; then
+					rm -f "$_fakedb"
+					rm -rf "${_popdir}"
+					panic "failed to populate ext4 image $1 from ${PART_COMPRESS_FILE_NAME[$2]}"
+				fi
+				rm -f "$_fakedb"
+				e2fsck -f -p $RECOVERY_DIR/$1 || panic "e2fsck failed on $1"
 			fi
+			sync
+			rm -rf ${_popdir}
+		else
+			rm -f $RECOVERY_DIR/$1
+			if [ $3 -eq 1 ]; then
+				mkfs.fat -C $RECOVERY_DIR/$1 8192
+			elif [ $3 -eq 2 ]; then
+				mkfs.ext4 -F ${EXT4_MKFS_OPTS} $RECOVERY_DIR/$1 32768
+			fi
+			echo $1 may be an empty parition.
 		fi
-	fi
-
-	if [ $part_image_exists -ne 1 -a $4 -eq 1 ]; then
-		e2fsck -f -p $RECOVERY_DIR/$1
-		resize2fs -M $RECOVERY_DIR/$1
+	else
+		dd if=/dev/zero of=$RECOVERY_DIR/$1 bs=${SECTOR_BYTES} count=${PART_SIZE_IN_SECTOR[$2]}
+		echo $1 partition has no filesystem
+		if [ -f ${PART_IMAGE_FILE_NAME[$2]} ]; then
+			cp ${PART_IMAGE_FILE_NAME[$2]} $RECOVERY_DIR/$1
+		fi
 	fi
 }
 
@@ -634,6 +730,29 @@ function make_partition_imgs()
 		gen_partition_img $i ${LABELS[$i]} ${PART_FORMAT[$i]}
 	) done
 
+	if [ "${AB_PARTITION}" == "y" -o "${UPTYPE}" = sdcard ]; then
+		rm -rf $OUTPUT_DIR/package_edge/raw_images
+		mkdir -p $OUTPUT_DIR/package_edge/raw_images
+
+		for i in $(seq 0 $[${#LABELS[@]}-1]); do (
+			label=${LABELS[$i]}
+			img_file="${label}"
+
+			if [[ "${label}" == *_a ]]; then
+				prefix=${label%_a}
+				b_label="${prefix}_b"
+
+				if [[ " ${LABELS[@]} " =~ " ${b_label} " ]]; then
+					echo "AB: $label <-> $b_label"
+
+					IMG_DEST=$OUTPUT_DIR/package_edge/raw_images/${prefix}.img
+					cp -f $RECOVERY_DIR/${img_file} ${IMG_DEST}
+
+					md5sum ${IMG_DEST} | awk '{print $1}' > ${IMG_DEST}.md5
+				fi
+			fi
+		) done
+	fi
 
 	for i in $(seq 0 $[${#LABELS[@]}-1]); do (
 	    if [ $i -ne 2 ]; then

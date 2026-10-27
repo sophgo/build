@@ -70,6 +70,11 @@ config SENSOR_TUNING_PARAM
 
 
 def gen_sensor_support_list():
+    if not os.path.exists(build_helper.SENSOR_LIST_PATH):
+        print("sensor list not found: %s, generate empty sensor Kconfig"
+              % build_helper.SENSOR_LIST_PATH)
+        return ""
+
     with open(build_helper.SENSOR_LIST_PATH, "r", encoding="utf-8") as fp:
         sensor_list_json = json.load(fp)
 
@@ -89,6 +94,9 @@ def gen_sensor_support_list():
 def gen_sensor_tuning_param_list():
     menu_list = ""
     param_str = ""
+
+    if not os.path.exists(build_helper.SENSOR_LIST_PATH):
+        return kconfig_param_config_default_tmpl
 
     isp_tuning_path = os.path.normpath(os.path.join(build_helper.BUILD_REPO_DIR, "../isp_tuning"))
 
@@ -124,10 +132,11 @@ def gen_sensor_tuning_param_list():
 
                     chips = build_helper.get_chip_list()
                     temp_chip_list = []
-                    for chip_arch, xlist in chips.items():
-                        if chip_arch.upper() == arch.upper():
-                            for x in xlist:
-                                temp_chip_list.append("CHIP_" + x)
+                    board_arch = build_helper.map_isp_tuning_arch_to_board_arch(arch)
+                    for chip in chips:
+                        chip_arch = build_helper.get_segment_from_chip(chip)
+                        if chip_arch.upper() == board_arch.upper():
+                            temp_chip_list.append("CHIP_" + chip)
 
                     if len(temp_chip_list) == 0:
                         print("Error: chip list is mismatch between isp_tuning and build/boards, pls check!!!")
@@ -146,6 +155,7 @@ def gen_sensor_tuning_param_list():
 
 
 def main():
+    os.makedirs(build_helper.BUILD_OUTPUT_DIR, exist_ok=True)
 
     kconfig_sensor_list = gen_sensor_support_list()
     kconfig_param_list = gen_sensor_tuning_param_list()

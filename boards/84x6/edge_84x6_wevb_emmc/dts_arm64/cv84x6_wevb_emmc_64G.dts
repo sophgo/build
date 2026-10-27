@@ -1,0 +1,44 @@
+/dts-v1/;
+#include "soph_base_arm64.dtsi"
+
+/ {
+	memory@0x1000000000 {
+		reg = <0x10 0x00000000  0x10 0x00000000>;
+		device_type = "memory";
+	};
+
+	reserved-memory {
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		ranges;
+
+#ifndef __UBOOT__
+		scalar_reserved: scalar_mem {
+			reg = <0x10 0x40000000 0x0 0x40000000>;	//1GB for 4x256M TPU firmware
+			no-map;
+		};
+		scaler_shm_reserved: scaler_shm_mem {
+			reg = <0x10 0x80000000 0x0 0xC00000>;	//12MB after scalar parks
+			no-map;
+		};
+
+		cma_reserved: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x8000000>; // 128MB
+			alignment = <0x0 0x2000>; // 8KB
+			alloc-ranges = <0x10 0x81000000 0x0 0x8000000>;
+			linux,cma-default;
+		};
+		ion_for_npu: ion_npu_mem {
+			compatible = "npu-region";
+			reg = <0x10 0x90000000 0x7 0x80000000>; // 30GB for TPU (end kept at 0x1810000000)
+		};
+
+		ion_for_vpp: ion_vpp_mem {
+			compatible = "vpp-region";
+			reg = <0x1F 0x00000000 0x0 0xFFE00000>; // 4GB for VPP (full Node31, 2MB reserved for FREERTOS)
+		};
+#endif
+	};
+};

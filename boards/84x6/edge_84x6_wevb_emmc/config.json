@@ -1,0 +1,7 @@
+{
+    "ddr_cfg_list": [
+        "lp5x_2r_8533",
+        "lp5x_2r_9600"
+    ],
+    "board_information": "84x6_wevb_emmc"
+}

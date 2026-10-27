@@ -1,6 +1,12 @@
 {
-  "sophon": {
-	"bm1688": ["edge"],
-	"cv186ah": ["device"]
+  "architectures": {
+    "88a2": {
+      "apis": ["edge", "device"],
+      "chips": ["bm1688", "cv186ah"]
+    },
+    "84x6": {
+      "apis": ["edge"],
+      "chips": ["cv84x6"]
+    }
   }
 }

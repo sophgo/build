@@ -1,0 +1,14 @@
+[Unit]
+Description=OTA Upgrade AB Partition Service
+After=local-fs.target data.mount
+Requires=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 /data/ota/ota_upgrade_ab.py
+WorkingDirectory=/data/ota
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,1 @@
+../../default/memmap/sophon/memmap_ddr_32g.py

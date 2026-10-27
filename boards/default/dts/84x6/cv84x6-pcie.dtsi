@@ -1,0 +1,137 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2026 Sophgo Inc.
+ *
+ * PCIe controllers of cv84x6. Nodes are disabled by default; U-Boot's
+ * ft_board_setup() enables the ones FSBL brought up as RC and not claimed
+ * by C2C (see board/cvitek/cv84x6/board.c).
+ */
+
+/ {
+	aliases {
+		pcie0 = &pciex8;
+		pcie1 = &pciex4;
+		pcie2 = &pciex2_0;
+		pcie3 = &pciex2_1;
+	};
+
+	pciex8: pcie@200000000 {
+		status = "disabled";
+		compatible = "snps,dw-pcie-ecam", "snps,dw-pcie";
+		linux,pci-domain = <0>;
+		reg = <2 0x00000000 0x0 0x4000000>,  //ecam
+		      <0 0x20000000 0x0 0x300000>,  //pcie_dbi
+		      <0 0x21300000 0x0 0x4000>,    //pcie_ctrl_intf
+		      <0 0x20300000 0x0 0x80000>,  //pcie_iatu
+		      <0 0x80000000 0x0 0x100000>;  //remote pcie cfg reg
+		reg-names = "ecam", "dbi", "cfg", "atu", "config";
+		interrupt-names = "msi";
+		bus-range = <0x0 0x3f>;
+		msi-map = <0x0000 &its0 0x0000 0x4000>;
+		num-lanes = <8>;
+		num-viewport = <4>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		remote-upper = <0x0c 0x80000000>;
+		remote-lower = <0x10 0x9fffffff>;
+		ranges = <0x81000000 0x0 0x80100000 0x0 0x80100000 0x0 0x800000 /* downstream I/O */
+			  0x82000000 0x0 0x81000000 0x0 0x81000000 0x0 0x1f000000>; /* non-prefetchable memory */
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0000 0 0 1 &gic 0 0 0 155 4>,
+				<0000 0 0 2 &gic 0 0 0 156 4>,
+				<0000 0 0 3 &gic 0 0 0 157 4>,
+				<0000 0 0 4 &gic 0 0 0 158 4>;
+	};
+
+	pciex4: pcie@244000000 {
+		status = "disabled";
+		compatible = "snps,dw-pcie-ecam", "snps,dw-pcie";
+		linux,pci-domain = <0>;
+		reg = <2 0x44000000 0x0 0x4000000>,  //ecam
+		      <0 0x20800000 0x0 0x300000>,  //pcie_dbi
+		      <0 0x21308000 0x0 0x4000>,    //pcie_ctrl_intf
+		      <0 0x20b00000 0x0 0x80000>,  //pcie_iatu
+		      <0 0xc0000000 0x0 0x100000>;  //remote pcie cfg reg
+		reg-names = "ecam", "dbi", "cfg", "atu", "config";
+		interrupt-names = "msi";
+		bus-range = <0x40 0x7f>;
+		msi-map = <0x4000 &its0 0x4000 0x4000>;
+		num-lanes = <4>;
+		num-viewport = <4>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		remote-upper = <0x0c 0xc0000000>;
+		remote-lower = <0x10 0xdfffffff>;
+		ranges = <0x81000000 0x0 0xc0100000 0x0 0xc0100000 0x0 0x800000 /* downstream I/O */
+			  0x82000000 0x0 0xc1000000 0x0 0xc1000000 0x0 0x1f000000>; /* non-prefetchable memory */
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0000 0 0 1 &gic 0 0 0 158 4>,
+				<0000 0 0 2 &gic 0 0 0 155 4>,
+				<0000 0 0 3 &gic 0 0 0 156 4>,
+				<0000 0 0 4 &gic 0 0 0 157 4>;
+	};
+
+	pciex2_0: pcie@288000000 {
+		status = "disabled";
+		compatible = "snps,dw-pcie-ecam", "snps,dw-pcie";
+		linux,pci-domain = <0>;
+		reg = <2 0x88000000 0x0 0x4000000>,  //ecam
+		      <0 0x20400000 0x0 0x300000>,  //pcie_dbi
+		      <0 0x21304000 0x0 0x4000>,    //pcie_ctrl_intf
+		      <0 0x20700000 0x0 0x80000>,  //pcie_iatu
+		      <0 0xa0000000 0x0 0x100000>;  //remote pcie cfg reg
+		reg-names = "ecam", "dbi", "cfg", "atu", "config";
+		interrupt-names = "msi";
+		bus-range = <0x80 0xbf>;
+		msi-map = <0x8000 &its0 0x8000 0x4000>;
+		num-lanes = <2>;
+		num-viewport = <4>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		remote-upper = <0x0c 0xa0000000>;
+		remote-lower = <0x10 0xbfffffff>;
+		ranges = <0x81000000 0x0 0xa0100000 0x0 0xa0100000 0x0 0x800000 /* downstream I/O */
+			  0x82000000 0x0 0xa1000000 0x0 0xa1000000 0x0 0x1f000000>; /* non-prefetchable memory */
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0000 0 0 1 &gic 0 0 0 157 4>,
+				<0000 0 0 2 &gic 0 0 0 158 4>,
+				<0000 0 0 3 &gic 0 0 0 155 4>,
+				<0000 0 0 4 &gic 0 0 0 156 4>;
+	};
+
+	pciex2_1: pcie@2cc000000 {
+		status = "disabled";
+		compatible = "snps,dw-pcie-ecam", "snps,dw-pcie";
+		linux,pci-domain = <0>;
+		reg = <2 0xcc000000 0x0 0x4000000>,  //ecam
+		      <0 0x20c00000 0x0 0x300000>,  //pcie_dbi
+		      <0 0x2130c000 0x0 0x4000>,    //pcie_ctrl_intf
+		      <0 0x20f00000 0x0 0x80000>,  //pcie_iatu
+		      <0 0xe0000000 0x0 0x100000>;  //remote pcie cfg reg
+		reg-names = "ecam", "dbi", "cfg", "atu", "config";
+		interrupt-names = "msi";
+		bus-range = <0xc0 0xff>;
+		msi-map = <0xc000 &its0 0xc000 0x4000>;
+		num-lanes = <2>;
+		num-viewport = <4>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		remote-upper = <0x0c 0xe0000000>;
+		remote-lower = <0x10 0xffffffff>;
+		ranges = <0x81000000 0x0 0xe0100000 0x0 0xe0100000 0x0 0x800000 /* downstream I/O */
+			  0x82000000 0x0 0xe1000000 0x0 0xe1000000 0x0 0x1f000000>; /* non-prefetchable memory */
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 7>;
+		interrupt-map = <0000 0 0 1 &gic 0 0 0 156 4>,
+				<0000 0 0 2 &gic 0 0 0 157 4>,
+				<0000 0 0 3 &gic 0 0 0 158 4>,
+				<0000 0 0 4 &gic 0 0 0 155 4>;
+	};
+};

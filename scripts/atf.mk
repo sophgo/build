@@ -20,15 +20,23 @@ bld: bld-build
 
 bld-clean:
 	$(call print_target)
-	${Q}$(MAKE) -C ${BM_BLD_PATH} clean
+	${Q}if [ -d "${BM_BLD_PATH}" ]; then \
+		$(MAKE) -C ${BM_BLD_PATH} clean; \
+	else \
+		echo "[skip] BM_BLD_PATH not found: ${BM_BLD_PATH}"; \
+	fi
 
 ################################################################################
 # arm-trusted-firmware targets
 ################################################################################
-ifeq ($(CHIP_ARCH),SOPHON)
+ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),SOPHON 88a2))
 ATF_PLAT := cv186x
-else ifeq ($(CHIP_ARCH_L),sophon)
+else ifeq ($(CHIP_ARCH_L),$(filter $(CHIP_ARCH_L),sophon 88a2))
 ATF_PLAT := cv186x
+else ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),84x6))
+ATF_PLAT := cv84x6
+else ifeq ($(CHIP_ARCH_L),$(filter $(CHIP_ARCH_L),84x6))
+ATF_PLAT := cv84x6
 else
 ATF_PLAT := ${CHIP}_${SUBTYPE}
 endif
@@ -89,9 +97,7 @@ endif
 
 # ARM ATF bl32
 SPD_MAKE_OPT :=
-ifeq ($(ATF_PLAT),cv186x)
-    SPD_MAKE_OPT := SPD=opteed
-else ifeq (${ATF_BL32},1)
+ifeq (${ATF_BL32},1)
     SPD_MAKE_OPT := SPD=opteed
 endif
 
@@ -136,13 +142,55 @@ arm-trusted-firmware-build: export BL32_ATF_REAL=${ATF_BUILD_OUT}/bl32.bin
 arm-trusted-firmware-build: export BL32_EXT ?=
 arm-trusted-firmware-build: export BL2_EXT ?=
 arm-trusted-firmware-build: export BL31_EXT ?=
+# PCIe configuration for 84x6 (driven by build Kconfig "PCIe settings",
+# see boards/84x6/<board>/<board>_defconfig)
+ifeq ($(call qstrip,${CONFIG_CHIP_ARCH_84x6}),y)
+arm-trusted-firmware-build: export CONFIG_IGNORE_PCIE_TRAP:=${CONFIG_FSBL_IGNORE_PCIE_TRAP}
+arm-trusted-firmware-build: export CONFIG_SSMODE:=${CONFIG_FSBL_PCIE_SSMODE}
+
+# Controller 0
+ifdef CONFIG_FSBL_PCIE_CTRL0_DISABLED
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL0_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL0_RC
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL0_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL0_EP
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL0_MODE_EP=y
+endif
+
+# Controller 1
+ifdef CONFIG_FSBL_PCIE_CTRL1_DISABLED
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL1_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL1_RC
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL1_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL1_EP
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL1_MODE_EP=y
+endif
+
+# Controller 2
+ifdef CONFIG_FSBL_PCIE_CTRL2_DISABLED
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL2_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL2_RC
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL2_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL2_EP
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL2_MODE_EP=y
+endif
+
+# Controller 3
+ifdef CONFIG_FSBL_PCIE_CTRL3_DISABLED
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL3_DISABLED=y
+else ifdef CONFIG_FSBL_PCIE_CTRL3_RC
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL3_MODE_RC=y
+else ifdef CONFIG_FSBL_PCIE_CTRL3_EP
+arm-trusted-firmware-build: export CONFIG_PCIE_CTRL3_MODE_EP=y
+endif
+endif
 arm-trusted-firmware-build:
 	$(call print_target)
 	${Q}mkdir -p $(dir ${BL33})
 	${Q}mkdir -p ${RELEASE_BIN_ATF_DIR}
-ifeq ($(ATF_PLAT),cv186x)
-	${Q}mkdir -p ${ATF_PATH}/plat/cvitek/cv186x/asic/include
-	${Q}cp -f ${CVI_BOARD_MEMMAP_H_PATH} ${ATF_PATH}/plat/cvitek/cv186x/asic/include/cvi_board_memmap.h
+ifeq ($(ATF_PLAT),$(filter $(ATF_PLAT),cv186x cv84x6))
+	${Q}mkdir -p ${ATF_PATH}/plat/cvitek/${ATF_PLAT}/asic/include
+	${Q}cp -f ${CVI_BOARD_MEMMAP_H_PATH} ${ATF_PATH}/plat/cvitek/${ATF_PLAT}/asic/include/cvi_board_memmap.h
 endif
 	${Q}if [ -f "${BL33_REAL}" ]; then \
 		cp -f "${BL33_REAL}" "${BL33}"; \
@@ -194,22 +242,30 @@ endif
 	params_log="${ATF_BUILD_OUT}/fip.params.txt"; \
 	compact_log="${ATF_BUILD_OUT}/fip.params.compact.txt"; \
 	plat_mmap_h="${ATF_PATH}/plat/cvitek/${ATF_PLAT}/asic/include/mmap.h"; \
+	runaddrs=$$(python3 "${BUILD_PATH}/scripts/atf_params_compact.py" --runaddrs "$$plat_mmap_h") || exit 1; \
+	monitor_runaddr=$$(echo "$$runaddrs" | awk '{print $$1}'); \
+	bl32_runaddr=$$(echo "$$runaddrs" | awk '{print $$2}'); \
+	blmcu_runaddr=$$(echo "$$runaddrs" | awk '{print $$3}'); \
+	echo "FIP runaddrs from $$plat_mmap_h: MONITOR=$$monitor_runaddr BL32=$$bl32_runaddr BLMCU=$$blmcu_runaddr"; \
 	python3 "${CVI_FIPTOOL_ATF}" genfip \
 		--CHIP_CONF "${CVI_CHIP_CONF_ATF}" \
 		--BL2 "$$BL2_FOR_FIP" \
 		--DDR_PARAM "${CVI_DDR_PARAM_ATF}" \
+		--DDR_FW_DIR "${ATF_PATH}/drivers/cvitek/ddr/cv84x6/fw_bin" \
 		--MONITOR "$$BL31_FOR_FIP" \
-		--MONITOR_RUNADDR 0x100000000 \
+		--MONITOR_RUNADDR "$$monitor_runaddr" \
 		--BL32 "$$BL32_FOR_FIP" \
-		--BL32_RUNADDR 0x100050000 \
+		--BL32_RUNADDR "$$bl32_runaddr" \
 		--BLMCU "${CVI_BLMCU_ATF}" \
-		--BLMCU_RUNADDR 0x05200000 \
+		--BLMCU_RUNADDR "$$blmcu_runaddr" \
 		--LOADER_2ND "${BL33}" \
 		--compress lzma \
 		"${ATF_FIP_PATH}.cvitek.new" > "$$params_log" 2>&1 && \
 	cat "$$params_log" && \
 	python3 "${BUILD_PATH}/scripts/atf_params_compact.py" "$$params_log" "$$compact_log" "$$plat_mmap_h" && \
-	mv -f "${ATF_FIP_PATH}.cvitek.new" "${ATF_FIP_PATH}";
+	mv -f "${ATF_FIP_PATH}.cvitek.new" "${ATF_FIP_PATH}"; \
+	mkdir -p "${OUTPUT_DIR}"; \
+	cp -f "${ATF_FIP_PATH}" "${OUTPUT_DIR}/fip.bin";
 	$(call atf_post_action)
 
 ifeq (${ATF_TBBR},0)

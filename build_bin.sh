@@ -41,7 +41,7 @@ function gen_fip_bin_with_cid()
   {
     printf "bm_bld:\n"
     git -C "${BM_BLD_PATH}" log --pretty=oneline -n 1
-    printf "arm-trusted-firmware:\n"
+    printf "trusted-firmware-a:\n"
     git -C "${ATF_PATH}" log --pretty=oneline -n 1
   } > "$TOP_DIR/git_version.txt"
 

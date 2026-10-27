@@ -35,7 +35,7 @@ qstrip = $(strip $(subst ",,$(1)))
 NPROC := $(shell nproc)
 FTP_SRV := ftp://10.58.65.3
 
-export CHIP_ARCH_L := $(shell echo $(CHIP_ARCH) | tr A-Z a-z)
+#export CHIP_ARCH_L := $(shell echo $(CHIP_ARCH) | tr A-Z a-z)
 export BORAD_FOLDER_PATH := ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}
 
 export KEYSERVER := 10.18.98.102
@@ -98,6 +98,10 @@ ifeq ($(CONFIG_BUILD_FOR_DEBUG),y)
 UBOOT_CONFIG_NAME := ${PROJECT_FULLNAME}_defconfig
 else
 UBOOT_CONFIG_NAME := ${PROJECT_FULLNAME}_rls_defconfig
+endif
+
+ifeq ($(CONFIG_AB_PARTITION),y)
+UBOOT_CONFIG_NAME := ${PROJECT_FULLNAME}_ab_defconfig
 endif
 
 ifeq (${RELEASE_VERSION},1)
@@ -179,10 +183,11 @@ u-boot-dts:
 ifeq ($(UBOOT_SRC), u-boot-2021.10)
 # U-boot doesn't has arch/arm64
 ifeq ($(ARCH), arm64)
-	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME} \
+	${Q}find ${UBOOT_PATH}/arch/arm/dts/ -type l -delete
+	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec ln -sf {} ${UBOOT_PATH}/arch/arm/dts/  \;
+	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/ \
 		\( -path "*linux/*.dts*" -o -path "*dts_${ARCH}/*.dts*" \) \
-		-exec cp {} ${UBOOT_PATH}/arch/arm/dts/ \;
-	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec cp {} ${UBOOT_PATH}/arch/arm/dts/ \;
+		-exec ln -sf {} ${UBOOT_PATH}/arch/arm/dts/ \;
 else
 	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L} \
 		\( -path "*linux/*.dts*" -o -path "*dts_${ARCH}/*.dts*" \) \
@@ -265,7 +270,7 @@ define copy_ko_action
 	${Q}find ${1} -name '*.ko' -exec cp -f {} ${SYSTEM_OUT_DIR}/ko/ \;
 endef
 
-ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),CV181X CV180X SOPHON))
+ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),CV181X CV180X 88a2))
 define copy_header_action
 	# TODO change "soph" to "$(shell echo $(CHIP_ARCH) | tr A-Z a-z)"
 	#${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/soph/uapi/linux/* ${1}/linux/
@@ -275,6 +280,15 @@ define copy_header_action
 	$(if $(filter y,${CONFIG_KERNEL_SRC_5.10}),${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/)
 	${Q}cp ${KERNEL_PATH}/include/uapi/linux/dma-buf.h ${1}/linux/
 endef
+else ifeq ($(CHIP_ARCH),$(filter $(CHIP_ARCH),84x6))
+define copy_header_action
+        ${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/include/chip/${CHIP} ${1}/linux/
+        ${Q}cp ${OSDRV_PATH}/interdrv/${MW_VER}/usb/gadget/function/f_cvg.h ${1}/linux/
+        ${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion.h ${1}/linux/
+        ${Q}cp ${KERNEL_PATH}/drivers/staging/android/uapi/ion_cvitek.h ${1}/linux/
+        ${Q}cp ${KERNEL_PATH}/include/uapi/linux/dma-buf.h ${1}/linux/
+endef
+
 else
 define copy_header_action
 	${Q}cp -r ${OSDRV_PATH}/interdrv/${MW_VER}/vip/chip/$(shell echo $(CHIP_ARCH) | tr A-Z a-z)/uapi/* ${1}/linux/
@@ -363,32 +377,36 @@ kernel-dts: ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}
 	$(call print_target)
 	${Q}ln -snrf ${CVI_BOARD_MEMMAP_H_PATH} ${KERNEL_PATH}/scripts/dtc/include-prefixes/
 	${Q}find ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ -type l -delete
+ifneq ($(filter y,$(CONFIG_CHIP_ARCH_88a2) $(CONFIG_CHIP_ARCH_84x6)),)
 	${Q}find ${DTS_DEFATUL_PATHS} -name *.dts* -exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
+endif
 	${Q}find ${BUILD_PATH}/boards/${CHIP_ARCH_L}/${PROJECT_FULLNAME}/ \
 		\( -path "*linux/*.dts*" -o -path "*dts_${ARCH}/*.dts*" \) \
 		-exec ln -sf {} ${KERNEL_PATH}/arch/${ARCH}/boot/dts/${BRAND}/ \;
-	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} dtbs
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH} O=${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} dtbs
 	${Q}cp ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/arch/${ARCH}/boot/dts/${BRAND}/*.dtb ${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}
 kernel: $(OUTPUT_DIR)/rootfs
 kernel: kernel-build
 	$(call print_target)
 ifneq ($(filter y,$(CONFIG_ROOTFS_UBUNTU) $(CONFIG_ROOTFS_DEBIAN)),)
 	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../linux*.deb
-	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz bindeb-pkg
-
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} Image.gz
+ifeq ($(filter y,$(CONFIG_BOARD_fpga) $(CONFIG_BOARD_palladium)),)
 	# Add postinst for linux-headers
+	${Q}$(MAKE) -j${NPROC} -C ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER} bindeb-pkg
 	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
 	${Q}dpkg-deb -R ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../linux-headers*.deb ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
 ifeq (${CONFIG_KERNEL_SRC_6.12},y)
 	${Q}cp -r ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/debian/linux-headers*/DEBIAN ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
 	${Q}printf "make -C /usr/src/linux-headers-\$$(uname -r) olddefconfig scripts" > ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
-else 
+else
 	${Q}cp -r ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/debian/linux-headers/DEBIAN ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir
 	${Q}printf "make -C /usr/src/linux-headers-\$$(uname -r) olddefconfig prepare0" > ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
 endif
 	${Q}chmod +x ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/DEBIAN/postinst
 	${Q}find ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../ -name 'linux-headers*.deb' -exec dpkg -b ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/ {} \;
 	${Q}rm -rf ${KERNEL_PATH}/${KERNEL_OUTPUT_FOLDER}/../temp_dir/
+endif
 endif
 
 	$(call copy_Image_action)
@@ -432,6 +450,7 @@ ramdisk:
 	${Q}rm -rf $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/configs/*
 	${Q}rm -rf $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target/*
 	${Q}cp -r $(RAMDISK_PATH)/initramfs/$(INITRAMFS_BASE)/* $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target
+ifneq ($(_BUILD_OPENSBI_KERNEL_),y)
 ifneq ("$(wildcard $(SDK_VER_FOLDER_PATH))", "")
 	${Q}cp -r $(SDK_VER_FOLDER_PATH)/* $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target
 endif
@@ -440,6 +459,7 @@ ifneq ("$(wildcard $(CHIP_FOLDER_PATH))", "")
 endif
 ifneq ("$(wildcard $(CUST_FOLDER_PATH))", "")
 	${Q}cp -r $(CUST_FOLDER_PATH)/* $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target
+endif
 endif
 ifneq ($(CONFIG_TPU_DEBUG_PORT),y)
 	sed -i '47,49 s/^\(.*\)/#\1/' $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_BASE)/target/init_ramboot.sh
@@ -451,10 +471,19 @@ define gen_cpio
 endef
 
 #create ramdisk.img for u-boot booti cmd
+
+ifeq ($(CONFIG_KERNEL_UNCOMPRESSED),y)
+define build_ramdisk_image
+	cd $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER);\
+	$(COMMON_TOOLS_PATH)/prebuild/mkimage -n "ramdisk" -A arm -O linux -T ramdisk -C none -d boot.cpio boot.cpio.img;
+endef
+else
 define build_ramdisk_image
 	cd $(RAMDISK_PATH)/$(RAMDISK_OUTPUT_FOLDER);\
 	$(COMMON_TOOLS_PATH)/prebuild/mkimage -n "ramdisk" -A arm -O linux -T ramdisk -C gzip -d boot.cpio.gz boot.cpio.gz.img;
 endef
+endif
+
 
 BOOT_IMAGE_ARG :=
 ifeq ($(CONFIG_SKIP_RAMDISK),y)
@@ -483,8 +512,12 @@ ifeq ($(KERNEL_BOOT_TYPE),nvme)
 else ifeq ($(KERNEL_BOOT_TYPE),sata)
 	$(call gen_cpio,sataboot_fixed_files.txt)
 else
+ifeq ($(CONFIG_AB_PARTITION),y)
+	$(call gen_cpio,boot_fixed_files_ab.txt)
+else
 	$(call gen_cpio,boot_fixed_files.txt)
-endif
+endif #CONFIG_AB_PARTITION!=y
+endif #KERNEL_BOOT_TYPE!=nvme or sata
 
 endif #STORAGE_TYPE!=sd
 else
@@ -501,7 +534,6 @@ endif #CONFIG_ROOTFS_OVERLAYFS
 endif #CONFIG_ROOTFS_UBUNTU
 	# copy multi.its for *.itb layout
 	${Q}cp -f "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/../configs/multi.its" "${BUILD_PATH}/output/multi.its.tmp"
-
 	${Q}python3 "${BUILD_PATH}/scripts/boards_scan.py" ${BOOT_IMAGE_ARG}
 	${Q}mv "${BUILD_PATH}/output/multi.its.tmp" "${RAMDISK_PATH}/${RAMDISK_OUTPUT_FOLDER}/multi.its"
 ifeq ($(CONFIG_KERNEL_UNCOMPRESSED),y)
@@ -690,6 +722,8 @@ endif
 	${Q}find $(ROOTFS_DIR) -executable -type f ! -name "*.sh" ! -path "*etc*" ! -path "*.ko" -printf 'striping %p\n' -exec $(CROSS_COMPILE_SDK)strip --strip-all {} 2>/dev/null \;
 ifeq ($(STORAGE_TYPE),spinor)
 	${Q}mksquashfs $(ROOTFS_DIR) $(OUTPUT_DIR)/rawimages/rootfs.sqsh -root-owned -comp xz
+else ifeq ($(STORAGE_TYPE),spinand)
+	${Q}mksquashfs $(ROOTFS_DIR) $(OUTPUT_DIR)/rawimages/rootfs.sqsh -root-owned -comp xz -e mnt/cfg -e mnt/system
 else
 	${Q}mksquashfs $(ROOTFS_DIR) $(OUTPUT_DIR)/rawimages/rootfs.sqsh -root-owned -comp xz -e mnt/cfg/*
 endif
@@ -827,8 +861,13 @@ define pack_image
 endef
 endif
 
-$(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE):$(OUTPUT_DIR)/system
+ifeq (${STORAGE_TYPE},spinand)
+$(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE): $(OUTPUT_DIR)/rootfs/mnt/system
+	$(call pack_image,system,$(OUTPUT_DIR)/rootfs/mnt/system,38M)
+else
+$(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE): $(OUTPUT_DIR)/system
 	$(call pack_image,system,$(OUTPUT_DIR)/system,38M)
+endif
 
 system:$(OUTPUT_DIR)/rawimages/system.$(STORAGE_TYPE)
 system:

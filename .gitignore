@@ -1,5 +1,6 @@
 KERNEL_PATH.sh
 mk_gpt
+mk_sector_gpt
 __pycache__
 /output
 /.config*

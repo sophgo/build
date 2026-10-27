@@ -189,7 +189,8 @@ config CROSS_COMPILE_SDK
 
 config MW_VER
 	string
-	default "v2" if CHIP_ARCH_sophon
+	default "v2" if CHIP_ARCH_88a2
+	default "v2" if CHIP_ARCH_84x6
 	help
 	  Set middleware version.
 
@@ -288,6 +289,12 @@ config DDR_64MB_SIZE
 	bool "Compile 64MB DDR size project"
 	default n
 
+config AB_PARTITION
+	bool "support A/B partition boot"
+	default n
+	help
+	 support A/B partition boot, it will use partition32G_sector_AB.xml if enable.
+
 endmenu
 
 menu "FIP setting"
@@ -331,7 +338,7 @@ config MULTI_FIP
 
 config FIP_V2
     def_bool y
-    depends on CHIP_ARCH_sophon
+    depends on CHIP_ARCH_88a2 || CHIP_ARCH_84x6
 
 config OD_CLK_SEL
 	bool "Select to build fip.bin with OD(overdrive) clock setting"
@@ -351,6 +358,89 @@ config FSBL_FASTBOOT_SUPPORT
 	default n
 	help
 	  "y" Enable fsbl fastboot support
+
+menu "PCIe settings"
+	depends on CHIP_ARCH_84x6
+
+config FSBL_IGNORE_PCIE_TRAP
+	bool "Ignore PCIe trap pin and use build-time PCIe config"
+	default n
+	help
+	  "y" FSBL ignores the PCIe trap pin, takes ss_mode from
+	  CONFIG_FSBL_PCIE_SSMODE below and forces each controller to the
+	  mode selected below. Exported to FSBL as CONFIG_IGNORE_PCIE_TRAP.
+
+config FSBL_PCIE_SSMODE
+	int "PCIe ss_mode (soCKET/split mode) index"
+	range 0 5
+	default 0
+	depends on FSBL_IGNORE_PCIE_TRAP
+	help
+	  ss_mode index selecting the controller/PHY layout table.
+	  0: x8_0(x8)                       phy0+phy1
+	  1: x8_0(x4) + x4_0(x4)            phy0 + phy1
+	  2: x8_0(x2) + x2_0 + x4_0 + x2_1  phy0 + phy1
+	  3: x8_0(x2) + x2_0                phy0
+	  4: x8_0 + x2_0 + x4_0 (all x1)    phy0
+	  5: x8_0(x4) + x4_0(x2) + x2_1(x2) phy0 + phy1
+	  Exported to FSBL as CONFIG_SSMODE.
+
+choice
+	prompt "PCIe controller 0 mode"
+	default FSBL_PCIE_CTRL0_DISABLED
+
+config FSBL_PCIE_CTRL0_DISABLED
+	bool "Disabled"
+
+config FSBL_PCIE_CTRL0_RC
+	bool "Root Complex (RC)"
+
+config FSBL_PCIE_CTRL0_EP
+	bool "Endpoint (EP)"
+endchoice
+
+choice
+	prompt "PCIe controller 1 mode"
+	default FSBL_PCIE_CTRL1_DISABLED
+
+config FSBL_PCIE_CTRL1_DISABLED
+	bool "Disabled"
+
+config FSBL_PCIE_CTRL1_RC
+	bool "Root Complex (RC)"
+
+config FSBL_PCIE_CTRL1_EP
+	bool "Endpoint (EP)"
+endchoice
+
+choice
+	prompt "PCIe controller 2 mode"
+	default FSBL_PCIE_CTRL2_DISABLED
+
+config FSBL_PCIE_CTRL2_DISABLED
+	bool "Disabled"
+
+config FSBL_PCIE_CTRL2_RC
+	bool "Root Complex (RC)"
+
+config FSBL_PCIE_CTRL2_EP
+	bool "Endpoint (EP)"
+endchoice
+
+choice
+	prompt "PCIe controller 3 mode"
+	default FSBL_PCIE_CTRL3_DISABLED
+
+config FSBL_PCIE_CTRL3_DISABLED
+	bool "Disabled"
+
+config FSBL_PCIE_CTRL3_RC
+	bool "Root Complex (RC)"
+
+config FSBL_PCIE_CTRL3_EP
+	bool "Endpoint (EP)"
+endchoice
+endmenu
 endmenu
 
 menu "Storage settings"
@@ -411,8 +501,8 @@ config NANDFLASH_PAGESIZE
 	  The page size of nand flash
 endmenu
 
-source "output/Kconfig.sensors"
-source "output/Kconfig.panels"
+osource "output/Kconfig.sensors"
+osource "output/Kconfig.panels"
 
 menu "uboot options"
 
@@ -498,7 +588,7 @@ config KERNEL_LZ4
 	  faster than LZO.
 
 config KERNEL_UNCOMPRESSED
-	bool "None"
+	 bool "None"
 	help
 	  Produce uncompressed kernel image. This option is usually not what
 	  you want. It is useful for debugging the kernel in slow simulation
@@ -665,6 +755,16 @@ config C906_HART2
 	bool "TPU scalar1"
 	help
 	  Choose TPU scalar1
+
+config C906_HART3
+	bool "TPU scalar2"
+	help
+	  Choose TPU scalar2
+
+config C906_HART4
+	bool "TPU scalar3"
+	help
+	  Choose TPU scalar3
 endchoice
 
 config KERNEL_ENTRY_HACK
@@ -677,8 +777,10 @@ config KERNEL_ENTRY_HACK
 config KERNEL_ENTRY_HACK_ADDR
 	string "Set kernel entry in boot image"
 	depends on KERNEL_ENTRY_HACK
-	default "0x04200000" if C906_HART1
-	default "0x14200000" if C906_HART2
+	default "0x40200000" if C906_HART1
+	default "0x44200000" if C906_HART2
+	default "0x48200000" if C906_HART3
+	default "0x4C200000" if C906_HART4
 	help
 	  Set kernel entry in boot image.
 	  Don't select this if you don't know what you are doning.
@@ -686,7 +788,7 @@ config KERNEL_ENTRY_HACK_ADDR
 config KERNEL_ENTRY_HACK_ADDR_H
 	string "Set kernel entry in boot image"
 	depends on KERNEL_ENTRY_HACK
-	default "0x1"
+	default "0x10"
 	help
 	  Set kernel entry in boot image.
 	  Don't select this if you don't know what you are doning.

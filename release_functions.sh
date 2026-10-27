@@ -137,7 +137,7 @@ function build_sdk_ver()
 
 function build_all_sdk_ver()
 {
-  if [[ "$CHIP_ARCH" == SOPHON ]]; then
+  if [[ "$CHIP_ARCH" == 88a2 ]]; then
 	  if grep -q '^CONFIG_TOOLCHAIN_GLIBC_ARM64_V930=y' "$BUILD_PATH"/.config; then
 		  setconfig TOOLCHAIN_GLIBC_ARM64_V930=y
 		  build_sdk_ver "$@"
@@ -463,8 +463,24 @@ function add_source_to_sdk_package()
   cp -a "$TOOLCHAIN_PATH" "$sdk_path"/
   [[ "$CVIARCH" == CV181X ]] || [[ $CVIARCH == CV180X ]] && [[ -d $FREERTOS_PATH/cvitek/install ]] && \
     mkdir -p "$sdk_path"/freertos/cvitek && release_freertos "$sdk_path"
-  #The fsbl source code is released by .o files, so do not called fsbl
-  [[ "$CVIARCH" == SOPHON ]] || [[ $CVIARCH == CV180X ]] && "$FSBL_PATH"/release.sh "$sdk_path"
+  if [[ "$CVIARCH" == "SOPHON" ]] || [[ "$CVIARCH" == "CV180X" ]]; then
+    if [[ ! -d "$ATF_PATH" ]]; then
+      cvi_error_msg "ATF_PATH not found: $ATF_PATH"
+      return 1
+    fi
+    if [[ "${SKIP_ATF_RELEASE_PREP:-0}" != "1" ]]; then
+      if [[ ! -x "$ATF_PATH/release_atf.sh" ]]; then
+        cvi_error_msg "Not executable or missing: $ATF_PATH/release_atf.sh"
+        return 1
+      fi
+      if ! "$ATF_PATH/release_atf.sh"; then
+        cvi_error_msg "release_atf.sh failed"
+        return 1
+      fi
+    fi
+    cp -a "$ATF_PATH" "$sdk_path"/
+    rm -rf "$sdk_path/$(basename "$ATF_PATH")/build"
+  fi
   [[ "$CVIARCH" == CV181X ]] || [[ $CVIARCH == CV180X ]] && clean_opensbi && cp -a "$OPENSBI_PATH" "$sdk_path"/
 
   [[ -d "$ACCESSGUARD_PATH" ]] && [[ "$BUILD_TURNKEY_ACCESSGUARD" == y ]] && \
@@ -522,7 +538,7 @@ function del_unused_files()
 
   if [[ "$RELEASE_ATF_SOUCE" == release ]]; then (
     cd "$sdk_atf_path"
-    rm -rf arm-trusted-firmware/build
+    rm -rf trusted-firmware-a/build
   ) fi
 
   pushd "$sdk_path"/middleware/"$MW_VER"
@@ -630,7 +646,7 @@ function generate_sdk_source()
     FIP_PRE_BIN_PATH="$2"
   fi
 
-  add_source_to_sdk_package "$FIP_PRE_BIN_PATH"
+  add_source_to_sdk_package "$FIP_PRE_BIN_PATH" || return $?
   del_unused_files
   pack_sdk_source
 
