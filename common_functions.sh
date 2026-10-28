@@ -461,6 +461,7 @@ function _build_add_bash_completion()
 {
   _boards=$(find "${BUILD_PATH}/boards" -mindepth 2 -maxdepth 2 -type d -not -path '*/default/*' -printf '%f ')
   complete -W "$_boards" defconfig
+  complete -W "$_RTT_COMBOS" build_rtt
   complete -r setconfig 2> /dev/null || return 0
 }
 

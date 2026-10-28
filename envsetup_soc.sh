@@ -110,6 +110,85 @@ function build_rtos()
   make rtos || return "$?"
 )}
 
+function _rtt_sync_bootimgs()
+{
+  local media tgt
+  case "$STORAGE_TYPE" in
+    spinor)  media=nor ;;
+    spinand) media=nand ;;
+    *)       media="$STORAGE_TYPE" ;;
+  esac
+  tgt="$TOP_DIR/rt-thread/cvi_rtt/boards/bootimgs/$CHIP_SEGMENT/${ARCH}_$media"
+  [[ -d "$tgt" ]] || return 0
+  cp -f "$@" "$tgt/" || return 1
+  print_notice "bootimgs synced: $tgt"
+}
+
+# RTT combo -> base EVB board (RTT boot chain derives from the EVB board,
+# only DDR is retuned to auto; see build_rtt).
+_RTT_COMBOS="cv181x_riscv_nor cv181x_riscv_nand cv181x_arm_nor cv180x_riscv_nor cv180x_riscv_nand"
+function _rtt_combo_board()
+{
+  case "$1" in
+    cv181x_riscv_nor)   echo cv1810c_wevb_0006a_spinor  ;;
+    cv181x_riscv_nand)  echo cv1810c_wevb_0006a_spinand ;;
+    cv181x_arm_nor)     echo cv1810ca_wevb_0006a_spinor ;;
+    cv180x_riscv_nor)   echo cv180zb_wevb_0008a_spinor  ;;
+    cv180x_riscv_nand)  echo cv180zb_wdmb_0008a_spinand ;;
+    *)                  return 1 ;;
+  esac
+}
+
+# build_rtt <combo>: build boot0 + fip.bin for the RTT boot chain in one command.
+# <combo> selects a base EVB board and retunes DDR to auto; no dedicated RTT board.
+function build_rtt()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  local combo="$1" board
+  board=$(_rtt_combo_board "$combo") || {
+    echo "usage: build_rtt <combo>, combo one of: $_RTT_COMBOS" >&2
+    return 1
+  }
+  defconfig "$board" || return $?
+  setconfig DDR_CFG_ddr_auto_x16=y || return $?
+  setconfig ENABLE_FREERTOS=n || return $?
+
+  local outdir="$OUTPUT_DIR" ret
+
+  # round 1: boot0 (DDR init, first boot stage)
+  rm -f "$outdir/boot0"
+  setconfig ENABLE_BOOT0=y || return $?
+  clean_uboot; build_uboot; ret=$?
+  setconfig ENABLE_BOOT0=n
+  [ $ret -eq 0 ] || return $ret
+
+  # round 2: fip.bin (USB burn/update payload)
+  rm -f "$outdir/fip.bin"
+  setconfig ENABLE_RTT_UPDATE=y || return $?
+  clean_uboot; build_uboot; ret=$?
+  setconfig ENABLE_RTT_UPDATE=n
+  [ $ret -eq 0 ] || return $ret
+
+  _rtt_sync_bootimgs "$outdir/boot0" "$outdir/fip.bin"
+}
+
+# build_rtt_all: build every RTT combo; keep going on failure and report a summary.
+function build_rtt_all()
+{
+  print_notice "Run ${FUNCNAME[0]}() function"
+  local combo failed=""
+  for combo in $_RTT_COMBOS; do
+    if build_rtt "$combo"; then
+      print_notice "build_rtt_all: $combo OK"
+    else
+      echo "build_rtt_all: $combo FAILED" >&2
+      failed="$failed $combo"
+    fi
+  done
+  [ -z "$failed" ] || { echo "build_rtt_all: failed combos:$failed" >&2; return 1; }
+  print_notice "build_rtt_all: all combos OK"
+}
+
 function clean_rtos()
 {(
   print_notice "Run ${FUNCNAME[0]}() function"
