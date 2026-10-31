@@ -253,7 +253,7 @@ function pack_upgrade
   extra_files_args="$extra_files_args -f utils $each"
   done
 
-  python3 "$IMGTOOL_PATH"/mk_package.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args
+  python3 "$IMGTOOL_PATH"/mk_package.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args || return "$?"
   command rm -rf "$TMPDIR"
 )}
 
