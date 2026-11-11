@@ -5,7 +5,7 @@ CVI_BOARD_MEMMAP_CONF_PATH := ${BUILD_PATH}/output/${PROJECT_FULLNAME}/cvi_board
 CVI_BOARD_MEMMAP_LD_PATH:= ${BUILD_PATH}/output/${PROJECT_FULLNAME}/cvi_board_memmap.ld
 CVI_BOARD_MEMMAP_TXT_PATH= ${BUILD_PATH}/output/${PROJECT_FULLNAME}/cvi_board_memmap.txt
 
-BOARD_MMAP_PATH := ${BORAD_FOLDER_PATH}/memmap.py
+BOARD_MMAP_PATH := ${BOARD_FOLDER_PATH}/memmap.py
 MMAP_CONV_PY := ${BUILD_PATH}/scripts/mmap_conv.py
 MMAP_DISPLAY_PY := ${BUILD_PATH}/scripts/memory_display.py
 
