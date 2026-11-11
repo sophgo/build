@@ -1,0 +1,13 @@
+KERNEL_PATH.sh
+mk_gpt
+__pycache__
+/output
+/.config*
+/config.cmake
+/config.all_vars
+/.defconfig
+/partitions.xml
+/tools/common/update_vendor/update_vendor*
+!/tools/common/update_vendor/update_vendor.c
+tools/common/update_misc/update_misc
+tools/common/update_misc/update_misc.o

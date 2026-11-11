@@ -1,0 +1,61 @@
+/dts-v1/;
+#include "cv190x_base_riscv.dtsi"
+
+#include "cv190x_default_memmap.dtsi"
+
+#if 0
+&mipi_rx{
+	snsr-reset = <&portc 8 GPIO_ACTIVE_LOW>, <&portc 8 GPIO_ACTIVE_LOW>, <&portc 8 GPIO_ACTIVE_LOW>;
+};
+#endif
+
+/ {
+	/delete-node/ mipi_rx;
+	/delete-node/ cv-sd@4310000;
+	/delete-node/ dac@0300A000;
+	/delete-node/ spi0@04180000;
+	/delete-node/ spi1@04190000;
+	/delete-node/ spi2@041A0000;
+	/delete-node/ spi3@041B0000;
+	/delete-node/ i2s_subsys;
+	/delete-node/ i2s@04100000;
+	/delete-node/ i2s@04110000;
+	/delete-node/ i2s@04120000;
+	/delete-node/ i2s@04130000;
+
+	reserved-memory {
+		ddrfs_reserved: ddrfs@93000000 {
+			reg = <0x0 0x93000000 0x0 0x02000000>;
+			no-map;
+		};
+	};
+#if 0
+	wifi_pin {
+		compatible = "cvitek,wifi-pin";
+		poweron-gpio = <&porte 25 GPIO_ACTIVE_HIGH>;
+		wakeup-gpio = <&porte 26 GPIO_ACTIVE_HIGH>;
+
+	};
+#endif
+	uart0: serial@04140000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x0 0x04140000 0x0 0x1000>;
+		clock-frequency = <25000000>;
+		current-speed = <115200>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "okay";
+	};
+
+	base {
+		compatible = "cvitek,base";
+	};
+
+	sys {
+		compatible = "cvitek,sys";
+		reg = <0x0 0x0a0c8000 0x0 0x4000>,
+				<0x0 0x3000000 0x0 0x90>,
+				<0x0 0x05026000 0x0 0x100>;
+		reg-names = "vi_sys", "top_base", "rtc_base";
+	};
+};

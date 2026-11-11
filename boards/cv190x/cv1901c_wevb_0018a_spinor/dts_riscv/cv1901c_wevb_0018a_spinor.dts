@@ -1,0 +1,13 @@
+/dts-v1/;
+#include "cv190x_base_riscv.dtsi"
+#include "cv190x_asic_qfn.dtsi"
+#include "cv190x_asic_spinor.dtsi"
+#include "cv190x_default_memmap.dtsi"
+
+&i2c1 {
+	status = "disabled";
+};
+
+/ {
+
+};

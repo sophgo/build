@@ -1,0 +1,5 @@
+&dac{
+	mute-gpio-l = <&porta 15 GPIO_ACTIVE_LOW>;
+	mute-gpio-r = <&porta 30 GPIO_ACTIVE_LOW>;
+};
+

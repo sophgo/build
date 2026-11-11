@@ -1,0 +1,22 @@
+<physical_partition type="spinor">
+    <partition label="fip" size_in_kb="1024" readonly="false" file="fip.bin"/>
+    <partition label="BOOT" size_in_kb="2560" readonly="false" file="boot_v410.spinor"/>
+    <partition label="BOOT_BAK" size_in_kb="3840" readonly="false" file="boot_v420.spinor"/>
+    <partition label="ROOTFS" size_in_kb="3840" readonly="false" file="rootfs_v410.spinor" />
+    <partition label="ROOTFS_BAK" size_in_kb="3072" readonly="false" file="rootfs_v420.spinor" />
+
+    <partition label="RTOS" size_in_kb="128" readonly="false" file="cvirtos.bin"/>
+    <partition label="2nd" size_in_kb="2560" readonly="false" file="yoc.bin"/>
+
+    <partition label="APPCFG" size_in_kb="64" readonly="false" file="app_cfg.bin"/>
+    <partition label="APPCFGDEF" size_in_kb="64" readonly="false" file="app_cfg_def.bin"/>
+
+    <partition label="LOGO" size_in_kb="128" readonly="false" file=""/>
+    <partition label="PARAM" size_in_kb="64" file="" />
+    <partition label="PARAM_BAK" size_in_kb="64" file="" />
+    <partition label="ENV" size_in_kb="64" file="" />
+    <partition label="ENV_BAK" size_in_kb="64" file="" />
+
+    <partition label="MISC" size_in_kb="64" file="logo.jpg" />
+
+</physical_partition>

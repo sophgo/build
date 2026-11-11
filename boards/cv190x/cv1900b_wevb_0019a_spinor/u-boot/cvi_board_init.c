@@ -1,0 +1,1 @@
+../../../default/u-boot/cv190x_qfn_cvi_board_init.c

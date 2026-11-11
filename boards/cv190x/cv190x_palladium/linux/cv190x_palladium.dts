@@ -1,0 +1,36 @@
+/dts-v1/;
+#include "cv190x_base_riscv.dtsi"
+
+#include "cv190x_default_memmap.dtsi"
+
+#if 0
+&mipi_rx{
+	snsr-reset = <&portc 8 GPIO_ACTIVE_LOW>, <&portc 8 GPIO_ACTIVE_LOW>, <&portc 8 GPIO_ACTIVE_LOW>;
+};
+#endif
+
+/ {
+	/delete-node/ mipi_rx;
+	/delete-node/ cv-sd@4310000;
+	/delete-node/ spi0@04180000;
+	/delete-node/ spi1@04190000;
+	/delete-node/ spi2@041A0000;
+	/delete-node/ spi3@041B0000;
+#if 0
+	wifi_pin {
+		compatible = "cvitek,wifi-pin";
+		poweron-gpio = <&porte 25 GPIO_ACTIVE_HIGH>;
+		wakeup-gpio = <&porte 26 GPIO_ACTIVE_HIGH>;
+
+	};
+#endif
+	uart0: serial@04140000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x0 0x04140000 0x0 0x1000>;
+		clock-frequency = <153600>;
+		current-speed = <9600>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "okay";
+	};
+};
