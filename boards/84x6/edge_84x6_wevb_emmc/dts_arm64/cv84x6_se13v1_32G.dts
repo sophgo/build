@@ -1,8 +1,11 @@
 /dts-v1/;
 #include "soph_base_arm64.dtsi"
-#include "soph_asic_emmc.dtsi"
 #include "soph_base.dtsi"
 #include "soph_default_memmap_32G.dtsi"
+
+#ifndef __UBOOT__
+#include "soph_asic_emmc.dtsi"
+#endif
 
 / {
 	aliases {
@@ -134,6 +137,95 @@
 &cv84x2_dvfs {
 	pmic {
 		reg = <0x00>;	/* SE13: JWH PMIC @ 0x00 */
+	};
+};
+
+/ {
+	gpio_leds: gpio_leds {
+		compatible = "gpio-leds";
+#ifndef __UBOOT__
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins>;
+#endif
+
+		led-status {
+			label = "status";
+			gpios = <&portd 7 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-error {
+			label = "error";
+			gpios = <&portc 20 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			panic-indicator;
+		};
+
+		led-alarm {
+			label = "alarm";
+			gpios = <&portc 24 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-ssd-status {
+			label = "sata:green:disk";
+			gpios = <&portc 6 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "disk-activity-2hz";
+		};
+
+		led-ssd-alarm {
+			label = "ssd_alarm";
+			gpios = <&portc 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+};
+
+/* SE13: GPIO69/70 to SSD LED, not USB3 VBUS */
+&usbdrd3_0 {
+	/delete-property/ vbus-gpio;
+};
+&usbdrd3_1 {
+	/delete-property/ vbus-gpio;
+};
+
+/* Phoenix terminal: RS485 */
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_default>;
+	status = "okay";
+};
+
+/* Phoenix terminal: RS232 */
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_default>;
+	status = "okay";
+};
+
+&usbdrd_dwc3_0 {
+	role-switch-default-mode = "host";
+	snps,dis_u2_susphy_quirk;
+	snps,dis_enblslpm_quirk;
+};
+
+/* SD1_PWR_EN -> GPIO98, driven high. SD1_CD stays the card-detect function. */
+&sd1 {
+	pinctrl-0 = <&sd1_cd_default>;
+};
+
+&gpio3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd1_pwr_gpio>;
+};
+
+&portd {
+	sd1_pwr_en_hog {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SD1_PWR_EN";
 	};
 };
 

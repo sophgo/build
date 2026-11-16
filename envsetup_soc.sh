@@ -873,7 +873,8 @@ function clean_cvi_pipeline()
 
 function _build_cvi_rtsp_env()
 {
-  export CROSS_COMPILE
+  # Share the prepared dependency cache with the RTSP child process.
+  export CROSS_COMPILE OSS_TARBALL_PATH
 }
 
 
@@ -1467,6 +1468,7 @@ function build_package()
     mv ramboot.itb recovery.itb
     tar -zcvf recovery.tgz recovery.itb
 
+    write_version "$OUTPUT_DIR/rootfs/mnt/system"
     cp -rf  $OUTPUT_DIR/rootfs/mnt/system "${EDGE_ROOTFS_DIR}"/mnt/
 
     mkdir -p rootfs_rw/overlay/home/linaro

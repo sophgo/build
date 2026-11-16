@@ -10,8 +10,8 @@
 / {
 	aliases {
 		pcie0 = &pciex8;
-		pcie1 = &pciex4;
-		pcie2 = &pciex2_0;
+		pcie1 = &pciex2_0;
+		pcie2 = &pciex4;
 		pcie3 = &pciex2_1;
 	};
 

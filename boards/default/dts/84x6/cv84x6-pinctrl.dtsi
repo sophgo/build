@@ -788,6 +788,25 @@
 			};
 		};
 
+		sd1_cd_default: sd1-cd-default {
+			mux {
+				groups = "sd1_cd_grp";
+				function = "sd1_cd";
+			};
+			cfg {
+				pins = "SD1_CD_X";
+				bias-pull-up;
+			};
+		};
+
+		/* SD1_PWR_EN -> GPIO98 (mux=3) */
+		sd1_pwr_gpio: sd1-pwr-gpio {
+			mux {
+				groups = "sd1_pwr_gpio_grp";
+				function = "sd1_pwr_gpio";
+			};
+		};
+
 		/* --- FAN tach --- */
 		fantach0_default: fantach0-default {
 			mux {
@@ -982,6 +1001,14 @@
 			       "UART2_TX", // UART2_TX -> C906B1_JTAG_TRST_X (mux=1)
 			       "UART2_RX"; // UART2_RX -> C906B1_JTAG_SRST_X (mux=1)
 				drive-strength = <4>;
+			};
+		};
+
+		/* SE13 LED: SYS/alarm/SSD -> GPIO */
+		led_pins: led-pins {
+			mux {
+				groups = "led_grp";
+				function = "led_gpio";
 			};
 		};
 	};

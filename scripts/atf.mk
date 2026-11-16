@@ -40,6 +40,8 @@ ATF_PLAT := cv84x6
 else
 ATF_PLAT := ${CHIP}_${SUBTYPE}
 endif
+# Only cv84x6 BL2 loads DDR PHY training firmware from FIP.
+ATF_DDR_FW_DIR := $(if $(filter cv84x6,$(ATF_PLAT)),${ATF_PATH}/drivers/cvitek/ddr/cv84x6/fw_bin)
 # TF-A install dir: default build/${PLAT}/release; when defconfig sets PROJECT_FULLNAME,
 # build directly under build/${PROJECT_FULLNAME} (no trailing /release).
 ATF_BUILD_OUT := ${ATF_PATH}/build/$(if ${PROJECT_FULLNAME},${PROJECT_FULLNAME},${ATF_PLAT}/release)
@@ -48,7 +50,11 @@ ATF_FIP_PATH := ${ATF_BUILD_OUT}/fip.bin
 CVI_FIPTOOL_ATF := ${ATF_PATH}/tools/cvitek/fiptool.py
 CVI_CHIP_CONF_ATF := ${ATF_PATH}/tools/cvitek/chip_conf.bin
 CVI_DDR_PARAM_ATF := ${ATF_PATH}/tools/cvitek/ddr_param.bin
+ifeq ($(ATF_PLAT),cv84x6)
+CVI_BLMCU_ATF := ${ATF_PATH}/tools/cvitek/84x6_mcu_fw.bin
+else
 CVI_BLMCU_ATF := ${ATF_PATH}/tools/cvitek/cv186x_mcu_fw.bin
+endif
 ATF_CVITEK_STANDALONE ?= 1
 ATF_RESET_TO_BL2 ?= 0
 RESET_TO_BL2_MAKE_OPT :=
@@ -251,7 +257,7 @@ endif
 		--CHIP_CONF "${CVI_CHIP_CONF_ATF}" \
 		--BL2 "$$BL2_FOR_FIP" \
 		--DDR_PARAM "${CVI_DDR_PARAM_ATF}" \
-		--DDR_FW_DIR "${ATF_PATH}/drivers/cvitek/ddr/cv84x6/fw_bin" \
+		--DDR_FW_DIR "${ATF_DDR_FW_DIR}" \
 		--MONITOR "$$BL31_FOR_FIP" \
 		--MONITOR_RUNADDR "$$monitor_runaddr" \
 		--BL32 "$$BL32_FOR_FIP" \

@@ -175,6 +175,35 @@ _fix_maintainer_scripts() {
     done
 }
 
+_keep_newest_debs() {
+    local dir="$1"
+    local deb pkg ver
+    declare -A best_ver=()
+    declare -A best_file=()
+    for deb in "${dir}"/*.deb; do
+        [ -f "$deb" ] || continue
+        pkg=$(dpkg-deb -f "$deb" Package 2>/dev/null || true)
+        ver=$(dpkg-deb -f "$deb" Version 2>/dev/null || true)
+        if [ -z "$pkg" ] || [ -z "$ver" ]; then
+            continue
+        fi
+        if [ -z "${best_ver[$pkg]+x}" ]; then
+            best_ver[$pkg]=$ver
+            best_file[$pkg]=$deb
+            continue
+        fi
+        if dpkg --compare-versions "$ver" gt "${best_ver[$pkg]}"; then
+            echo "drop $(basename "${best_file[$pkg]}") (${pkg} ${best_ver[$pkg]}), keep $(basename "$deb") (${pkg} ${ver})"
+            rm -f "${best_file[$pkg]}"
+            best_ver[$pkg]=$ver
+            best_file[$pkg]=$deb
+        else
+            echo "drop $(basename "$deb") (${pkg} ${ver}), keep $(basename "${best_file[$pkg]}") (${pkg} ${best_ver[$pkg]})"
+            rm -f "$deb"
+        fi
+    done
+}
+
 pack_edge_rootfs() {
     (
         set -euo pipefail
@@ -259,6 +288,7 @@ pack_edge_rootfs() {
         find "${BSP_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${EDGE_ROOTFS_DIR}/home/linaro/bsp-debs" \;
         find "${SDK_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${EDGE_ROOTFS_DIR}/home/linaro/debs" \;
         find "${MOD_DEBS}" -maxdepth 1 -type f -exec cp -f {} "${EDGE_ROOTFS_DIR}/home/linaro/debs" \;
+        _keep_newest_debs "${EDGE_ROOTFS_DIR}/home/linaro/debs"
 
         shopt -s nullglob
         local _n=0

@@ -3,7 +3,7 @@
 };
 
 &sd {
-	status = "disable";
+	status = "okay";
 };
 
 &sd1 {

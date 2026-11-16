@@ -185,8 +185,8 @@
 		compatible = "cvitek,sysdma_remap";
 		reg = <0x0 0x28100364 0x0 0x8>;
 
-		ch-remap = <CVI_I2S0_RX CVI_I2S2_TX CVI_I2S1_RX CVI_I2S1_TX
-					CVI_I2S_dw_RX CVI_I2S_dw_TX CVI_I2S2_RX CVI_I2S3_TX>;
+		ch-remap = <CVI_I2S0_RX CVI_I2S0_TX CVI_I2S1_RX CVI_I2S2_TX
+					CVI_I2S3_TX CVI_I2S4_TX CVI_I2S0_RX CVI_I2S0_TX>;
 	};
 
 	dmac0: dma@0x29330000 {
@@ -209,7 +209,7 @@
 	sysdma_remap1 {
 		compatible = "cvitek,sysdma_remap";
 		reg = <0x0 0x2810036C 0x0 0x8>;
-		ch-remap = <CVI_I2S4_RX CVI_SPI_NAND CVI_SPI_NAND CVI_I2S5_TX
+		ch-remap = <CVI_I2S4_RX CVI_SPI_NAND CVI_HDMI_I2S_TX CVI_I2S5_TX
 					CVI_SPI0_RX CVI_SPI0_TX CVI_SPI1_RX CVI_SPI1_TX>;
 	};
 
@@ -462,12 +462,12 @@
 	};
 
 	/* Case A: IIS1 master TX + IIS2 slave RX, IIS1 PAD SDO<->SDI externally shorted */
-	sound_iis12_loopback {
+	sound_group1_loopback {
 		compatible = "cvitek,cv1835-dummy-card";
 		cvi,model = "CV1835";
 		cvi,mode = "I2S";
 		cvi,fmt = "IBNF";
-		cvi,card_name = "iis12_loopback";
+		cvi,card_name = "group1_loopback";
 		cvi,slot_no = <2>;
 		status = "okay"; /* Case A: IIS1/2 external pad loopback */
 
@@ -508,12 +508,12 @@
 	};
 
 	/* Case B reversed: IIS3 master TX + IIS4 slave RX, fully internal (no pad) */
-	sound_iis34_loopback {
+	sound_group2_loopback {
 		compatible = "cvitek,cv1835-dummy-card";
 		cvi,model = "CV1835";
 		cvi,mode = "I2S";
 		cvi,fmt = "IBNF";
-		cvi,card_name = "iis34_loopback";
+		cvi,card_name = "group2_loopback";
 		cvi,slot_no = <2>;
 		status = "okay"; /* Case B: IIS3 slave TX <- IIS4 master RX (internal loopback) */
 
@@ -558,7 +558,7 @@
 		cvi,fmt = "IBNF";
 		cvi,card_name = "cvi_sound_card_0";
 		cvi,slot_no=<2>;
-		status = "disabled"; /* conflicts with sound_iis12_loopback (IIS1) and sound_iis34_loopback (IIS3) */
+		status = "disabled"; /* conflicts with sound_group1_loopback (IIS1) and sound_group2_loopback (IIS3) */
 
 		dai@0 {
 			cvi,dai_name = "cv1835-i2s-3";
@@ -890,6 +890,28 @@
 				<0x0 0x23220000 0x0 0x30000>,	//vpss_t6t7t8
 				<0x0 0x23320000 0x0 0x30000>,	//vpss_t9t10t11
 				<0x0 0x67110000 0x0 0x4000>;	//vpss_d
+		clocks = <&clk CV84X6_CLK_VD0_SRC0>, <&clk CV84X6_CLK_VD0_SRC1>,
+				<&clk CV84X6_CLK_VD0_SRC2>, <&clk CV84X6_CLK_VD0_AXI0>,
+				<&clk CV84X6_CLK_VD0_FAB_1P2G>,
+				<&clk CV84X6_CLK_VD1_SRC0>, <&clk CV84X6_CLK_VD1_SRC1>,
+				<&clk CV84X6_CLK_VD1_SRC2>, <&clk CV84X6_CLK_VD1_AXI0>,
+				<&clk CV84X6_CLK_VD1_FAB_1P2G>,
+				<&clk CV84X6_CLK_VD2_SRC0>, <&clk CV84X6_CLK_VD2_SRC1>,
+				<&clk CV84X6_CLK_VD2_SRC2>, <&clk CV84X6_CLK_VD2_AXI0>,
+				<&clk CV84X6_CLK_VD2_FAB_1P2G>,
+				<&clk CV84X6_CLK_VD3_SRC0>, <&clk CV84X6_CLK_VD3_SRC1>,
+				<&clk CV84X6_CLK_VD3_SRC2>, <&clk CV84X6_CLK_VD3_AXI0>,
+				<&clk CV84X6_CLK_VD3_FAB_1P2G>,
+				<&clk CV84X6_CLK_VO_SYS1>, <&clk CV84X6_VO_CLK_VPSS0>;
+		clock-names = "clk_vd0_src0", "clk_vd0_src1", "clk_vd0_src2",
+				"clk_vd0_axi0", "clk_vd0_fab_1p2g",
+				"clk_vd1_src0", "clk_vd1_src1", "clk_vd1_src2",
+				"clk_vd1_axi0", "clk_vd1_fab_1p2g",
+				"clk_vd2_src0", "clk_vd2_src1", "clk_vd2_src2",
+				"clk_vd2_axi0", "clk_vd2_fab_1p2g",
+				"clk_vd3_src0", "clk_vd3_src1", "clk_vd3_src2",
+				"clk_vd3_axi0", "clk_vd3_fab_1p2g",
+				"clk_vo_sys1", "clk_vo_vpss0";
 	};
 	ive {
 		compatible = "cvitek,ive";
@@ -897,11 +919,17 @@
 				<0x0 0x671E0000 0x0 0x10000>,
 				<0x0 0x671F0000 0x0 0x10000>;
 		reg-names = "ive_base0", "ive_base1", "ive_base2";
+		clocks = <&clk CV84X6_CLK_VO_SYS3>, <&clk CV84X6_VO_CLK_IGA0>,
+				<&clk CV84X6_VO_CLK_IGA1>, <&clk CV84X6_VO_CLK_IGA2>;
+		clock-names = "clk_vo_sys3", "clk_vo_iga0", "clk_vo_iga1",
+				"clk_vo_iga2";
 	};
 	gdc {
 		compatible = "cvitek,gdc";
 		reg = <0x0 0x67106000 0x0 0x2000>;
 		reg-names = "ldc0";
+		clocks = <&clk CV84X6_CLK_VO_SYS1>, <&clk CV84X6_VO_CLK_LDC0>;
+		clock-names = "clk_vo_sys1", "clk_vo_ldc0";
 	};
 	vc_drv {
 		compatible = "sophgo,vc_drv";
@@ -913,25 +941,46 @@
 				<0x0 0x23110000 0x0 0x10000>,
 				<0x0 0x23210000 0x0 0x10000>,
 				<0x0 0x23310000 0x0 0x10000>;
-		/* clocks = <&clk CV186X_CLK_VESYS_JPEG_0>, <&clk CV186X_CLK_VESYS_JPEG_1>,
-				<&clk CV186X_CLK_VESYS_JPEG_2>, <&clk CV186X_CLK_VESYS_JPEG_3>,
-				<&clk CV186X_CLK_APB_VESYS_JPEG_0>, <&clk CV186X_CLK_APB_VESYS_JPEG_1>,
-				<&clk CV186X_CLK_APB_VESYS_JPEG_2>, <&clk CV186X_CLK_APB_VESYS_JPEG_3>,
-				<&clk CV186X_VE_CLK_SRC2_VESYS>, // jpeg
-				<&clk CV186X_VE_CLK_SRC0_VESYS>, <&clk CV186X_VE_CLK_SRC1_VESYS>,
-				<&clk CV186X_CLK_APB_VESYS_VE>, <&clk CV186X_CLK_VESYS_VE>,  // ve
-				<&clk CV186X_VD0_CLK_SRC0_VDSYS>, <&clk CV186X_VD0_CLK_SRC1_VDSYS>,
-				<&clk CV186X_VD1_CLK_SRC0_VDSYS>, <&clk CV186X_VD1_CLK_SRC1_VDSYS>,
-				<&clk CV186X_VD0_CLK_APB_VDSYS_VD>, <&clk CV186X_VD0_CLK_VDSYS_VD>,
-				<&clk CV186X_VD1_CLK_APB_VDSYS_VD>, <&clk CV186X_VD1_CLK_VDSYS_VD>;  // vd
+		/* cv84x6 clock gates. Names follow vc_drv vpu_clk_name/jpu_clk_name
+		 * (matched by devm_clk_get string, not by kernel clock name).
+		 * VD mapping: src0=SRC0, src1=SRC1, apb_vd=SRC2, vdsys_vd=AXI0.
+		 * JPEG: cv84x6 has no dedicated jpeg gates; jpu shares the VE
+		 * (vesys) domain, map jpu sys/apb/src onto ve_src0/src1/src2. */
+		clocks = <&clk CV84X6_CLK_VE_SRC0>, <&clk CV84X6_CLK_VE_SRC1>,
+				<&clk CV84X6_CLK_VE_SRC2>, <&clk CV84X6_CLK_VE_SRC2>,
+				<&clk CV84X6_CLK_VE_SRC0>, <&clk CV84X6_CLK_VE_SRC1>,
+				<&clk CV84X6_CLK_VE_SRC2>, <&clk CV84X6_CLK_VE_SRC2>,
+				<&clk CV84X6_CLK_VE_AXI>,  // jpeg_src
+				<&clk CV84X6_CLK_VE_FAB_200M>, <&clk CV84X6_CLK_VE_FAB_1P2G>,  // jpeg fab
+				<&clk CV84X6_CLK_VE_SRC0>, <&clk CV84X6_CLK_VE_SRC1>,
+				<&clk CV84X6_CLK_VE_SRC2>, <&clk CV84X6_CLK_VE_AXI>,  // ve
+				<&clk CV84X6_CLK_VE_FAB_200M>, <&clk CV84X6_CLK_VE_FAB_1P2G>,  // ve fab
+				<&clk CV84X6_CLK_VD0_SRC0>, <&clk CV84X6_CLK_VD0_SRC1>,
+				<&clk CV84X6_CLK_VD0_SRC2>, <&clk CV84X6_CLK_VD0_AXI0>,
+				<&clk CV84X6_CLK_VD1_SRC0>, <&clk CV84X6_CLK_VD1_SRC1>,
+				<&clk CV84X6_CLK_VD1_SRC2>, <&clk CV84X6_CLK_VD1_AXI0>,
+				<&clk CV84X6_CLK_VD2_SRC0>, <&clk CV84X6_CLK_VD2_SRC1>,
+				<&clk CV84X6_CLK_VD2_SRC2>, <&clk CV84X6_CLK_VD2_AXI0>,
+				<&clk CV84X6_CLK_VD3_SRC0>, <&clk CV84X6_CLK_VD3_SRC1>,
+				<&clk CV84X6_CLK_VD3_SRC2>, <&clk CV84X6_CLK_VD3_AXI0>,  // vd
+				<&clk CV84X6_CLK_VD0_FAB_200M>, <&clk CV84X6_CLK_VD0_FAB_1P2G>,
+				<&clk CV84X6_CLK_VD1_FAB_200M>, <&clk CV84X6_CLK_VD1_FAB_1P2G>,
+				<&clk CV84X6_CLK_VD2_FAB_200M>, <&clk CV84X6_CLK_VD2_FAB_1P2G>,
+				<&clk CV84X6_CLK_VD3_FAB_200M>, <&clk CV84X6_CLK_VD3_FAB_1P2G>;  // vd fab
 		clock-names = "jpeg_vesys0", "jpeg_vesys1", "jpeg_vesys2", "jpeg_vesys3",
 					"jpeg_apb0", "jpeg_apb1", "jpeg_apb2", "jpeg_apb3",
 					"jpeg_src",  // jpeg
+					"jpeg_fab_200m", "jpeg_fab_1p2g",  // jpeg fab
 					"ve_src0", "ve_src1", "apb_vesys_ve", "clk_vesys_ve", // ve
-					"vd0_src0", "vd0_src1", "vd1_src0", "vd1_src1",
-					"vd0_apb_vd", "vd0_vdsys_vd",
-					"vd1_apb_vd", "vd1_vdsys_vd"; //vd
-		 */
+					"ve_fab_200m", "ve_fab_1p2g",  // ve fab
+					"vd0_src0", "vd0_src1", "vd0_apb_vd", "vd0_vdsys_vd",
+					"vd1_src0", "vd1_src1", "vd1_apb_vd", "vd1_vdsys_vd",
+					"vd2_src0", "vd2_src1", "vd2_apb_vd", "vd2_vdsys_vd",
+					"vd3_src0", "vd3_src1", "vd3_apb_vd", "vd3_vdsys_vd", //vd
+					"vd0_fab_200m", "vd0_fab_1p2g",
+					"vd1_fab_200m", "vd1_fab_1p2g",
+					"vd2_fab_200m", "vd2_fab_1p2g",
+					"vd3_fab_200m", "vd3_fab_1p2g"; // vd fab
 	};
 
 	base {

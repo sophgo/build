@@ -153,12 +153,54 @@ function clean_rootfs
   make rootfs-clean
 )}
 
+write_version()
+{
+  local dest top repo path commit out
+  dest="${1:-$SYSTEM_OUT_DIR}"
+  [ -n "$dest" ] || return 0
+  top="${TOP_DIR:-$(dirname "${BUILD_PATH:-.}")}"
+  out=$(mktemp)
+  for repo in \
+    fsbl \
+    linux_5.10 \
+    opensbi-common \
+    ramdisk \
+    trusted-firmware-a \
+    ubuntu/bootloader-arm64 \
+    build \
+    cvi_rtsp \
+    isp-tool-daemon \
+    libsophon \
+    linux-common \
+    middleware \
+    osdrv \
+    sophon_media \
+    u-boot-2021.10 \
+    frameworks \
+    buildroot
+  do
+    path="$top/$repo"
+    if [ -d "$path" ] && [ -e "$path/.git" ]; then
+      commit=$(git -C "$path" rev-parse --short=12 HEAD 2>/dev/null) || continue
+      [ -n "$commit" ] || continue
+      printf '%s: %s\n' "$repo" "$commit" >> "$out"
+    fi
+  done
+  if [ -s "$out" ]; then
+    mkdir -p "$dest" || { rm -f "$out"; return 0; }
+    mv "$out" "$dest/version"
+  else
+    rm -f "$out"
+  fi
+}
+
 # $1 : The path for system partition
 function pack_system
 {(
   print_notice "Run ${FUNCNAME[0]}_${STORAGE_TYPE}() function"
   export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML ROOTFS_DIR OUTPUT_DIR
 
+  write_version "$SYSTEM_OUT_DIR"
   cd "$BUILD_PATH" || return
   if [ "$STORAGE_TYPE" == "emmc" ] || [ "$STORAGE_TYPE" == "spinor" ] || [ "$STORAGE_TYPE" == "spinand" ]; then
     make system
@@ -185,17 +227,18 @@ function pack_cfg
 {(
   print_notice "Run ${FUNCNAME[0]}_${STORAGE_TYPE}() function"
 
-  pushd "$ISP_TUNING_PATH"
-  ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/param/ "$SENSOR_TUNING_PARAM"
-  popd
+  # Stop packaging if a required input or build step fails.
+  pushd "$ISP_TUNING_PATH" || return
+  ./copyBin.sh "$OUTPUT_DIR"/rootfs/mnt/cfg/param/ "$SENSOR_TUNING_PARAM" || return
+  popd || return
 
-  cp -rf $HDCP_KEY_PATH/hdcp_key.bin "$OUTPUT_DIR"/rootfs/mnt/cfg/
+  cp -rf "$HDCP_KEY_PATH/hdcp_key.bin" "$OUTPUT_DIR"/rootfs/mnt/cfg/ || return
 
   export TOOLS_PATH COMMON_TOOLS_PATH STORAGE_TYPE FLASH_PARTITION_XML ROOTFS_DIR
 
   cd "$BUILD_PATH" || return
-  if [ $STORAGE_TYPE != "sd" ]; then
-    make cfg
+  if [ "$STORAGE_TYPE" != "sd" ]; then
+    make cfg || return
   fi
 )}
 
@@ -252,7 +295,7 @@ function pack_upgrade
   extra_files_args="$extra_files_args -f utils $each"
   done
 
-  python3 "$IMGTOOL_PATH"/mk_package.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args
+  python3 "$IMGTOOL_PATH"/mk_package.py "$FLASH_PARTITION_XML" "$OUTPUT_DIR" -o "$OUTPUT_DIR"/upgrade.zip $extra_files_args || return "$?"
   command rm -rf "$TMPDIR"
 )}
 
