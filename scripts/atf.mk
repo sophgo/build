@@ -50,11 +50,7 @@ ATF_FIP_PATH := ${ATF_BUILD_OUT}/fip.bin
 CVI_FIPTOOL_ATF := ${ATF_PATH}/tools/cvitek/fiptool.py
 CVI_CHIP_CONF_ATF := ${ATF_PATH}/tools/cvitek/chip_conf.bin
 CVI_DDR_PARAM_ATF := ${ATF_PATH}/tools/cvitek/ddr_param.bin
-ifeq ($(ATF_PLAT),cv84x6)
-CVI_BLMCU_ATF := ${ATF_PATH}/tools/cvitek/84x6_mcu_fw.bin
-else
 CVI_BLMCU_ATF := ${ATF_PATH}/tools/cvitek/cv186x_mcu_fw.bin
-endif
 ATF_CVITEK_STANDALONE ?= 1
 ATF_RESET_TO_BL2 ?= 0
 RESET_TO_BL2_MAKE_OPT :=
